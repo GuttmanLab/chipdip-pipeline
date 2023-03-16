@@ -1,0 +1,75 @@
+##############################################################################
+Pipeline steps:
+##############################################################################
+
+1) Split fastq file into chunks for parallel processing
+2) Adaptor Trimming (trims-galore)
+3) Barcode Identification 
+4) Split DPM (DNA) and BPM (Antibody ID oligo) reads into separate files
+5) DPM read workflow:
+	1) DPM Trimming (cutadapt)
+	2) Alignment (bowtie2)
+	3) Chromosome relabeling (add chr) and filtering (removing non-canonical chrs)
+	4) Masking
+6) BPM read workflow:
+	2) BPM Trimming (cutadapt)
+	2) Fastq to bam conversion
+7) Cluster generation
+8) Cluster assignment and antibody specific bam file creation
+9) Summary plots
+	1) DPM and BPM cluster size distributions
+	2) Maximum representation oligo ECDFs
+10) Summary statistics
+	1) MultiQC (trimming, alignments)
+	2) Ligation Efficiency
+	3) Cluster statistics
+	4) Read Assignment statistics
+
+
+
+##############################################################################
+Required input files:
+##############################################################################
+
+1) samples.json
+Json file (prepared with fastq2json.py) with the location of fastq files (read1, read2) to process.
+2) bpm.fasta
+Fasta file containing the sequences of antibody ID oligo. Each sequence should be preceeded by ^ to anchor the sequence during cutadapt trimming
+3) dpm96.fasta
+Fasta file containing the sequences of DPM tags.  
+4) config.txt
+Text file containing the sequences of split-pool barcode tags and the barcoding setup. The basic setup of the file is identical to a SPRITE config.txt (see SPRITE nature protocols for details). 
+	Line1: READ1 barcoding design #READ1 = DPM
+	Line2: READ2 barcoding design #READ2 = Y|SPACER|ODD|SPACER|EVEN
+	Line3-n: DPM and Antibody ID Oligo sequences
+	Both DPM and Anditbody ID Oligo tags are labeled as 'DPM' in column 1. Antibody ID Oligo tags should be named 'BEAD_Antibody' and DPM tags should be named 'DPMxxx'
+	Remaining Lines: Split-pool barcode tags #ODD, EVEN, Y
+5) format.txt
+Text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (ie. at which positions in the barcoding string). The file is tab-deliminated. The first column indicates the zero-indexed position of the barcode string where a tag can be found and the second column indicates the name of the tag. Term barcode tags (Y) are position 0, the second to last round of barcoding tags are position 1, etc. -1 in the position column indicates that the barcode tag was not used in the experiment.
+6) config.yaml
+File containing the processing settings and locations of required input files.
+
+
+
+###############################################################################
+Output:
+###############################################################################
+
+1) Barcode Identification Efficiency (workup/ligation_efficiency.txt)
+A statistical summary of how many barcode tags were found per read and the proportion of reads with a matching barcode at each barcode position.
+2) Clusterfile (workup/clusters/sample.clusters)
+Each line in a cluster file represents a single cluster. The first column is the cluster barcode. The remainder of the line is a tab deliminated list of reads. DNA reads are formated as "DPM[strand]_chr:start-end" and Antibody ID oligo reads are formated as "BPM[]_AntibodyID:UMI-0".
+3) Cluster statistics (workup/clusters/cluster_statistics.txt)
+The number of clusters and BPM or DPM reads per library.
+4) Cluster size distribtion (workup/clusters/[BPM,DPM]_cluster_distribution.pdf)
+The distribution showing the proportion of clusters that belong to each size category.
+5) Cluster size read distribution (workup/clusters/[BPM,DPM]_read_distribution.pdf)
+The distribution showing the proportion of reads that belong to clusters of each size category. This can be more useful than the number of clusters since relatively few large clusters can contain many sequencing reads (ie. a large fraction of the library) while many small clusters will contain few sequencing reads (ie. a much smaller fraction of the library)
+6) Maximum Representation Oligo ECDF (workup/clusters/Max_representation_ecdf.pdf)
+A plot showing the distribution of proportion of BPM reads in each cluster that belong to the maximum represented Antibody ID in that cluster. A successful experiment should have an ECDF close to a right angle. Deviations from this indicate that beads contain mixtures of antibody ID oligos. Understanding the uniqueness of Antibody ID reads per cluster is important for choosing the thresholding parameters (min_oligo, proportion) for cluster assignment.
+7) Maximum Representation Oligo Counts ECDF (workup/clusters/Max_representation_ecdf.pdf)
+A plot showing the distribution of number of BPM reads in each cluster that belong to the maximum represented Antibody ID in that cluster. If clusters are nearly unique in Antibody ID composition, this plot is a surrogate for BPM size distribtuion. Understanding the number of Antibody ID reads per cluster is important for choosing the thresholding parameters (min_oligo, proportion) for cluster assignment.
+8) Bam Files for Individual Antibodies (workup/splitbams/)
+Thresholding criteria (min_oligos, proportion, max_size) for assigning individual clusters to individual antibodies are set in the config.yaml. The "none" bam file contains DNA reads from clusters without Antibody ID reads. THe "ambigious" bam file contains DNA reads from clusters that failed the proportion thresholding criteria. The "uncertain" bam file contains DNA reads from clusters that failed the min_oligo thresholding criteria. The "filtered" bam file contains DNA reads from clusters that failed the max_size thresholding criteria.
+9) Read Count Summary for Individual Antibodies (workup/splitbams/splitbam_statistics.txt)
+The number of read counts contained within each individual bam file assigned to individual antibodies

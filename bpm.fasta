@@ -1,0 +1,192 @@
+>A1 reverse complement
+^GGAACAGTT
+>A2 reverse complement
+^CGCCGAATT
+>A3 reverse complement
+^GGAATCCGT
+>A4 reverse complement
+^ACTCATAGT
+>A5 reverse complement
+^TATATAAGT
+>A6 reverse complement
+^ACCTGTGCT
+>A7 reverse complement
+^AGATAGGCT
+>A8 reverse complement
+^TGCCTCGCT
+>A9 reverse complement
+^GCCGATACT
+>A10 reverse complement
+^CTAAGCACT
+>A11 reverse complement
+^TCCTTAACT
+>A12 reverse complement
+^CTGTTCTAT
+>B1 reverse complement
+^ACTCTCGAT
+>B2 reverse complement
+^GCGAGAGAT
+>B3 reverse complement
+^TAACATCAT
+>B4 reverse complement
+^GAAGCACAT
+>B5 reverse complement
+^AGAATCTTG
+>B6 reverse complement
+^GTTCAATTG
+>B7 reverse complement
+^GCGAATGTG
+>B8 reverse complement
+^CCATGCGTG
+>B9 reverse complement
+^GTGCGCCTG
+>B10 reverse complement
+^AACGACCTG
+>B11 reverse complement
+^GCCAGGATG
+>B12 reverse complement
+^CCTAATTGG
+>C1 reverse complement
+^ACCTTCTGG
+>C2 reverse complement
+^TATTGTAGG
+>C3 reverse complement
+^GAGCATAGG
+>C4 reverse complement
+^GTGACCAGG
+>C5 reverse complement
+^TGGTTAAGG
+>C6 reverse complement
+^ACGCGTTCG
+>C7 reverse complement
+^ATGATGTCG
+>C8 reverse complement
+^TGGTCGTCG
+>C9 reverse complement
+^TGACGTCCG
+>C10 reverse complement
+^AAGGCTCCG
+>C11 reverse complement
+^ATTGGTACG
+>C12 reverse complement
+^GATGCGACG
+>D1 reverse complement
+^ACAGACACG
+>D2 reverse complement
+^AATTATTAG
+>D3 reverse complement
+^CGAGTGTAG
+>D4 reverse complement
+^CAGGATGAG
+>D5 reverse complement
+^GGCAATCAG
+>D6 reverse complement
+^TCATTCCAG
+>D7 reverse complement
+^TAGGAGTTC
+>D8 reverse complement
+^CCGTCGCTC
+>D9 reverse complement
+^GTATGACTC
+>D10 reverse complement
+^GAGAGTATC
+>D11 reverse complement
+^TGGCCTATC
+>D12 reverse complement
+^CTACACATC
+>E1 reverse complement
+^CAGCCTTGC
+>E2 reverse complement
+^CTTGCGTGC
+>E3 reverse complement
+^AGGCAATGC
+>E4 reverse complement
+^TACGTTGGC
+>E5 reverse complement
+^AGTGTCGGC
+>E6 reverse complement
+^AAGTGCGGC
+>E7 reverse complement
+^GTTGGAGGC
+>E8 reverse complement
+^CTCAATCGC
+>E9 reverse complement
+^GGAGCGAGC
+>E10 reverse complement
+^CACAGCAGC
+>E11 reverse complement
+^TTCATCTCC
+>E12 reverse complement
+^AGCGCCTCC
+>F1 reverse complement
+^TAGTCTGCC
+>F2 reverse complement
+^ATACTAGCC
+>F3 reverse complement
+^CCGCATACC
+>F4 reverse complement
+^CATGTCACC
+>F5 reverse complement
+^GAGCCAACC
+>F6 reverse complement
+^TGCGGATAC
+>F7 reverse complement
+^TTACGTAAC
+>F8 reverse complement
+^ATGGCTAAC
+>F9 reverse complement
+^ACATCGAAC
+>F10 reverse complement
+^GGTAAGAAC
+>F11 reverse complement
+^GAAGGCAAC
+>F12 reverse complement
+^ATGGACGTA
+>G1 reverse complement
+^TGCGATCTA
+>G2 reverse complement
+^CTGTCTATA
+>G3 reverse complement
+^CACTACTGA
+>G4 reverse complement
+^ACAACATGA
+>G5 reverse complement
+^TTAGCGCGA
+>G6 reverse complement
+^CATACACGA
+>G7 reverse complement
+^GCATGTAGA
+>G8 reverse complement
+^AGCCGGAGA
+>G9 reverse complement
+^GTGGCGTCA
+>G10 reverse complement
+^TGATTATCA
+>G11 reverse complement
+^CTGTGATCA
+>G12 reverse complement
+^TCCGCTGCA
+>H1 reverse complement
+^GGTTGAGCA
+>H2 reverse complement
+^GGTACGCCA
+>H3 reverse complement
+^AGTGAACCA
+>H4 reverse complement
+^CACCTTACA
+>H5 reverse complement
+^TCGCTGACA
+>H6 reverse complement
+^TATTGCTAA
+>H7 reverse complement
+^CGGTTGGAA
+>H8 reverse complement
+^GCTATGGAA
+>H9 reverse complement
+^ATCTAGGAA
+>H10 reverse complement
+^GTATTAGAA
+>H11 reverse complement
+^CAATCTCAA
+>H12 reverse complement
+^CCGCTCCAA

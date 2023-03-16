@@ -1,0 +1,34 @@
+#email to which errors will be sent
+email: ""
+#Location of the config file for BarcodeIdentification
+bID: "example_config.txt"
+#Location of the format file for barcode filtering
+format: "example_format.txt"
+#Location of the samples json file produced with the fastq2json.py script 
+samples: "./samples.json"
+#Output directory  
+output_dir: ""
+#Temporary directory
+temp_dir: "/central/scratch/"
+#Currently "mm10" and "hg38" available
+assembly: "mm10"
+#Number of barcodes used
+num_tags: "7"
+#Number of chunks to split fastq
+num_chunks: "20"
+#Files for cutadapt
+cutadapt_dpm: "dpm96.fasta"
+cutadapt_oligos: "bpm.fasta"
+#Repeat mask used for filtering DNA reads
+mask:
+    mm10: "/groups/guttman/Isabel/genomes/mm10/mm10_unified_blacklist.bed"
+    hg38: "/groups/guttman/Isabel/genomes/hg38/GRCh38_unified_blacklist.bed"
+#Bowtie2 Indexes for aligning DNA reads
+bowtie2_index:
+    mm10: "/groups/guttman/Isabel/genomes/mm10/bowtie2/GRCm38.p6"
+    hg38: "/groups/guttman/Isabel/genomes/hg38/GRCh38"
+#Bamfile generation for individual targets
+generate_splitbams: "True"
+min_oligos: "2"
+proportion: "0.8"
+max_size: "10000"
