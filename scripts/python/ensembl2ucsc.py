@@ -3,65 +3,77 @@ import argparse
 import pysam
 import assembly
 
-'''
+"""
 Program to add 'chr' to alignment chromosome for reads aligned to an assembly. No alterations are made for reads aligned to a custom genome. Additionally, this performs removes reads that contain a NOT_FOUND in the barcode.
-'''
+"""
+
 
 def main():
     args = parse_arguments()
     filter_reads(args)
 
+
 def parse_arguments():
-    parser = argparse.ArgumentParser(description = "Add 'chr' to chromosome names of reads aligned to genome and filter out reads with incomplete barcodes")
-    parser.add_argument('-i', '--input', action = 'store', metavar = 'FILE',
-                        help = 'Input BAM file')
-    parser.add_argument('-o', '--output', action = 'store', metavar = 'FILE',
-                        help = 'Output BAM file containing modified reads')
-    parser.add_argument('--assembly', metavar = "ASSEMBLY",
-                        action = "store",
-                        choices = ["mm9", "mm10", "hg19", "hg38", "none"],
-                        default = "none",
-                        help = "The genome assembly. (default none)")
+    parser = argparse.ArgumentParser(
+        description="Add 'chr' to chromosome names of reads aligned to genome and filter out reads with incomplete barcodes"
+    )
+    parser.add_argument(
+        "-i", "--input", action="store", metavar="FILE", help="Input BAM file"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        action="store",
+        metavar="FILE",
+        help="Output BAM file containing modified reads",
+    )
+    parser.add_argument(
+        "--assembly",
+        metavar="ASSEMBLY",
+        action="store",
+        choices=["mm9", "mm10", "hg19", "hg38", "none"],
+        default="none",
+        help="The genome assembly. (default none)",
+    )
     return parser.parse_args()
 
 
 def add_chr_to_bam_header(bam_path, chroms):
-    '''Add chr to alignments done with ensembl reference
+    """Add chr to alignments done with ensembl reference
 
-        Args:
-            bam_path (str): path to bam file
-            chroms (list): list of core chromosomes to retain in the header
+    Args:
+        bam_path (str): path to bam file
+        chroms (list): list of core chromosomes to retain in the header
 
-        Note:
-            Assumes main chromosomes come first followed by alt, that will be removed 
+    Note:
+        Assumes main chromosomes come first followed by alt, that will be removed
 
-        Return:
-            header dict for pysam
-    '''
-    #get bam header
-    with pysam.AlignmentFile(bam_path, 'rb') as input_file:
+    Return:
+        header dict for pysam
+    """
+    # get bam header
+    with pysam.AlignmentFile(bam_path, "rb") as input_file:
         bam_header = input_file.header.to_dict()
-    #edit bam header
+    # edit bam header
     to_delete = []
-    for n, i in enumerate(bam_header['SQ']):
-        chrom = i['SN']
-        if 'chr' not in chrom:
-            if 'chr' + chrom in chroms:
-                bam_header['SQ'][n]['SN'] = 'chr' + chrom
-            elif chrom == 'MT':
-                bam_header['SQ'][n]['SN'] = 'chrM'
+    for n, i in enumerate(bam_header["SQ"]):
+        chrom = i["SN"]
+        if "chr" not in chrom:
+            if "chr" + chrom in chroms:
+                bam_header["SQ"][n]["SN"] = "chr" + chrom
+            elif chrom == "MT":
+                bam_header["SQ"][n]["SN"] = "chrM"
             else:
                 to_delete.append(n)
-    #need to delete largest index first
+    # need to delete largest index first
     for i in sorted(to_delete, reverse=True):
-        del bam_header['SQ'][i]
+        del bam_header["SQ"][i]
 
-    return(bam_header)
-
+    return bam_header
 
 
 def filter_reads(args):
-    '''Filter bam
+    """Filter bam
 
     Params:
         args: argparse arguments
@@ -71,29 +83,33 @@ def filter_reads(args):
         and if aligned with ensembl (1, 2, ..., X, Y) will change chromosomes to ucsc
         scheme (chr1, chr2, ..., chrX, chrY)
 
-    '''
+    """
 
-    if args.assembly != 'none':
-        #filter out reads that do not map to main assembly
+    if args.assembly != "none":
+        # filter out reads that do not map to main assembly
         chroms = list(assembly.build(args.assembly, 1)._chromsizes.keys())
-        #add chr to bam header
+        # add chr to bam header
         bam_header = add_chr_to_bam_header(args.input, chroms)
 
     filtered_count = 0
     out_count = 0
     with pysam.AlignmentFile(args.input, "rb") as input_file:
-        if args.assembly == 'none':
-            output_file = pysam.AlignmentFile(args.output, "wb", template = input_file)
-            for read in input_file.fetch(until_eof = True):
+        if args.assembly == "none":
+            output_file = pysam.AlignmentFile(args.output, "wb", template=input_file)
+            for read in input_file.fetch(until_eof=True):
                 if not "NOT_FOUND" in read.query_name:
                     output_file.write(read)
                     out_count += 1
                 else:
                     filtered_count += 1
         else:
-            output_file = pysam.AlignmentFile(args.output, "wb", header = bam_header)
-            for read in input_file.fetch(until_eof = True):
-                ref_name = read.reference_name if 'chr' in read.reference_name else 'chr' + read.reference_name 
+            output_file = pysam.AlignmentFile(args.output, "wb", header=bam_header)
+            for read in input_file.fetch(until_eof=True):
+                ref_name = (
+                    read.reference_name
+                    if "chr" in read.reference_name
+                    else "chr" + read.reference_name
+                )
                 if not "NOT_FOUND" in read.query_name and ref_name in chroms:
                     output_file.write(read)
                     out_count += 1
@@ -102,9 +118,8 @@ def filter_reads(args):
 
         output_file.close()
 
-    print('Filtered reads:', filtered_count)
-    print('Written out reads:', out_count)
-
+    print("Filtered reads:", filtered_count)
+    print("Written out reads:", out_count)
 
 
 if __name__ == "__main__":

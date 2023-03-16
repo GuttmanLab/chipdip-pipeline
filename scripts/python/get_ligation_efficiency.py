@@ -7,6 +7,7 @@ import sys
 
 # Program for checking barcoding success rate
 
+
 def main():
     lig = LigationEfficiency()
     lig.count_barcodes(sys.argv[1])
@@ -14,11 +15,10 @@ def main():
 
 
 class LigationEfficiency:
-
     def __init__(self):
         self._aggregate_count = Counter()
         self._position_count = Counter()
-        self._pattern = re.compile('\[([a-zA-Z0-9_\-]+)\]')
+        self._pattern = re.compile("\[([a-zA-Z0-9_\-]+)\]")
         self._total = 0
 
     def count_barcodes(self, filename):
@@ -66,24 +66,32 @@ class LigationEfficiency:
 
     def print_to_stdout(self):
 
-        counts = sorted(self._aggregate_count.items(),
-                        key=operator.itemgetter(0))
+        counts = sorted(self._aggregate_count.items(), key=operator.itemgetter(0))
 
         for num_barcodes, count in counts:
             pct = "{0:.1f}%".format(100.0 * count / self._total)
             barcode = "barcode" if num_barcodes == 1 else "barcodes"
-            print(str(count) + " (" + pct + ") reads found with " +
-                str(num_barcodes) + " " + barcode + ".")
+            print(
+                str(count)
+                + " (" + pct + ") reads found with "
+                + str(num_barcodes)
+                + " "
+                + barcode
+                + "."
+            )
 
         print("")
-        counts = sorted(self._position_count.items(),
-                        key=operator.itemgetter(0))
+        counts = sorted(self._position_count.items(), key=operator.itemgetter(0))
 
         for position, count in counts:
             pct = "{0:.1f}%".format(100.0 * count / self._total)
-            print(str(count) + " (" + pct + ") barcodes found in position " +
-                str(position + 1) + ".")
+            print(
+                str(count)
+                + " (" + pct + ") barcodes found in position "
+                + str(position + 1)
+                + "."
+            )
+
 
 if __name__ == "__main__":
     main()
-
