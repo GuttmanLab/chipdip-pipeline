@@ -80,7 +80,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    if args.labeled == True:
+    if args.labeled is True:
         labels = load_labels(args.clusters)
     else:
         labels = call_labels(

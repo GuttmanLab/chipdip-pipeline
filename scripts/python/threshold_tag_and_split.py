@@ -4,7 +4,6 @@ import re
 import os
 from collections import defaultdict, Counter
 from pathlib import Path
-import itertools
 import tqdm
 
 """

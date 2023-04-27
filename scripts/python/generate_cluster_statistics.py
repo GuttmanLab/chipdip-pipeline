@@ -1,5 +1,3 @@
-import pandas as pd
-import numpy as np
 import tqdm
 import glob
 import argparse

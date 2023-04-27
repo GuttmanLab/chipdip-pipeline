@@ -1,9 +1,8 @@
 import argparse
 import pysam
-import string
 import pandas as pd
 import re
-import gzip
+from helpers import fastq_parse, file_open
 
 
 def main():
@@ -88,68 +87,6 @@ def sequence_to_int(seq, query_name):
         print("The sequence ", query_name, "cannot be translated")
         value = 0
     return value
-
-
-def file_open(filename):
-    """
-    Open as normal or as gzip
-    """
-    f = open(filename, "rb")
-    if f.read(2) == b"\x1f\x8b":  # compressed alsways start with these two bytes
-        f.seek(0)  # return to start of file
-        return gzip.GzipFile(fileobj=f, mode="rb")
-    else:
-        f.seek(0)
-        return f
-
-
-def fastq_parse(fq):
-    """
-    Parse fastq file.
-    """
-    linecount = 0
-    name, seq, thrd, qual = [None] * 4
-    for line in fq:
-        linecount += 1
-        if linecount % 4 == 1:
-            try:
-                name = line.decode("UTF-8").rstrip()
-            except AttributeError:
-                name = line.rstrip()
-            assert name.startswith("@"), (
-                "ERROR: The 1st line in fastq element does not start with '@'.\n\
-                   Please check FastQ file near line number %s"
-                % (linecount)
-            )
-        elif linecount % 4 == 2:
-            try:
-                seq = line.decode("UTF-8").rstrip()
-            except AttributeError:
-                seq = line.decode("UTF-8").rstrip()
-            except AttributeError:
-                seq = line.rstrip()
-        elif linecount % 4 == 3:
-            try:
-                thrd = line.decode("UTF-8").rstrip()
-            except AttributeError:
-                thrd = line.rstrip()
-            assert thrd.startswith("+"), (
-                "ERROR: The 3st line in fastq element does not start with '+'.\n\
-                   Please check FastQ file near line number %s"
-                % (linecount)
-            )
-        elif linecount % 4 == 0:
-            try:
-                qual = line.decode("UTF-8").rstrip()
-            except AttributeError:
-                qual = line.rstrip()
-            assert len(seq) == len(qual), (
-                "ERROR: The length of Sequence and Quality aren't equal.\n\
-                    Please check FastQ file near line number %s"
-                % (linecount)
-            )
-            yield name, seq, thrd, qual,
-            name, seq, thrd, qual = [None] * 4
 
 
 if __name__ == "__main__":

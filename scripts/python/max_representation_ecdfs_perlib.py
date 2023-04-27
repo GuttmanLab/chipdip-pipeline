@@ -1,10 +1,7 @@
-import pandas as pd
-from collections import defaultdict, Counter
+from collections import Counter
 import seaborn as sns
 import matplotlib.pyplot as plt
-import cycler
 import matplotlib as mpl
-import numpy as np
 import glob
 import argparse
 

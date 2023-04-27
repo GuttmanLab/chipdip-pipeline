@@ -1,10 +1,10 @@
 import pysam
 import re
-import gzip
 import os
 import sys
 from collections import defaultdict, Counter
 from tqdm import tqdm
+from helpers import file_open
 
 
 class Position:
@@ -100,7 +100,7 @@ class Cluster:
         self._positions.add(position)
 
     def size(self, read_type=None):
-        if read_type == None:
+        if read_type is None:
             return len(self._positions)
         else:
             return sum([1 if pos._type == read_type else 0 for pos in self._positions])
@@ -286,20 +286,7 @@ def write_clusters_to_file(clusters, outfile):
     print("Number of clusters written: ", count)
 
 
-def file_open(filename):
-    """
-    Open as normal or as gzip
-    """
-    f = open(filename, "rb")
-    if f.read(2) == b"\x1f\x8b":  # compressed alsways start with these two bytes
-        f.seek(0)  # return to start of file
-        return gzip.GzipFile(fileobj=f, mode="rb")
-    else:
-        f.seek(0)
-        return f
-
-
-def parse_clusters(c_fil):
+def parse_clusters(c_file):
     """
     Parse cluster file
 
