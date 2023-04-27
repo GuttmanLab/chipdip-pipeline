@@ -63,8 +63,13 @@ def convert_reads(args, header):
     print("The total number of bead reads was: ", counter)
 
 
-def initialize_alignment(header, query_name, reference_name, query_sequence, tags=None):
-    """Create a `Pysam.AlignedSegment` object."""
+def initialize_alignment(header, query_name, reference_name, query_sequence):
+    """
+    Create a `Pysam.AlignedSegment` object.
+
+    The UMI is extracted from the first 8 bases, encoded as an integer using sequence_to_int(),
+    and used as the reference start (column 4 in the SAM/BAM format).
+    """
     a = pysam.AlignedSegment(header)
     a.query_name = query_name
     a.reference_name = reference_name
@@ -88,7 +93,6 @@ def sequence_to_int(seq, query_name):
 def file_open(filename):
     """
     Open as normal or as gzip
-    Faster using zcat?
     """
     f = open(filename, "rb")
     if f.read(2) == b"\x1f\x8b":  # compressed alsways start with these two bytes

@@ -507,7 +507,7 @@ rule cutadapt_dpm:
          -j {threads} \
          {input} > {output.qc}) &> {log}
 
-         fastqc {output.fastq}
+        fastqc {output.fastq}
         '''
 
 # Trim 9mer oligo sequence from read1 of BPM reads
@@ -616,7 +616,7 @@ rule add_chr:
 # Workup Bead Oligo
 ##############################################################################
 
-# Convert the BPM fastq into a bamfile, keeping the UMI
+# Convert the BPM FASTQ reads into a BAM file, keeping the UMI
 rule fastq_to_bam:
     input:
         out_dir + "workup/trimmed/{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"
