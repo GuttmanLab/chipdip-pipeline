@@ -6,7 +6,6 @@ import os
 import sys
 import numpy as np
 import datetime
-from pathlib import Path
 
 ##############################################################################
 # Initialize settings
@@ -181,7 +180,7 @@ except:
 # Make output directories
 ##############################################################################
 
-Path(out_dir + "workup/logs/cluster").mkdir(parents=True, exist_ok=True)
+os.makedirs(out_dir + "workup/logs/cluster", exist_ok=True)
 out_created = os.path.exists(out_dir + "workup/logs/cluster")
 print("Output logs path created:", out_created)
 
