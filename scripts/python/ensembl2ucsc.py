@@ -4,7 +4,9 @@ import pysam
 import assembly
 
 """
-Program to add 'chr' to alignment chromosome for reads aligned to an assembly. No alterations are made for reads aligned to a custom genome. Additionally, this performs removes reads that contain a NOT_FOUND in the barcode.
+Program to add 'chr' to alignment chromosome for reads aligned to an assembly.
+No alterations are made for reads aligned to a custom genome.
+Additionally, this removes reads that contain a NOT_FOUND in the barcode.
 """
 
 
