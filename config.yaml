@@ -5,7 +5,7 @@ bID: "example_config.txt"
 #Location of the format file for barcode filtering
 format: "example_format.txt"
 #Location of the samples json file produced with the fastq2json.py script 
-samples: "./samples.json"
+samples: "samples.json"
 #Output directory  
 output_dir: ""
 #Temporary directory
@@ -25,8 +25,8 @@ mask:
     hg38: "assets/blacklist_hg38.bed"
 #Bowtie2 Indexes for aligning DNA reads
 bowtie2_index:
-    mm10: "/groups/guttman/Isabel/genomes/mm10/bowtie2/GRCm38.p6"
-    hg38: "/groups/guttman/Isabel/genomes/hg38/GRCh38"
+    mm10: "assets/index_mm10/mm10"
+    hg38: "assets/index_hg38/GRCh38_noalt_as"
 #Bamfile generation for individual targets
 generate_splitbams: "True"
 min_oligos: "2"
