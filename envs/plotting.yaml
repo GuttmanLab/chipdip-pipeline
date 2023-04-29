@@ -1,7 +1,6 @@
-name: plotting-test
+name: plotting
 channels:
   - anaconda
-  - bioconda
 dependencies:
   - python=3.6
   - numpy=1.17.2
