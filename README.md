@@ -32,6 +32,7 @@ to create and activate a conda environment named `snakemake`. Once all the [inpu
 ./run_pipeline.sh
 ```
 
+<!-- TODO: specify Java and Bash versions -->
 <!-- TODO: pipeline for local laptop computer -->
 
 ## Background
@@ -44,6 +45,8 @@ Terms
 <!-- TODO: figures of expected sequences -->
 
 ## Pipeline
+
+The pipeline relies on scripts written in Java, Bash, Python. This pipeline has been validated using Java version 8.0.322 (`openjdk version "1.8.0_322"`) and Bash version 4.2.46. Versions of Python are specified in conda environments described in `envs/`, along with other third-party programs and packages that this pipeline depends on.
 
 1. Split FASTQ files into chunks for parallel processing
 2. Adaptor trimming (Trim Galore!)
