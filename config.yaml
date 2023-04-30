@@ -13,9 +13,9 @@ temp_dir: "/central/scratch/"
 #Currently "mm10" and "hg38" available
 assembly: "mm10"
 #Number of barcodes used
-num_tags: "7"
+num_tags: 7
 #Number of chunks to split fastq
-num_chunks: "20"
+num_chunks: 20
 #Files for cutadapt
 cutadapt_dpm: "assets/dpm96.fasta"
 cutadapt_oligos: "assets/bpm.fasta"
@@ -28,7 +28,7 @@ bowtie2_index:
     mm10: "assets/index_mm10/mm10"
     hg38: "assets/index_hg38/GRCh38_noalt_as"
 #Bamfile generation for individual targets
-generate_splitbams: "True"
-min_oligos: "2"
-proportion: "0.8"
-max_size: "10000"
+generate_splitbams: true
+min_oligos: 2
+proportion: 0.8
+max_size: 10000
