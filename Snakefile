@@ -66,10 +66,10 @@ except:
     print("Format file not specified, looking for file at:", formatfile)
 
 try:
-    num_tags = config["num_tags"]
+    num_tags = int(config["num_tags"])
     print("Using", num_tags, "tags")
 except:
-    num_tags = "6"
+    num_tags = 6
     print('Config "num_tags" not specified, using:', num_tags)
 
 try:
@@ -102,7 +102,7 @@ except:
     print("Defaulting to central scratch as temporary directory")
 
 try:
-    num_chunks = config["num_chunks"]
+    num_chunks = int(config["num_chunks"])
 except:
     num_chunks = 2
 
@@ -196,7 +196,7 @@ for SAMPLE, file in FILES.items():
     ALL_FASTQ.extend([os.path.abspath(i) for i in file.get("R1")])
     ALL_FASTQ.extend([os.path.abspath(i) for i in file.get("R2")])
 
-NUM_CHUNKS = [f"{i:03}" for i in np.arange(0, int(num_chunks))]
+NUM_CHUNKS = [f"{i:03}" for i in np.arange(0, num_chunks)]
 
 ##############################################################################
 # Logging
