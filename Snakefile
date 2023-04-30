@@ -351,10 +351,10 @@ rule splitfq:
         r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
         r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output:
-        expand(
-            [temp(out_dir + "workup/splitfq/{{sample}}_R1.part_{splitid}.fastq"),
-             temp(out_dir + "workup/splitfq/{{sample}}_R2.part_{splitid}.fastq")],
-            splitid=NUM_CHUNKS)
+        temp(expand(
+            [out_dir + "workup/splitfq/{{sample}}_R1.part_{splitid}.fastq",
+             out_dir + "workup/splitfq/{{sample}}_R2.part_{splitid}.fastq"],
+             splitid=NUM_CHUNKS))
     params:
         dir = out_dir + "workup/splitfq",
         prefix_r1 = "{sample}_R1.part_0",
@@ -491,7 +491,7 @@ rule cutadapt_dpm:
         fastq = out_dir + "workup/trimmed/{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz",
         qc = out_dir + "workup/trimmed/{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt"
     params:
-        adapters_r1 = "-a GATCGGAAGAG -a ATCAGCACTTA "+ adapters,
+        adapters_r1 = adapters,
         others = "--minimum-length 20"
     log:
         out_dir + "workup/logs/{sample}.{splitid}.DPM.cutadapt.log"
