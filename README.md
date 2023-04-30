@@ -4,16 +4,15 @@ Contents
   - [Background](#background)
   - [Pipeline](#pipeline)
 - [Input Files](#input-files)
-  1. `config.yaml`
-  2. `samples.json`
-  3. `assets/bpm.fasta`
-  4. `assets/dpm96.fasta`
-  5. `config.txt`
-  6. `format.txt`
-  7. `assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`
-  8. `assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`
+  1. [`config.yaml`](#config-yaml)
+  2. [`samples.json`](#samples-json)
+  3. [`assets/bpm.fasta`](#bpm-fasta)
+  4. [`assets/dpm96.fasta`](#dpm-fasta)
+  5. [`config.txt`](#config-txt)
+  6. [`format.txt`](#format-txt)
+  7. [`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`](#blacklist-bed)
+  8. [`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`](#index-bt2)
 - [Output Files](#output-files)
-<!-- TODO: link to documentation below -->
 
 # Overview
 
@@ -75,9 +74,9 @@ The pipeline relies on scripts written in Java, Bash, Python. This pipeline has 
 
 All paths are relative to the project directory.
 
-1. `config.yaml`: YAML file containing the processing settings and paths of required input files.
+1. <a name="config-yaml">`config.yaml`</a>: YAML file containing the processing settings and paths of required input files.
 
-2. `samples.json`: JSON file with the location of FASTQ files (read1, read2) to process.
+2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - `config.yaml` key to specify the path to this file: `samples`
    - This can be prepared using `fastq2json.py --fastq_dir <path_to_directory_of_FASTQs>` or manually formatted as follows:
      
@@ -98,18 +97,18 @@ All paths are relative to the project directory.
    - The pipeline (in particular, the script `scripts/bash/split_fastq.sh`) currently only supports one read 1 (R1) and one read 2 (R2) FASTQ file per sample.
      - If there are multiple FASTQ files per read orientation per sample (for example, if the same sample was sequenced multiple times, or it was split across multiple lanes during sequencing), the FASTQ files will first need to be concatenated together, and the paths to the concatenated FASTQ files should be supplied in the JSON file.
 
-3. `assets/bpm.fasta`: FASTA file containing the sequences of antibody oligo barcodes
+3. <a name="bpm-fasta">`assets/bpm.fasta`</a>: FASTA file containing the sequences of antibody oligo barcodes
    - `config.yaml` key to specify the path to this file: `cutadapt_oligos`
    - Used by: `cutadapt` (Snakefile `rule cutadapt_oligo`)
    - Each sequence should be preceeded by `^` to anchor the sequence during cutadapt trimming (see Snakefile `rule cutadapt_oligo`).
 
-4. `assets/dpm96.fasta`: FASTA file containing the sequences of DPM tags
+4. <a name="dpm-fasta">`assets/dpm96.fasta`</a>: FASTA file containing the sequences of DPM tags
    - `config.yaml` key to specify the path to this file: `cutadapt_dpm`
    - Used by: `cutadapt` (Snakefile `rule cutadapt_dpm`)
    - Each of these sequences are 10 nt long, consisting of a unique 9 nt DPM_Bottom sequences as originally designed for SPRITE (technically, only the first 8 nt are unique, and the 9th sequence is always a `T`), plus a `T` that is complementary to a 3' `A` added to a chromatin DNA sequence via dA-tailing.
 <!--TODO: for chromatin read 1 - we are trimming the 5' DPM, but are we trimming the 3' DPM if the read extends beyond the DNA insert sequence? -->
 
-5. `config.txt`: Text file containing the sequences of split-pool tags and the split-pool barcoding setup.
+5. <a name="config-txt">`config.txt`</a>: Text file containing the sequences of split-pool tags and the split-pool barcoding setup.
    - `config.yaml` key to specify the path to this file: `bID` (for "barcode ID")
    - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`) and `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`)
    - Format: SPRITE configuration file (see our SPRITE [GitHub Wiki](https://github.com/GuttmanLab/sprite-pipeline/wiki/1.-Barcode-Identification#configuration-file) or [*Nature Protocols* paper](https://doi.org/10.1038/s41596-021-00633-y) for details).
@@ -156,7 +155,7 @@ All paths are relative to the project directory.
        ```
        <!-- TODO: why are the DPM sequences in the config.txt file trimmed compared to dpm96.fasta? -->
 
-6. `format.txt`: Tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
+6. <a name="format-txt">`format.txt`</a>: Tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
    - `config.yaml` key to specify the path to this file: `format`
    - Used by: `scripts/python/split_dpm_bpm_fq.py` (Snakefile `rule split_bpm_dpm`)
    - Column 1 indicates the zero-indexed position of the barcode string where a tag can be found.
@@ -166,7 +165,7 @@ All paths are relative to the project directory.
    - Column 4 is the edit acceptable edit distance for this sequence.
 <!--TODO: verify exactly how format.txt is parsed-->
 
-7. `assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`: blacklisted genomic regions for ChIP-seq data
+7. <a name="blacklist-bed">`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`</a>: blacklisted genomic regions for ChIP-seq data
    - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz).
    - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. Sci Rep. 2019;9(1):9354. doi:10.1038/s41598-019-45839-z
    - Example code used to download them into the `assets/` directory:
@@ -181,7 +180,7 @@ All paths are relative to the project directory.
          sort -V -k1,3 > "assets/blacklist_mm10.bed"
      ```
 
-8. `assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`: Bowtie 2 genome index
+8. <a name="index-bt2">`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`</a>: Bowtie 2 genome index
    - `config.yaml` key to specify the path to the index: `bowtie2_index: {'mm10': <mm10_index_prefix>, 'hg38': <hg38_index_prefix>}`
    - If you do not have an existing Bowtie 2 index, you can download [pre-built indices](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) from the Bowtie 2 developers:
 
@@ -204,8 +203,8 @@ All paths are relative to the project directory.
 1. Barcode Identification Efficiency (`workup/ligation_efficiency.txt`)
    - A statistical summary of how many barcode tags were found per read and the proportion of reads with a matching barcode at each barcode position.
 
-2. Clusterfile (`workup/clusters/sample.clusters`)
-   - Each line in a cluster file represents a single cluster. The first column is the cluster barcode. The remainder of the line is a tab deliminated list of reads. DNA reads are formated as "DPM[strand]_chr:start-end" and Antibody ID oligo reads are formated as "BPM[]_AntibodyID:UMI-0".
+2. Clusterfile (`workup/clusters/<sample>.clusters`)
+   - Each line in a cluster file represents a single cluster. The first column is the cluster barcode. The remainder of the line is a tab deliminated list of reads. DNA reads are formated as `DPM[strand]_chr:start-end` and Antibody ID oligo reads are formated as `BPM[]_<AntibodyID>:<UMI>-0`.
 
 3. Cluster statistics (`workup/clusters/cluster_statistics.txt`)
    - The number of clusters and BPM or DPM reads per library.
@@ -214,19 +213,19 @@ All paths are relative to the project directory.
    - The distribution showing the proportion of clusters that belong to each size category.
 
 5. Cluster size read distribution (`workup/clusters/[BPM,DPM]_read_distribution.pdf`)
-   - The distribution showing the proportion of reads that belong to clusters of each size category. This can be more useful than the number of clusters since relatively few large clusters can contain many sequencing reads (ie. a large fraction of the library) while many small clusters will contain few sequencing reads (ie. a much smaller fraction of the library)
+   - The distribution showing the proportion of reads that belong to clusters of each size category. This can be more useful than the number of clusters since relatively few large clusters can contain many sequencing reads (i.e., a large fraction of the library) while many small clusters will contain few sequencing reads (i.e., a much smaller fraction of the library).
    
 6. Maximum Representation Oligo ECDF (`workup/clusters/Max_representation_ecdf.pdf`)
-   - A plot showing the distribution of proportion of BPM reads in each cluster that belong to the maximum represented Antibody ID in that cluster. A successful experiment should have an ECDF close to a right angle. Deviations from this indicate that beads contain mixtures of antibody ID oligos. Understanding the uniqueness of Antibody ID reads per cluster is important for choosing the thresholding parameters (min_oligo, proportion) for cluster assignment.
+   - A plot showing the distribution of proportion of BPM reads in each cluster that belong to the maximum represented Antibody ID in that cluster. A successful experiment should have an ECDF close to a right angle. Deviations from this indicate that beads contain mixtures of antibody ID oligos. Understanding the uniqueness of Antibody ID reads per cluster is important for choosing the thresholding parameters (`min_oligo`, `proportion`) for cluster assignment.
 
 7. Maximum Representation Oligo Counts ECDF (`workup/clusters/Max_representation_ecdf.pdf`)
-   - A plot showing the distribution of number of BPM reads in each cluster that belong to the maximum represented Antibody ID in that cluster. If clusters are nearly unique in Antibody ID composition, this plot is a surrogate for BPM size distribtuion. Understanding the number of Antibody ID reads per cluster is important for choosing the thresholding parameters (min_oligo, proportion) for cluster assignment.
+   - A plot showing the distribution of number of BPM reads in each cluster that belong to the maximum represented Antibody ID in that cluster. If clusters are nearly unique in Antibody ID composition, this plot is a surrogate for BPM size distribtuion. Understanding the number of Antibody ID reads per cluster is important for choosing the thresholding parameters (`min_oligo`, `proportion`) for cluster assignment.
 
 8. BAM Files for Individual Antibodies (`workup/splitbams/*.bam`)
-   - Thresholding criteria (min_oligos, proportion, max_size) for assigning individual clusters to individual antibodies are set in the config.yaml. The "none" bam file contains DNA reads from clusters without Antibody ID reads. THe "ambigious" bam file contains DNA reads from clusters that failed the proportion thresholding criteria. The "uncertain" bam file contains DNA reads from clusters that failed the min_oligo thresholding criteria. The "filtered" bam file contains DNA reads from clusters that failed the max_size thresholding criteria.
+   - Thresholding criteria (`min_oligos`, `proportion`, `max_size`) for assigning individual clusters to individual antibodies are set in [`config.yaml`](#config-yaml). The "none" BAM file contains DNA reads from clusters without Antibody ID reads. THe "ambigious" BAM file contains DNA reads from clusters that failed the proportion thresholding criteria. The "uncertain" BAM file contains DNA reads from clusters that failed the min_oligo thresholding criteria. The "filtered" BAM file contains DNA reads from clusters that failed the max_size thresholding criteria.
 
 9. Read Count Summary for Individual Antibodies (`workup/splitbams/splitbam_statistics.txt`)
-   - The number of read counts contained within each individual bam file assigned to individual antibodies
+   - The number of read counts contained within each individual BAM file assigned to individual antibodies.
 
 # Credits
 
