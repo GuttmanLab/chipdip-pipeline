@@ -1,5 +1,8 @@
 Contents
 - [Overview](#overview)
+  - [Quick Start](#quick-start)
+  - [Background](#background)
+  - [Pipeline](#pipeline)
 - [Input Files](#input-files)
   1. `config.yaml`
   2. `samples.json`
@@ -14,15 +17,34 @@ Contents
 
 # Overview
 
+## Quick Start
+
+This pipeline assumes an existing [conda](https://conda.io) installation and is written as a [Snakemake](https://snakemake.github.io/) workflow. To install Snakemake with conda, run
+
+```
+conda env create -f envs/snakemake.yml
+conda activate snakemake
+```
+
+to create and activate a conda environment named `snakemake`. Once all the [input files](#input-files) are ready, run the pipeline on a SLURM server environment with
+
+```
+./run_pipeline.sh
+```
+
+<!-- TODO: pipeline for local laptop computer -->
+
+## Background
+
 Terms
 - **barcode**: this term is overloaded to refer to one of two possible sequences
   - **split-pool barcode**: the permutation of split-pool tags that uniquely identifes a cluster
   - **antibody oligo barcode**: a 9 nt sequence within the antibody oligo that uniquely identifies a type of antibody
 
-Expected sequences
 <!-- TODO: figures of expected sequences -->
 
-Pipeline steps
+## Pipeline
+
 1. Split FASTQ files into chunks for parallel processing
 2. Adaptor trimming (Trim Galore!)
 3. Barcode identification 
@@ -90,6 +112,7 @@ All paths are relative to the project directory.
    - Format: SPRITE configuration file (see our SPRITE [GitHub Wiki](https://github.com/GuttmanLab/sprite-pipeline/wiki/1.-Barcode-Identification#configuration-file) or [*Nature Protocols* paper](https://doi.org/10.1038/s41596-021-00633-y) for details).
      - Blank lines and lines starting with `#` are ignored.
      - An example barcoding configuration file is annotated below:
+
        ```
        # Barcoding layout for read 1 and read 2
        # - Y represents a terminal tag
