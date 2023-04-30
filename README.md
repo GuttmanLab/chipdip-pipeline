@@ -229,10 +229,10 @@ All paths are relative to the project directory.
 
 # Credits
 
-Adapted from the [SPRITE](https://github.com/GuttmanLab/sprite-pipeline) and [RNA-DNA SPRITE](https://github.com/GuttmanLab/sprite2.0-pipeline) pipelines by **Isabel Goronzy** (@igoronzy).
+Adapted from the [SPRITE](https://github.com/GuttmanLab/sprite-pipeline) and [RNA-DNA SPRITE](https://github.com/GuttmanLab/sprite2.0-pipeline) pipelines by **Isabel Goronzy** ([@igoronzy](https://github.com/igoronzy)).
 
 Other contributors
-- Benjamin Yeh (@bentyeh)
+- Benjamin Yeh ([@bentyeh](https://github.com/))
 - Andrew Perez
-- Mario Blanco
-- Mitchell Guttman
+- Mario Blanco ([@mrblanco](https://github.com/mrblanco))
+- Mitchell Guttman ([@mitchguttman](https://github.com/mitchguttman))
