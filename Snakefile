@@ -491,7 +491,7 @@ rule cutadapt_dpm:
         fastq = out_dir + "workup/trimmed/{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz",
         qc = out_dir + "workup/trimmed/{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt"
     params:
-        adapters_r1 = adapters,
+        adapters_r1 = "-a GATCGGAAGAG -a ATCAGCACTTA " + adapters,
         others = "--minimum-length 20"
     log:
         out_dir + "workup/logs/{sample}.{splitid}.DPM.cutadapt.log"
