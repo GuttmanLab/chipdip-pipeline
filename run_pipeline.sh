@@ -3,6 +3,8 @@
 snakemake \
 --snakefile Snakefile \
 --use-conda \
+--conda-frontend conda \
+--printshellcmds \
 --rerun-incomplete \
 -j 50 \
 --cluster-config cluster.yaml \
