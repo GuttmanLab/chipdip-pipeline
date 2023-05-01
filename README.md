@@ -112,7 +112,7 @@ All paths are relative to the project directory.
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - `config.yaml` key to specify the path to this file: `samples`
    - This can be prepared using `fastq2json.py --fastq_dir <path_to_directory_of_FASTQs>` or manually formatted as follows:
-     
+
      ```{json}
      {
         "sample1": {
@@ -126,7 +126,7 @@ All paths are relative to the project directory.
         ...
      }
      ```
-     <br>
+
    - The pipeline (in particular, the script `scripts/bash/split_fastq.sh`) currently only supports one read 1 (R1) and one read 2 (R2) FASTQ file per sample.
      - If there are multiple FASTQ files per read orientation per sample (for example, if the same sample was sequenced multiple times, or it was split across multiple lanes during sequencing), the FASTQ files will first need to be concatenated together, and the paths to the concatenated FASTQ files should be supplied in the JSON file.
    - Each sample is processed independently, generating independent cluster and BAM files. Statistics used for quality assessment (ligation efficiency, cluster statistics, MultiQC report, cluster size distributions, splitbam statistics) are computed independently for each sample but reported together in aggregate files to enable quick quality comparison across samples.
@@ -203,7 +203,7 @@ All paths are relative to the project directory.
    - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz).
    - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. Sci Rep. 2019;9(1):9354. doi:10.1038/s41598-019-45839-z
    - Example code used to download them into the `assets/` directory:
-   
+
      ```{bash}
      wget -O - https://www.encodeproject.org/files/ENCFF356LFX/@@download/ENCFF356LFX.bed.gz |
          zcat |
@@ -229,7 +229,7 @@ All paths are relative to the project directory.
      wget https://genome-idx.s3.amazonaws.com/bt/mm10.zip
      unzip -d assets/index_mm10 mm10.zip
      ```
-     <br>
+
      This will create a set of files under `assets/index_hg38` or `assets/index_mm10`. If we want to use the `mm10` genome assembly, for example, the code above will populate `assets/index_mm10` with the following files: `mm10.1.bt2`, `mm10.2.bt2`, `mm10.3.bt2`, `mm10.4.bt2`, `mm10.rev.1.bt2`, `mm10.rev.2.bt2`. The path prefix to this index (as accepted by the `bowtie2 -x <bt2-idx>` argument) is therefore `assets/index_mm10/mm10`, which is set in the configuration file, `config.yaml`.
 
 # Output Files
