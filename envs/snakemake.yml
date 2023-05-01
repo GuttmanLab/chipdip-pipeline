@@ -4,4 +4,5 @@ channels:
   - bioconda
 dependencies:
   - snakemake=7.25
-  - python=3.8
+  - snakefmt=0.8
+  - python=3.10
