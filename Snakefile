@@ -26,7 +26,7 @@ try:
     email = config["email"]
 except:
     email = None
-    print("Will not send email on error")
+    print("Will not send email on error", file=sys.stderr)
 
 ##############################################################################
 # Location of scripts
@@ -53,53 +53,53 @@ tag_and_split = "scripts/python/threshold_tag_and_split.py"
 
 try:
     bid_config = config["bID"]
-    print("Using BarcodeID config: ", bid_config)
+    print("Using BarcodeID config: ", bid_config, file=sys.stderr)
 except:
     bid_config = "config.txt"
-    print('Config "bID" not specified, looking for config at:', bid_config)
+    print('Config "bID" not specified, looking for config at:', bid_config, file=sys.stderr)
 
 try:
     formatfile = config["format"]
-    print("Using split-pool format file: ", formatfile)
+    print("Using split-pool format file: ", formatfile, file=sys.stderr)
 except:
     formatfile = "format.txt"
-    print("Format file not specified, looking for file at:", formatfile)
+    print("Format file not specified, looking for file at:", formatfile, file=sys.stderr)
 
 try:
     num_tags = int(config["num_tags"])
-    print("Using", num_tags, "tags")
+    print("Using", num_tags, "tags", file=sys.stderr)
 except:
     num_tags = 6
-    print('Config "num_tags" not specified, using:', num_tags)
+    print('Config "num_tags" not specified, using:', num_tags, file=sys.stderr)
 
 try:
     assembly = config["assembly"]
     assert assembly in ["mm10", "hg38"], 'Only "mm10" or "hg38" currently supported'
-    print("Using", assembly)
+    print("Using", assembly, file=sys.stderr)
 except:
-    print('Config "assembly" not specified, defaulting to "mm10"')
+    print('Config "assembly" not specified, defaulting to "mm10"', file=sys.stderr)
     assembly = "mm10"
 
 try:
     samples = config["samples"]
-    print("Using samples file: ", samples)
+    print("Using samples file: ", samples, file=sys.stderr)
 except:
     samples = "./samples.json"
-    print("Defaulting to working directory for samples json file")
+    print("Defaulting to working directory for samples json file", file=sys.stderr)
 
 try:
     out_dir = config["output_dir"]
-    print("All data will be written to: ", out_dir)
+    print("All data will be written to: ", out_dir, file=sys.stderr)
 except:
     out_dir = ""
-    print("Defaulting to working directory as output directory")
+    print("Defaulting to working directory as output directory", file=sys.stderr)
 
 try:
     temp_dir = config["temp_dir"]
-    print("Using temporary directory: ", temp_dir)
+    print("Using temporary directory: ", temp_dir, file=sys.stderr)
 except:
     temp_dir = "/central/scratch/"
-    print("Defaulting to central scratch as temporary directory")
+    print("Defaulting to central scratch as temporary directory", file=sys.stderr)
 
 try:
     num_chunks = int(config["num_chunks"])
@@ -131,12 +131,12 @@ except:
     max_size = 10000
 
 if generate_splitbams:
-    print("Will generate bam files for individual targets using:")
-    print("\t min_oligos: ", min_oligos)
-    print("\t proportion: ", proportion)
-    print("\t max_size: ", max_size)
+    print("Will generate bam files for individual targets using:", file=sys.stderr)
+    print("\t min_oligos: ", min_oligos, file=sys.stderr)
+    print("\t proportion: ", proportion, file=sys.stderr)
+    print("\t max_size: ", max_size, file=sys.stderr)
 else:
-    print("Will not generate bam files for individual targets.")
+    print("Will not generate bam files for individual targets.", file=sys.stderr)
 
 ##############################################################################
 # Trimming Sequences
@@ -144,16 +144,16 @@ else:
 
 try:
     adapters = "-g file:" + config["cutadapt_dpm"]
-    print("Using cutadapt sequence file", adapters)
+    print("Using cutadapt sequence file", adapters, file=sys.stderr)
 except:
-    print("DPM adaptor sequences not specificed in config.yaml")
+    print("DPM adaptor sequences not specificed in config.yaml", file=sys.stderr)
     sys.exit()  # no default, exit
 
 try:
     oligos = "-g file:" + config["cutadapt_oligos"]
-    print("Using bead oligo file", oligos)
+    print("Using bead oligo file", oligos, file=sys.stderr)
 except:
-    print("Oligo sequences not specified in config.yaml")
+    print("Oligo sequences not specified in config.yaml", file=sys.stderr)
     sys.exit()  # no default, exit
 
 ##############################################################################
@@ -163,7 +163,7 @@ except:
 try:
     mask = config["mask"][config["assembly"]]
 except:
-    print("Mask path not specified in config.yaml")
+    print("Mask path not specified in config.yaml", file=sys.stderr)
     sys.exit()  # no default, exit
 
 ##############################################################################
@@ -173,7 +173,7 @@ except:
 try:
     bowtie2_index = config["bowtie2_index"][config["assembly"]]
 except:
-    print("Bowtie2 index not specified in config.yaml")
+    print("Bowtie2 index not specified in config.yaml", file=sys.stderr)
     sys.exit()  # no default, exit
 
 ##############################################################################
@@ -182,7 +182,7 @@ except:
 
 os.makedirs(out_dir + "workup/logs/cluster", exist_ok=True)
 out_created = os.path.exists(out_dir + "workup/logs/cluster")
-print("Output logs path created:", out_created)
+print("Output logs path created:", out_created, file=sys.stderr)
 
 ##############################################################################
 # Get sample files

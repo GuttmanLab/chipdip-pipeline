@@ -5,7 +5,7 @@ bID: "example_config.txt"
 #Location of the format file for barcode filtering
 format: "example_format.txt"
 #Location of the samples json file produced with the fastq2json.py script 
-samples: "samples.json"
+samples: "example_samples.json"
 #Output directory  
 output_dir: ""
 #Temporary directory
@@ -15,7 +15,7 @@ assembly: "mm10"
 #Number of barcodes used
 num_tags: 7
 #Number of chunks to split fastq
-num_chunks: 20
+num_chunks: 2
 #Files for cutadapt
 cutadapt_dpm: "assets/dpm96.fasta"
 cutadapt_oligos: "assets/bpm.fasta"
