@@ -36,9 +36,10 @@ to create and activate a conda environment named `snakemake`. Once all the [inpu
 ## Background
 
 Terms
-- **barcode**: this term is overloaded to refer to one of two possible sequences
-  - **split-pool barcode**: the permutation of split-pool tags that uniquely identifes a cluster
-  - **antibody oligo barcode**: a 9 nt sequence within the antibody oligo that uniquely identifies a type of antibody
+- **split-pool tag**: the individaul sequences that are added during a single round of split-pool barcoding (DPM, EVEN, ODD, TERM)  
+- **split-pool barcode**: the permutation of split-pool tags that uniquely identifes a cluster
+- **Antibody-ID**: a 9 nt sequence within the antibody oligo that uniquely identifies a type of antibody
+- 
 
 <!-- TODO: figures of expected sequences -->
 
