@@ -565,6 +565,34 @@ rule bowtie2_align:
         samtools sort -@ {threads} -o {output.sorted} {output.bam}
         '''
 
+# Add 'chr' to chromosome names
+rule add_chr:
+    input:
+        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam",
+    output:
+        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.chr.bam",
+    log:
+        out_dir + "workup/logs/{sample}.{splitid}.add_chr.log",
+    conda:
+        "envs/sprite.yaml"
+    shell:
+        '''
+        python {add_chr} -i {input} -o {output} --assembly {assembly} &> {log}
+        '''
+
+# Repeat mask aligned DNA reads
+rule repeat_mask:
+    input:
+        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"
+    output:
+        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.chr.masked.bam"
+    conda:
+        "envs/sprite.yaml"
+    shell:
+        '''
+        bedtools intersect -v -a {input} -b {mask} > {output}
+        '''
+
 # Combine all mapped DNA reads into a single bam file per sample
 rule merge_dna:
     input:
@@ -582,34 +610,6 @@ rule merge_dna:
     shell:
         '''
         (samtools merge -@ {threads} {output} {input}) &> {log}
-        '''
-
-# Repeat mask aligned DNA reads
-rule repeat_mask:
-    input:
-        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"
-    output:
-        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.chr.masked.bam"
-    conda:
-        "envs/sprite.yaml"
-    shell:
-        '''
-        bedtools intersect -v -a {input} -b {mask} > {output}
-        '''
-
-# Add 'chr' to chromosome names
-rule add_chr:
-    input:
-        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam",
-    output:
-        out_dir + "workup/alignments_parts/{sample}.part_{splitid}.DNA.chr.bam",
-    log:
-        out_dir + "workup/logs/{sample}.{splitid}.add_chr.log",
-    conda:
-        "envs/sprite.yaml"
-    shell:
-        '''
-        python {add_chr} -i {input} -o {output} --assembly {assembly} &> {log}
         '''
 
 ##############################################################################
