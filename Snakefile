@@ -790,7 +790,7 @@ rule thresh_and_split:
         clusters = out_dir + "workup/clusters/{sample}.clusters"
     output:
         bam = out_dir + "workup/alignments/{sample}.DNA.merged.labeled.bam",
-        touch = touch(out_dir + "workup/splitbams/{sample}.done")
+        touch = temp(touch(out_dir + "workup/splitbams/{sample}.done"))
     conda:
         "envs/sprite.yaml"
     log:
