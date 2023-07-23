@@ -170,7 +170,7 @@ def label_bam_file(input_bam, output_bam, labels, num_tags):
             barcode = list(match.groups())[1:]
             barcode.append(library)
             full_barcode = ".".join(barcode)
-            position = read.reference_name + "_" + str(read.reference_start)
+            position = read.reference_name + ":" + str(read.reference_start) + '-' + str(read.reference_end)
             if position in found[full_barcode]:
                 duplicates += 1
             else:

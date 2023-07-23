@@ -31,6 +31,7 @@ class Position:
             self._type == other._type
             and self._chromosome == other._chromosome
             and self._start_coordinate == other._start_coordinate
+            and self._end_coordinate == other._end_coordinate
         )
 
     def __hash__(self):
