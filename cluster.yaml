@@ -159,3 +159,10 @@ log_config:
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
+pipeline_counts:
+    time: "05:00:00"
+    mem: 10g
+    cpus: 10
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.out"
+    error: "workup/logs/cluster/{rule}.err"

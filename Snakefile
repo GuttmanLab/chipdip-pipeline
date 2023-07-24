@@ -40,6 +40,7 @@ get_clusters = "scripts/python/get_clusters.py"
 merge_clusters = "scripts/python/merge_clusters.py"
 fq_to_bam = "scripts/python/fastq_to_bam.py"
 split_fastq = "scripts/bash/split_fastq.sh"
+pipeline_counts = "scripts/python/pipeline_counts.py"
 
 cluster_counts = "scripts/python/generate_cluster_statistics.py"
 cluster_sizes = "scripts/python/get_bead_size_distribution.py"
@@ -321,6 +322,8 @@ SPLITBAMS = expand(
 
 SPLITBAMS_COUNTS = [out_dir + "workup/splitbams/splitbam_statistics.txt"]
 
+PIPELINE_COUNTS = [out_dir + "workup/pipeline_counts.txt"]
+
 if generate_splitbams == False:
     SPLITBAMS = []
     SPLITBAMS_COUNTS = []
@@ -332,7 +335,7 @@ if generate_splitbams == False:
 ##############################################################################
 
 rule all:
-    input: CONFIG + SPLIT_FQ + ALL_FASTQ + TRIM + TRIM_LOG + TRIM_RD + BARCODEID + LE_LOG_ALL + SPLIT_DPM_BPM +  MERGE_BEAD + FQ_TO_BAM + Bt2_DNA_ALIGN + CHR_DNA + MASKED + MERGE_DNA + CLUSTERS + CLUSTERS_MERGED + MULTI_QC + COUNTS + SIZES + ECDFS + SPLITBAMS + SPLITBAMS_COUNTS
+    input: CONFIG + SPLIT_FQ + ALL_FASTQ + TRIM + TRIM_LOG + TRIM_RD + BARCODEID + LE_LOG_ALL + SPLIT_DPM_BPM +  MERGE_BEAD + FQ_TO_BAM + Bt2_DNA_ALIGN + CHR_DNA + MASKED + MERGE_DNA + CLUSTERS + CLUSTERS_MERGED + MULTI_QC + COUNTS + SIZES + ECDFS + SPLITBAMS + SPLITBAMS_COUNTS + PIPELINE_COUNTS
 
 # Send and email if an error occurs during execution
 onerror:
@@ -778,6 +781,29 @@ rule multiqc:
         "envs/sprite.yaml"
     shell:
         "multiqc {out_dir}workup -o {out_dir}workup/qc"
+
+rule pipeline_counts:
+    input:
+        expand([out_dir + "workup/splitbams/{sample}.done"], sample=ALL_SAMPLES)
+    output:
+        csv = outdir + "workup/qc/pipeline_counts.csv",
+        pretty = outdir + "workup/pipeline_counts.txt"
+    log:
+        out_dir + "workup/logs/pipeline_counts.log"
+    conda:
+        "envs/sprite.yaml"
+    threads:
+        10
+    shell:
+        '''
+        directory="{outdir}"
+        if [ -z "$directory" ]; then
+            directory='.'
+        fi
+
+        (python {pipeline_counts} -d "$directory" -n {threads} -o "{output.csv}" |
+         column -t -s $'\t' > "{output.pretty}") &>{log}
+        '''
 
 ##############################################################################
 # Splitbams
