@@ -16,14 +16,11 @@ import glob
 import json
 import os
 import re
-import shlex
-import subprocess
 import sys
 import numpy as np
 import pandas as pd
+from helpers import count_reads, count_lines
 
-regex_fastq = re.compile(r'(\.fastq\.gz$)|(\.fq.gz$)|(\.fastq$)|(\.fq$)')
-regex_bam = re.compile(r'(\.bam$)|(\.sam$)|(\.cram$)')
 regex_uniq_count = re.compile(r'\s*(?P<count>\d+)\s+(?P<pattern>.*)')
 
 PIPELINE = {
@@ -114,7 +111,7 @@ PIPELINE = {
         'base': 'bpm',
         'path': os.path.join('alignments_parts', '{aliquot}*.BPM.bam')},
 
-    # # (merge_beads)
+    # (merge_beads)
     'bpm-merge': {
         'parent': 'bpm-bam',
         'base': 'bpm',
@@ -347,59 +344,11 @@ class Graph:
             self.merge_aliquots_from_node(G_merged, root)
         return G_merged
 
-def count_reads(paths, n_processes, unzip=None, filetype=None, agg=True):
-    '''
-    Count the number of reads in FASTQ or SAM/BAM/CRAM files.
-
-    Args
-    - paths: list-like
-        Paths to read files. All read files must be of the same file type.
-    - n_processes: int
-        Number of parallel processes to use.
-    - unzip: str. default=None
-        Command to write file contents to standard output. If None, defaults to 'gunzip -c'
-        - Use 'cat' for uncompressed FASTQ files (i.e., ending in .fastq or .fq)
-        - Use 'gunzip -c' for gzip-compressed FASTQ files (i.e., ending in .fastq.gz or .fq.gz)
-        - Use 'unpigz -c' for a small speedup for gzip-compressed FASTQ files, if pigz is installed.
-    - filetype: str. default=None
-        Type of files to count.
-        - 'fastq': files ending in .fastq, .fq., .fastq.gz, or .fq.gz
-        - 'bam': files ending in .sam, .bam., or .cram
-        - None: automatically detect based on the first file in paths
-    - agg: bool. default=True
-        Return sum of read counts
-
-    Returns: int or list of int
-    - If agg is False: returns list of int, giving the read counts for each file in paths
-    - If agg is True: returns int, the sum of read counts over all files in paths
-    '''
-    if unzip is None:
-        unzip = 'gunzip -c'
-    if filetype is None:
-        if regex_fastq.search(paths[0]):
-            assert all(map(regex_fastq.search, paths)), 'Files with differing extensions detected.'
-            filetype = 'fastq'
-        elif regex_bam.search(paths[0]):
-            assert all(map(regex_bam.search, paths)), 'Files with differing extensions detected.'
-            filetype = 'bam'
-        else:
-            raise ValueError(f'Unsupported file extension for file {paths[0]}. Must be .fastq.gz, .fq.gz, .bam, .sam., or .cram')
-    assert str(filetype).lower() in ('fastq', 'bam')
-
-    if filetype == 'fastq':
-        cmd_xargs = f'xargs -n 1 -P {n_processes} -I % sh -c "{unzip} % | wc -l | awk \'{{print $1 / 4}}\'"'
-    else:
-        cmd_xargs = f'xargs -n 1 -P {n_processes} samtools view -@ 4 -c'
-    with subprocess.Popen(['ls'] + paths, stdout=subprocess.PIPE) as p1:
-        with subprocess.Popen(shlex.split(cmd_xargs), stdin=p1.stdout, stdout=subprocess.PIPE) as p2:
-            p1.stdout.close()
-            counts = [int(s.strip()) for s in p2.communicate()[0].decode().strip().split('\n')]
-
-    return sum(counts) if agg else counts
 
 def count_reads_clusters(paths, n_processes):
     '''
     Count the number of DPM and BPM reads in SPRITE cluster files.
+    Implemented as a wrapper around helpers.count_reads()
 
     Args
     - paths: list-like
@@ -411,19 +360,18 @@ def count_reads_clusters(paths, n_processes):
         Keys = 'DPM', 'BPM'
         Values = sum of the number of DPM or BPM reads in cluster files.
     '''
-    cmd_grep = 'xargs grep -h -F -o -e "DPM" -e "BPM"'
     counts = dict(DPM=0, BPM=0)
-    with subprocess.Popen(['ls'] + paths, stdout=subprocess.PIPE) as p1:
-        with subprocess.Popen(shlex.split(cmd_grep), stdin=p1.stdout, stdout=subprocess.PIPE, env={'LC_ALL': 'C'}) as p2:
-            with subprocess.Popen(['sort', f'--parallel={n_processes}'], stdin=p2.stdout, stdout=subprocess.PIPE) as p3:
-                with subprocess.Popen(['uniq', '-c'], stdin=p3.stdout, stdout=subprocess.PIPE) as p4:
-                    p1.stdout.close()
-                    p2.stdout.close()
-                    p3.stdout.close()
-                    for line in p4.communicate()[0].decode().strip().split('\n'):
-                        count, pattern = regex_uniq_count.match(line.strip()).groups()
-                        counts[pattern] += int(count)
+    out = count_lines(
+        paths,
+        n_processes=n_processes,
+        cmd_unzip='cat',
+        cmd_count=f'grep -h -F -o -e "DPM" -e "BPM" | sort --parallel {n_processes} | uniq -c',
+        return_raw=True)
+    for line in out:
+        count, pattern = regex_uniq_count.match(line.strip().rsplit('\t', 1)[1].strip()).groups()
+        counts[pattern] += int(count)
     return counts
+
 
 def collect_pipeline_counts(
     aliquots,
@@ -448,7 +396,7 @@ def collect_pipeline_counts(
         Pipeline specification for cluster files. If None, defaults to PIPELINE_CLUSTERS.
     - unzip: str. default=None
         Command (e.g., 'zcat', 'unpigz -c') to write file contents to standard output.
-        See count_reads() docstring.
+        See helpers.count_reads() docstring.
     - verbose: bool. default=True
         Print status messages to standard error.
 
@@ -473,7 +421,10 @@ def collect_pipeline_counts(
             if len(paths) == 0:
                 count = 0
             else:
-                count = count_reads(paths, n_processes, unzip=unzip)
+                cmd_unzip = None
+                if node_info['path'].endswith('.gz'):
+                    cmd_unzip = unzip
+                count = count_reads(paths, n_processes=n_processes, cmd_unzip=cmd_unzip)
             base = None
             if 'base' in node_info and node_info['base']:
                 base = G.get_node(aliquot, node_info['base'])
@@ -487,7 +438,7 @@ def collect_pipeline_counts(
             print(f'Counting {level}', file=sys.stderr)
         for aliquot in aliquots:
             paths = glob.glob(os.path.join(DIR_WORKUP, node_info['path'].format(aliquot=aliquot)))
-            counts = count_reads_clusters(paths, n_processes)
+            counts = count_reads_clusters(paths, n_processes=n_processes)
             for base_level, parent in node_info['parent'].items():
                 if parent == 'cluster':
                     parent += f'-{base_level}'
@@ -504,6 +455,7 @@ def collect_pipeline_counts(
         G_merged = G.merge_aliquots()
     return G, G_merged
 
+
 def main():
     parser = argparse.ArgumentParser(description='Count reads at each step of the ChIP-DIP pipeline.')
     parser.add_argument('-d', '--dir-pipeline', help='path to pipeline')
@@ -512,7 +464,7 @@ def main():
     parser.add_argument('-o', '--out', help='path to save counts as CSV file')
     parser.add_argument(
         '-u', '--unzip',
-        help='command to write compressed file contents to standard output: e.g., zcat, unpigz -c, etc.')
+        help='command to write gzip-compressed file contents to standard output: e.g., zcat, unpigz -c, etc.')
     parser.add_argument(
         '-s', '--sep',
         default='\t',
@@ -555,6 +507,7 @@ def main():
         if G_merged:
             df = pd.concat((df, G_merged.to_df()), axis=0, ignore_index=True)
         df.to_csv(args.out)
+
 
 if __name__ == '__main__':
     main()
