@@ -16,6 +16,7 @@ import glob
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import numpy as np
@@ -385,12 +386,15 @@ def count_reads(paths, n_processes, unzip=None, filetype=None, agg=True):
             raise ValueError(f'Unsupported file extension for file {paths[0]}. Must be .fastq.gz, .fq.gz, .bam, .sam., or .cram')
     assert str(filetype).lower() in ('fastq', 'bam')
 
-    paths_concat = ' '.join((f"'{path}'" for path in paths))
     if filetype == 'fastq':
-        cmd = f'ls {paths_concat} | xargs -n 1 -P {n_processes} -I % sh -c "{unzip} % | wc -l | awk \'{{print \$1 / 4}}\'"'
+        cmd_xargs = f'xargs -n 1 -P {n_processes} -I % sh -c "{unzip} % | wc -l | awk \'{{print $1 / 4}}\'"'
     else:
-        cmd = f'ls {paths_concat} | xargs -n 1 -P {n_processes} samtools view -@ 4 -c'
-    counts = list(map(int, subprocess.run(cmd, shell=True, capture_output=True, text=True).stdout.strip().split()))
+        cmd_xargs = f'xargs -n 1 -P {n_processes} samtools view -@ 4 -c'
+    with subprocess.Popen(['ls'] + paths, stdout=subprocess.PIPE) as p1:
+        with subprocess.Popen(shlex.split(cmd_xargs), stdin=p1.stdout, stdout=subprocess.PIPE) as p2:
+            p1.stdout.close()
+            counts = [int(s.strip()) for s in p2.communicate()[0].decode().strip().split('\n')]
+
     return sum(counts) if agg else counts
 
 def count_reads_clusters(paths, n_processes):
@@ -407,12 +411,18 @@ def count_reads_clusters(paths, n_processes):
         Keys = 'DPM', 'BPM'
         Values = sum of the number of DPM or BPM reads in cluster files.
     '''
-    paths_concat = ' '.join((f"'{path}'" for path in paths))
-    cmd = f'LC_ALL=C; ls {paths_concat} | xargs grep -h -F -o -e "DPM" -e "BPM" | sort --parallel={n_processes} | uniq -c'
+    cmd_grep = 'xargs grep -h -F -o -e "DPM" -e "BPM"'
     counts = dict(DPM=0, BPM=0)
-    for line in subprocess.run(cmd, shell=True, capture_output=True, text=True).stdout.strip().split('\n'):
-        count, pattern = regex_uniq_count.match(line.strip()).groups()
-        counts[pattern] += int(count)
+    with subprocess.Popen(['ls'] + paths, stdout=subprocess.PIPE) as p1:
+        with subprocess.Popen(shlex.split(cmd_grep), stdin=p1.stdout, stdout=subprocess.PIPE, env={'LC_ALL': 'C'}) as p2:
+            with subprocess.Popen(['sort', f'--parallel={n_processes}'], stdin=p2.stdout, stdout=subprocess.PIPE) as p3:
+                with subprocess.Popen(['uniq', '-c'], stdin=p3.stdout, stdout=subprocess.PIPE) as p4:
+                    p1.stdout.close()
+                    p2.stdout.close()
+                    p3.stdout.close()
+                    for line in p4.communicate()[0].decode().strip().split('\n'):
+                        count, pattern = regex_uniq_count.match(line.strip()).groups()
+                        counts[pattern] += int(count)
     return counts
 
 def collect_pipeline_counts(
