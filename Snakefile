@@ -786,8 +786,8 @@ rule pipeline_counts:
     input:
         expand([out_dir + "workup/splitbams/{sample}.done"], sample=ALL_SAMPLES)
     output:
-        csv = outdir + "workup/qc/pipeline_counts.csv",
-        pretty = outdir + "workup/pipeline_counts.txt"
+        csv = out_dir + "workup/qc/pipeline_counts.csv",
+        pretty = out_dir + "workup/pipeline_counts.txt"
     log:
         out_dir + "workup/logs/pipeline_counts.log"
     conda:
@@ -796,7 +796,7 @@ rule pipeline_counts:
         10
     shell:
         '''
-        directory="{outdir}"
+        directory="{out_dir}"
         if [ -z "$directory" ]; then
             directory='.'
         fi
