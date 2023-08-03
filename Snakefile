@@ -117,6 +117,15 @@ except:
     generate_splitbams = False
 
 try:
+    merge_and_index_splitbams = config["merge_and_index_splitbams"]
+    if merge_and_index_splitbams and not generate_splitbams:
+        print("Cannot merge splitbams if splitbams are not generated.", file=sys.stderr)
+        print("Setting merge_and_index_splitbams to False.")
+        merge_and_index_splitbams = False
+except:
+    merge_and_index_splitbams = False
+
+try:
     min_oligos = config["min_oligos"]
 except:
     min_oligos = 2
@@ -322,11 +331,15 @@ SPLITBAMS = expand(
 
 SPLITBAMS_COUNTS = [out_dir + "workup/splitbams/splitbam_statistics.txt"]
 
-PIPELINE_COUNTS = [out_dir + "workup/pipeline_counts.txt"]
-
-if generate_splitbams == False:
+if not generate_splitbams:
     SPLITBAMS = []
     SPLITBAMS_COUNTS = []
+
+PIPELINE_COUNTS = [out_dir + "workup/pipeline_counts.txt"]
+
+MERGE_SPLITBAMS = [out_dir + "workup/splitbams/index_splitbams.done"]
+if not merge_and_index_splitbams:
+    MERGE_SPLITBAMS = []
 
 ##############################################################################
 ##############################################################################
@@ -335,7 +348,10 @@ if generate_splitbams == False:
 ##############################################################################
 
 rule all:
-    input: CONFIG + SPLIT_FQ + ALL_FASTQ + TRIM + TRIM_LOG + TRIM_RD + BARCODEID + LE_LOG_ALL + SPLIT_DPM_BPM +  MERGE_BEAD + FQ_TO_BAM + Bt2_DNA_ALIGN + CHR_DNA + MASKED + MERGE_DNA + CLUSTERS + CLUSTERS_MERGED + MULTI_QC + COUNTS + SIZES + ECDFS + SPLITBAMS + SPLITBAMS_COUNTS + PIPELINE_COUNTS
+    input: CONFIG + SPLIT_FQ + ALL_FASTQ + TRIM + TRIM_LOG + TRIM_RD + BARCODEID + LE_LOG_ALL +
+           SPLIT_DPM_BPM +  MERGE_BEAD + FQ_TO_BAM + Bt2_DNA_ALIGN + CHR_DNA + MASKED + MERGE_DNA +
+           CLUSTERS + CLUSTERS_MERGED + MULTI_QC + COUNTS + SIZES + ECDFS + SPLITBAMS +
+           SPLITBAMS_COUNTS + PIPELINE_COUNTS + MERGE_SPLITBAMS
 
 # Send and email if an error occurs during execution
 onerror:
@@ -841,8 +857,55 @@ rule generate_splitbam_statistics:
     output:
         out_dir + "workup/splitbams/splitbam_statistics.txt"
     params:
+        dir = out_dir + "workup/splitbams",
+        samples = [f"'{sample}'" for sample in ALL_SAMPLES]
+    conda:
+        "envs/sprite.yaml"
+    threads:
+        4
+    shell:
+        '''
+        samples=({params.samples})
+        for sample in ${{samples[@]}}; do
+            for path in {params.dir}/${{sample}}.DNA.merged.labeled*.bam; do
+                count=$(samtools view -@ {threads} -c $path)
+                echo -e "${path}\t${count}" >> {output}
+            done
+        done
+        '''
+
+rule merge_splitbams:
+    input:
+        expand([out_dir + "workup/splitbams/{sample}.done"], sample=ALL_SAMPLES)
+    output:
+        temp(touch(out_dir + "workup/splitbams/merge_splitbams.done"))
+    params:
+        dir = out_dir + "workup/splitbams",
+        samples = [f"'{sample}'" for sample in ALL_SAMPLES]
+    conda:
+        "envs/sprite.yaml"
+    threads:
+        4
+    shell:
+        '''
+        targets=$(ls "{params.dir}"/*.DNA.merged.labeled_*.bam | sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\1/' | sort -u)
+        for target in ${{targets[@]}}; do
+            samtools merge -@ {threads} -o "{params.dir}"/"${{target}}.bam" "{params.dir}"/*.DNA.merged.labeled_"$target".bam
+        done
+        '''
+
+rule index_splitbams:
+    input:
+        out_dir + "workup/splitbams/merge_splitbams.done"
+    output:
+        out_dir + "workup/splitbams/index_splitbams.done"
+    params:
         dir = out_dir + "workup/splitbams"
     conda:
         "envs/sprite.yaml"
+    threads:
+        10
     shell:
-        "for f in {params.dir}/*bam; do echo $f; samtools view -c $f; done > {output}"
+        '''
+        ls "{params.dir}"/*.bam | xargs -n 1 -P {threads} samtools index
+        '''

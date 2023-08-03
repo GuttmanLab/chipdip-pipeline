@@ -1,34 +1,35 @@
-#email to which errors will be sent
+# Email to which errors will be sent
 email: ""
-#Location of the config file for BarcodeIdentification
+# Path to barcoding config file
 bID: "example_config.txt"
-#Location of the format file for barcode filtering
+# Path to barcoding format file
 format: "example_format.txt"
-#Location of the samples json file produced with the fastq2json.py script 
+# Path to samples JSON file, e.g., as produced with the fastq2json.py script
 samples: "example_samples.json"
-#Output directory  
+# Output directory
 output_dir: ""
-#Temporary directory
+# Temporary directory
 temp_dir: "/central/scratch/"
-#Currently "mm10" and "hg38" available
+# Currently "mm10" and "hg38" available
 assembly: "mm10"
-#Number of barcodes used
+# Number of rounds of tags used, including DPM
 num_tags: 7
-#Number of chunks to split fastq
+# Number of chunks to split FASTQ reads into for parallel processing
 num_chunks: 2
-#Files for cutadapt
+# Files for cutadapt
 cutadapt_dpm: "assets/dpm96.fasta"
 cutadapt_oligos: "assets/bpm.fasta"
-#Repeat mask used for filtering DNA reads
+# Mask used for filtering DNA reads
 mask:
     mm10: "assets/blacklist_mm10.bed"
     hg38: "assets/blacklist_hg38.bed"
-#Bowtie2 Indexes for aligning DNA reads
+# Bowtie2 indexes for aligning DNA reads
 bowtie2_index:
     mm10: "assets/index_mm10/mm10"
     hg38: "assets/index_hg38/GRCh38_noalt_as"
-#Bamfile generation for individual targets
+# Generate BAM files for individual targets
 generate_splitbams: true
+merge_and_index_splitbams: true
 min_oligos: 2
 proportion: 0.8
 max_size: 10000
