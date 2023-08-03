@@ -200,30 +200,37 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        # 3. Tag sequence (see assets/dpm96.fasta)
        # 4. Tag error tolerance: acceptable Hamming distance between
        #    expected tag sequence (column 3) and tag sequence in the read
-       DPM	DPM6B1	TCGAGTCT	0
-       DPM	DPM6B10	TGATGCAT	0
+       DPM	DPMBot6_1-A1	TGGGTGTT	0
+       DPM	DPMBot6_2-A2	TGACATGT	0
        ...
        
        # Antibody oligo barcode sequences formatted as tab-delimited lines
        # - Identical format as for DPM tag sequences, except that the tag name (column 2)
        #   must contain "BEAD", such as "BEAD_<name of antibody>"
-       DPM	BEAD_AB1	GGAACAGTT	0
-       DPM	BEAD_AB2	CGCCGAATT	0
+       DPM	BEAD_AB1-A1	GGAACAGTT	0
+       DPM	BEAD_AB2-A2	CGCCGAATT	0
        ...
        
        # Split-pool tag sequences: same 4-column tab-delimited format as the 
        #   "DPM and antibody oligo barcode sequences" section above, except that 
        #   Tag category (column 1) is now ODD, EVEN, or Y
-       EVEN	A1	ATACTGCGGCTGACG	2
-       EVEN	A2	GTAGGTTCTGGAATC	2
+       EVEN	EvenBot_1-A1	ATACTGCGGCTGACG	2
+       EVEN	EvenBot_2-A2	GTAGGTTCTGGAATC	2
        ...
-       ODD	A1	TTCGTGGAATCTAGC	2
-       ODD	A2	CCTGTGCGTTAGAGT	2
+       ODD	OddBot_1-A1	TTCGTGGAATCTAGC	2
+       ODD	OddBot_2-A2	CCTGTGCGTTAGAGT	2
        ...
-       Y	A1	TATTATGGT	0
-       Y	A2	GAGATGGAT	0
+       Y	NYStgBot_1-A1	TATTATGGT	0
+       Y	NYStgBot_2-A2	TAGCTACCTT	0
        ...
        ```
+   - Notes regarding the entries in `example_config.txt`
+     - Names: Each name ends with `#-Well` (for example, `4-A4`) where the `#` gives the row-major index of the tag in a 96-well plate, and `Well` denotes the corresponding row and column.
+     - Sequences
+       - Antibody ID sequences are 9 bp
+       - The design of a DPM tags allows for 9 bp of unique sequence, but only 8 bp are used in the published SPRITE tag set (in bottom tags, the 9th bp is currently a constant `'T'`). `example_config.txt` therefore only includes the unique 8 bp sequences.
+       - The design of EVEN and ODD tags allows for 17 bp of unique sequence, but only 16 bp are used in the published SPRITE tag set (in bottom tags, the 17th bp is currently a constant `'T'`). `example_config.txt` further trims the 1st unique bp from the bottom tag, leaving only the middle 15 bp unique bottom sequence.
+       - The design of Y (terminal) tags allows for 9-12 bp of unique sequence.
        <!-- TODO: why are the DPM sequences in the config.txt file trimmed compared to dpm96.fasta? -->
 
 6. <a name="format-txt">`format.txt`</a>: Tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
@@ -232,8 +239,6 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - Column 1 indicates the zero-indexed position of the barcode string where a tag can be found.
      - Term barcode tags (Y) are position `0`; the second to last round of barcoding tags are position `1`; etc. A value of `-1` in the position column indicates that the barcode tag was not used in the experiment.
    - Column 2 indicates the name of the tag. This must be the same as the name of the tag in [`config.txt`](#config-txt). If the same tag is used in multiple barcoding rounds, then it should appear multiple times in column 2, but with different values in column 1 indicating which rounds it is used in.
-   - (Currently ignored) Column 3 is the tag sequence.
-   - (Currently ignored) Column 4 is the edit acceptable edit distance for this sequence.
 
 7. <a name="blacklist-bed">`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`</a>: blacklisted genomic regions for ChIP-seq data
    - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz).
