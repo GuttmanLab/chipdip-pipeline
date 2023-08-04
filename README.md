@@ -175,6 +175,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - The pipeline (in particular, the script `scripts/bash/split_fastq.sh`) currently only supports one read 1 (R1) and one read 2 (R2) FASTQ file per sample.
      - If there are multiple FASTQ files per read orientation per sample (for example, if the same sample was sequenced multiple times, or it was split across multiple lanes during sequencing), the FASTQ files will first need to be concatenated together, and the paths to the concatenated FASTQ files should be supplied in the JSON file.
    - Each sample is processed independently, generating independent cluster and BAM files. Statistics used for quality assessment (ligation efficiency, cluster statistics, MultiQC report, cluster size distributions, splitbam statistics) are computed independently for each sample but reported together in aggregate files to enable quick quality comparison across samples.
+   - The provided sample read files under the `data/` folder were simulated via a [Google Colab notebook](https://colab.research.google.com/drive/1CyjY0fJSiBl4vCz6FGFuT3IZEQR5XYlI). The chromatin reads correspond to ChIP-seq peaks on chromosome 19 (mm10) for transcription factors MYC and TCF12.
 
 3. <a name="bpm-fasta">`assets/bpm.fasta`</a>: FASTA file containing the sequences of antibody oligo barcodes
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `cutadapt_oligos`
