@@ -126,8 +126,8 @@ For reproducibility, we recommend keeping the pipeline, input, and output direct
 
 However, the pipeline directory can also be kept separate and used repeatedly on different datasets.
 - The [working directory](#working-directory) should stay with the [input directory](#input-directory), so that the `.snakemake` folder containing the Snakemake pipeline metadata (that keeps track of which steps of the pipeline have completed) is paired with the configuration files.
-  - Assuming that the above directory structure is followed, most of the paths in [`config.yaml`](#config-yaml) can remain relative paths to configuration files and asset files in the [input directory](#input-directory). The only paths that need to be modified are `scripts_dir` and `output_dir`.
-  - Modify the `--snakefile <path to Snakefile>` and `--cluster-config <path to cluster.yaml>` arguments in `run_pipeline.sh`.
+  - Assuming that the above directory structure is followed, most of the paths in [`config.yaml`](#config-yaml) can remain relative paths to configuration files and asset files in the [input directory](#input-directory). The only paths in [`config.yaml`](#config-yaml) that need to be modified are `scripts_dir` and `output_dir`.
+  - Modify the `--snakefile <path to Snakefile>` argument in `run_pipeline.sh` to point to the Snakefile in the [pipeline directory](#pipeline-directory).
   - Run `run_pipeline.sh` from the [input directory](#input-directory).
 - To reuse the `chipdip` conda environment, create a discoverable `chipdip` conda environment (e.g., `conda env create -f envs/chipdip.yaml`) and set the `use_existing_conda_env` option in [`config.yaml`](#config-yaml) to `true`.
 
