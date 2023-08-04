@@ -13,4 +13,5 @@ snakemake \
 -t {cluster.time} -N {cluster.nodes} \
 --mem {cluster.mem} \
 --output {cluster.output} \
---error {cluster.error}"
+--error {cluster.error}" \
+"$@"
