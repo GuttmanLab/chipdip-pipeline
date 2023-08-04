@@ -38,3 +38,5 @@ proportion: 0.8
 max_size: 10000
 # Merge and index split BAM files across samples
 merge_and_index_splitbams: true
+# BigWig binsize; set to false to skip BigWig generation
+binsize: 1000

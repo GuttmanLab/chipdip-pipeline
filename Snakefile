@@ -154,6 +154,8 @@ try:
 except:
     max_size = 10000
 
+binsize = config.get("binsize", False)
+
 if generate_splitbams:
     print("Will generate bam files for individual targets using:", file=sys.stderr)
     print("\t min_oligos: ", min_oligos, file=sys.stderr)
@@ -349,6 +351,10 @@ SPLITBAMS = expand(
 
 SPLITBAMS_COUNTS = [os.path.join(DIR_WORKUP, "splitbams/splitbam_statistics.txt")]
 
+BIGWIGS = [os.path.join(DIR_WORKUP, "bigwigs/bigwigs.done")]
+if not binsize:
+    BIGWIGS = []
+
 if not generate_splitbams:
     SPLITBAMS = []
     SPLITBAMS_COUNTS = []
@@ -369,7 +375,7 @@ rule all:
     input: CONFIG + SPLIT_FQ + ALL_FASTQ + TRIM + TRIM_LOG + TRIM_RD + BARCODEID + LE_LOG_ALL +
            SPLIT_DPM_BPM +  MERGE_BEAD + FQ_TO_BAM + Bt2_DNA_ALIGN + CHR_DNA + MASKED + MERGE_DNA +
            CLUSTERS + CLUSTERS_MERGED + MULTI_QC + COUNTS + SIZES + ECDFS + SPLITBAMS +
-           SPLITBAMS_COUNTS + PIPELINE_COUNTS + MERGE_SPLITBAMS
+           SPLITBAMS_COUNTS + PIPELINE_COUNTS + MERGE_SPLITBAMS + BIGWIGS
 
 # Send and email if an error occurs during execution
 onerror:
@@ -968,4 +974,50 @@ rule index_splitbams:
     shell:
         '''
         ls "{params.dir}"/*.bam | xargs -n 1 -P {threads} samtools index &> "{log}"
+        '''
+
+rule generate_bigwigs:
+    input:
+        os.path.join(DIR_WORKUP, "splitbams/index_splitbams.done")
+    output:
+        touch(os.path.join(DIR_WORKUP, "bigwigs/bigwigs.done"))
+    log:
+        os.path.join(DIR_LOGS, "bigwigs.log")
+    params:
+        dir_bam = os.path.join(DIR_WORKUP, "splitbams"),
+        dir_bigwig = os.path.join(DIR_WORKUP, "bigwigs"),
+        binsize = binsize
+    conda:
+        chipdip_env
+    threads:
+        10
+    shell:
+        '''
+        {{
+            mkdir -p "{params.dir_bigwig}"
+            genome_size=$(bowtie2-inspect --summary "{bowtie2_index}" |
+                          grep "dna:chromosome" |
+                          cut -f 3 |
+                          awk '{{s+=$1}} END {{print s}}')
+            mask_size=$(bedtools merge -i "{mask}" | awk '{{s+=$3-$2}} END {{print s}}')
+            effective_genome_size=$((genome_size - mask_size))
+            echo "Bowtie 2 genome size (chromosomes only): $genome_size"
+            echo "Mask size: $mask_size"
+            echo "Effective genome size: $effective_genome_size"
+            targets=$(ls "{params.dir_bam}"/*.DNA.merged.labeled_*.bam |
+                      sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\\1/' |
+                      sort -u)
+            for target in ${{targets[@]}}; do
+                echo "Generating bigwig for target $target"
+                path_bam="{params.dir_bam}"/"${{target}}".bam
+                path_bigwig="{params.dir_bigwig}"/"${{target}}".bw
+                bamCoverage \
+                  --binSize {params.binsize} \
+                  --normalizeUsing RPGC \
+                  --effectiveGenomeSize $effective_genome_size \
+                  -p {threads} \
+                  --bam "$path_bam" \
+                  --outFileName "$path_bigwig"
+            done
+        }} &> "{log}"
         '''

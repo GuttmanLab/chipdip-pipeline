@@ -64,10 +64,11 @@ Workflow
    2. FASTQ to BAM conversion
 7. Cluster generation
 8. Cluster assignment and antibody specific BAM file creation
-9. Summary plots
-   1. DPM and BPM cluster size distributions
-   2. Maximum representation oligo ECDFs
-10. Summary statistics
+9. Antibody-specific BigWig file creation
+10. Summary plots
+    1. DPM and BPM cluster size distributions
+    2. Maximum representation oligo ECDFs
+11. Summary statistics
     1. MultiQC (trimming, alignments)
     2. Ligation efficiency
     3. Cluster statistics
@@ -109,6 +110,7 @@ We will refer to 4 directories:
 4. <a name="output-directory">Output or workup directory</a> (`workup/`): where to place this `workup` directory can be changed in [`config.yaml`](#config-yaml)
    - `alignments/`
    - `alignments_parts/`
+   - `bigwigs/`
    - `clusters/`
    - `clusters_parts/`
    - `fastqs/`
@@ -148,13 +150,14 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `mm10`: path to [Bowtie 2 genome index](#index-bt2) for the GRCm38 (mm10) build
      - `hg38`: path to [Bowtie 2 genome index](#index-bt2) for the GRCh38 (hg38) build
    - `assembly`: currently supports either `"mm10"` or `"hg38"`
-   - `num_tags`: an integer giving the number of rounds of tags used, including DPM. This should equal the number of times `DPM`, `ODD`, `EVEN`, `Y` appear in the first 2 lines of the [`config.txt` file](#config-txt).
-   - `num_chunks`: an integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
+   - `num_tags`: integer giving the number of rounds of tags used, including DPM. This should equal the number of times `DPM`, `ODD`, `EVEN`, `Y` appear in the first 2 lines of the [`config.txt` file](#config-txt).
+   - `num_chunks`: integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
    - `generate_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
    - `min_oligos`: minimum count of deduplicated antibody oligo barcode reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
    - `proportion`: minimum proportion of deduplicated antibody oligo barcode reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
    - `max_size`: maximum count of deduplicated chromatin reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
    - `merge_and_index_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to merge and index target-specific BAM files across samples
+   - `binsize`: integer specifying BigWig binsize; set to `false` to skip BigWig generation
 
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `samples`
@@ -298,6 +301,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      2. The proportion of reads remaining relative to the immediately previous step of the pipeline
      3. The proportion of reads remaining relative to the read type - antibody oligo (`bpm`) or chromatin (`dpm`)
      4. The proportion of reads remaining relative to the starting number of reads.
+   - A tabular version is saved to `workup/qc/pipeline_counts.csv`
 
 3. Cluster file (`workup/clusters/<sample>.clusters`)
    - Each line in a cluster file represents a single cluster. The first column is the cluster barcode. The remainder of the line is a tab deliminated list of reads. DNA reads are formated as `DPM[strand]_chr:start-end` and Antibody ID oligo reads are formated as `BPM[]_<AntibodyID>:<UMI>-0`.
@@ -326,6 +330,9 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
 10. Read Count Summary for Individual Antibodies (`workup/splitbams/splitbam_statistics.txt`)
     - The number of read counts contained within each individual BAM file assigned to individual antibodies.
+
+11. BigWig Files for Individual Antibodies (`workup/bigwigs/*.bw`)
+    - BigWigs are generated using [`deeptools bamCoverage`](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) with binsize set in [`config.yaml`](#config-yaml). Normalization is performed using effective genome size, which is calculated as the size of the canonical chromosomes in the Bowtie 2 index minus the size of regions in the mask for that genome.
 
 # Credits
 
