@@ -6,6 +6,8 @@ bID: "example_config.txt"
 format: "example_format.txt"
 # Path to samples JSON file, e.g., as produced with the fastq2json.py script
 samples: "example_samples.json"
+# Scripts directory
+scripts_dir: "scripts/"
 # Output directory
 output_dir: ""
 # Temporary directory

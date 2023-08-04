@@ -32,21 +32,27 @@ except:
 # Location of scripts
 ##############################################################################
 
-barcode_id_jar = "scripts/java/BarcodeIdentification_v1.2.0.jar"
-lig_eff = "scripts/python/get_ligation_efficiency.py"
-split_bpm_dpm = "scripts/python/split_dpm_bpm_fq.py"
-add_chr = "scripts/python/ensembl2ucsc.py"
-get_clusters = "scripts/python/get_clusters.py"
-merge_clusters = "scripts/python/merge_clusters.py"
-fq_to_bam = "scripts/python/fastq_to_bam.py"
-split_fastq = "scripts/bash/split_fastq.sh"
-pipeline_counts = "scripts/python/pipeline_counts.py"
+try:
+    DIR_SCRIPTS = config["scripts_dir"]
+except:
+    print("Scripts directory not specificed in config.yaml", file=sys.stderr)
+    sys.exit()  # no default, exit
 
-cluster_counts = "scripts/python/generate_cluster_statistics.py"
-cluster_sizes = "scripts/python/get_bead_size_distribution.py"
-cluster_ecdfs = "scripts/python/max_representation_ecdfs_perlib.py"
+split_fastq = os.path.join(DIR_SCRIPTS, "bash/split_fastq.sh")
+barcode_id_jar = os.path.join(DIR_SCRIPTS, "java/BarcodeIdentification_v1.2.0.jar")
+lig_eff = os.path.join(DIR_SCRIPTS, "python/get_ligation_efficiency.py")
+split_bpm_dpm = os.path.join(DIR_SCRIPTS, "python/split_dpm_bpm_fq.py")
+add_chr = os.path.join(DIR_SCRIPTS, "python/ensembl2ucsc.py")
+get_clusters = os.path.join(DIR_SCRIPTS, "python/get_clusters.py")
+merge_clusters = os.path.join(DIR_SCRIPTS, "python/merge_clusters.py")
+fq_to_bam = os.path.join(DIR_SCRIPTS, "python/fastq_to_bam.py")
+tag_and_split = os.path.join(DIR_SCRIPTS, "python/threshold_tag_and_split.py")
 
-tag_and_split = "scripts/python/threshold_tag_and_split.py"
+cluster_counts = os.path.join(DIR_SCRIPTS, "python/generate_cluster_statistics.py")
+cluster_sizes = os.path.join(DIR_SCRIPTS, "python/get_bead_size_distribution.py")
+cluster_ecdfs = os.path.join(DIR_SCRIPTS, "python/max_representation_ecdfs_perlib.py")
+
+pipeline_counts = os.path.join(DIR_SCRIPTS, "python/pipeline_counts.py")
 
 ##############################################################################
 # Load settings
