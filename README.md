@@ -127,7 +127,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
   - Assuming that the above directory structure is followed, most of the paths in [`config.yaml`](#config-yaml) can remain relative paths to configuration files and asset files in the [input directory](#input-directory). The only paths that need to be modified are `scripts_dir` and `output_dir`.
   - Modify the `--snakefile <path to Snakefile>` and `--cluster-config <path to cluster.yaml>` arguments in `run_pipeline.sh`.
   - Run `run_pipeline.sh` from the [input directory](#input-directory).
-- To reuse existing conda environments, remove the `.yml` extension from the `conda:` directives within the Snakefile. [[Snakemake documentation]](https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html#using-already-existing-named-conda-environments)
+- To reuse the `chipdip` conda environment, create a discoverable `chipdip` conda environment (e.g., `conda env create -f envs/chipdip.yaml`) and set the `use_existing_conda_env` option in [`config.yaml`](#config-yaml) to `true`.
 
 # Input Files
 
@@ -154,6 +154,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - `min_oligos`: minimum count of deduplicated antibody oligo barcode reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
    - `proportion`: minimum proportion of deduplicated antibody oligo barcode reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
    - `max_size`: maximum count of deduplicated chromatin reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
+   - `merge_and_index_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to merge and index target-specific BAM files across samples
 
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `samples`
