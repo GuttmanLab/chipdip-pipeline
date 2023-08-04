@@ -21,7 +21,7 @@ Contents
 This pipeline assumes an existing [conda](https://conda.io) installation and is written as a [Snakemake](https://snakemake.github.io/) workflow. To install Snakemake with conda, run
 
 ```
-conda env create -f envs/snakemake.yml
+conda env create -f envs/snakemake.yaml
 conda activate snakemake
 ```
 
@@ -134,10 +134,11 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 1. <a name="config-yaml">`config.yaml`</a>: YAML file containing the processing settings and paths of required input files. As noted [above](#input-directory), paths are specified relative to the [working directory](#working-directory).
    - `output_dir`: path to create the output directory `<output_dir>/workup` within which all intermediate and output files are placed.
    - `scripts_dir`: path to scripts folder in the [pipeline directory](#pipeline-directory)
+   - `temp_dir`: path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
    - `bID`: path to [`config.txt` file](#config-txt)
    - `format`: path to [`format.txt` file](#format-txt)
    - `samples`: path to [`samples.json` file](#samples-json)
-   - `temp_dir`: path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
+   - `use_existing_conda_env`: [boolean value](https://yaml.org/type/bool.html) indicating whether to use an existing (especially system-wide) conda environment named `chipdip` instead of creating a new conda environment within the `.snakemake` folder of the [working directory](#working-directory) based on `envs/chipdip.yaml`
    - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
    - `cutadapt_oligos`: path to [antibody oligo barcode sequences](#bpm-fasta)
    - `mask`

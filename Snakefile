@@ -2,9 +2,9 @@
 Aim: A Snakemake workflow to process CHIP-DIP data
 """
 
+import json
 import os
 import sys
-import numpy as np
 import datetime
 
 ##############################################################################
@@ -113,6 +113,14 @@ try:
 except:
     num_chunks = 2
 
+use_existing_conda_env = config.get("use_existing_conda_env", False)
+if use_existing_conda_env:
+    chipdip_env = "chipdip"
+    print("Using existing 'chipdip' conda environment", file=sys.stderr)
+else:
+    chipdip_env = "envs/chipdip.yaml"
+    print("Will create new 'chipdip' conda environment", file=sys.stderr)
+
 ##############################################################################
 # Load Post Clustering Setting
 ##############################################################################
@@ -216,7 +224,7 @@ for SAMPLE, file in FILES.items():
     ALL_FASTQ.extend([os.path.abspath(i) for i in file.get("R1")])
     ALL_FASTQ.extend([os.path.abspath(i) for i in file.get("R2")])
 
-NUM_CHUNKS = [f"{i:03}" for i in np.arange(0, num_chunks)]
+NUM_CHUNKS = [f"{i:03}" for i in range(num_chunks)]
 
 ##############################################################################
 # Logging
@@ -391,7 +399,7 @@ rule splitfq:
     log:
         os.path.join(DIR_LOGS, "{sample}.splitfq.log")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         8
     shell:
@@ -410,7 +418,7 @@ rule compress_fastq:
         r1 = os.path.join(DIR_WORKUP, "splitfq/{sample}_R1.part_{splitid}.fastq.gz"),
         r2 = os.path.join(DIR_WORKUP, "splitfq/{sample}_R2.part_{splitid}.fastq.gz")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         8
     shell:
@@ -436,7 +444,7 @@ rule adaptor_trimming_pe:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.trim_galore.log")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         if [[ {threads} -gt 8 ]]; then
@@ -480,7 +488,7 @@ rule get_ligation_efficiency:
     output:
         temp(os.path.join(DIR_WORKUP, "{sample}.part_{splitid}.ligation_efficiency.txt"))
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         python "{lig_eff}" "{input.r1}" > "{output}"
@@ -511,7 +519,7 @@ rule split_bpm_dpm:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.BPM_DPM.log")
     conda:
-       "envs/sprite.yaml"
+       chipdip_env
     shell:
         '''
         python "{split_bpm_dpm}" --r1 "{input}" --format "{formatfile}" &> "{log}"
@@ -535,7 +543,7 @@ rule cutadapt_dpm:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.DPM.cutadapt.log")
     threads: 10
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         (cutadapt \
@@ -561,7 +569,7 @@ rule cutadapt_oligo:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.BPM.cutadapt.log")
     threads: 10
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         (cutadapt \
@@ -590,7 +598,7 @@ rule bowtie2_align:
     threads:
         10
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         (bowtie2 \
@@ -612,7 +620,7 @@ rule add_chr:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.add_chr.log"),
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         python "{add_chr}" -i "{input}" -o "{output}" --assembly "{assembly}" &> "{log}"
@@ -627,7 +635,7 @@ rule repeat_mask:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.repeat_mask.log")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         bedtools intersect -v -a "{input}" -b "{mask}" > "{output}" 2> "{log}"
@@ -642,7 +650,7 @@ rule merge_dna:
     output:
         os.path.join(DIR_WORKUP, "alignments/{sample}.DNA.merged.bam")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         8
     log:
@@ -666,7 +674,7 @@ rule fastq_to_bam:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.make_bam.log")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         8
     shell:
@@ -684,7 +692,7 @@ rule merge_beads:
     output:
         os.path.join(DIR_WORKUP, "alignments/{sample}.merged.BPM.bam")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_beads.log")
     threads:
@@ -709,7 +717,7 @@ rule make_clusters:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.make_clusters.log")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         (python "{get_clusters}" \
@@ -732,7 +740,7 @@ rule merge_clusters:
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_clusters.log")
     conda:
-       "envs/sprite.yaml"
+       chipdip_env
     shell:
         '''
         sort -k 1 -T "{temp_dir}" -m {input} > "{output.mega}"
@@ -754,7 +762,7 @@ rule generate_cluster_statistics:
     params:
         dir = os.path.join(DIR_WORKUP, "clusters")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         python "{cluster_counts}" --directory "{params.dir}" --pattern .clusters \
@@ -773,7 +781,7 @@ rule generate_cluster_ecdfs:
     params:
         dir = os.path.join(DIR_WORKUP, "clusters")
     conda:
-        "envs/plotting.yaml"
+        chipdip_env
     shell:
         '''
         python "{cluster_ecdfs}" --directory "{params.dir}" --pattern .clusters \
@@ -794,7 +802,7 @@ rule get_size_distribution:
     params:
         dir = os.path.join(DIR_WORKUP, "clusters")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \
@@ -829,7 +837,7 @@ rule multiqc:
     params:
         dir_qc = os.path.join(DIR_WORKUP, "qc")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         multiqc "{DIR_WORKUP}" -o "{params.dir_qc}" &> "{log}"
@@ -844,7 +852,7 @@ rule pipeline_counts:
     log:
         os.path.join(DIR_LOGS, "pipeline_counts.log")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         10
     shell:
@@ -874,7 +882,7 @@ rule thresh_and_split:
     params:
         dir_splitbams = os.path.join(DIR_WORKUP, "splitbams")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     shell:
         '''
         python "{tag_and_split}" \
@@ -900,7 +908,7 @@ rule generate_splitbam_statistics:
         dir = os.path.join(DIR_WORKUP, "splitbams"),
         samples = [f"'{sample}'" for sample in ALL_SAMPLES]
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         4
     shell:
@@ -927,7 +935,7 @@ rule merge_splitbams:
         dir = os.path.join(DIR_WORKUP, "splitbams"),
         samples = [f"'{sample}'" for sample in ALL_SAMPLES]
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         4
     shell:
@@ -954,7 +962,7 @@ rule index_splitbams:
     params:
         dir = os.path.join(DIR_WORKUP, "splitbams")
     conda:
-        "envs/sprite.yaml"
+        chipdip_env
     threads:
         10
     shell:

@@ -12,6 +12,8 @@ scripts_dir: "scripts/"
 output_dir: ""
 # Temporary directory
 temp_dir: "/central/scratch/"
+# Use existing conda environment named chipdip
+use_existing_conda_env: false
 # Currently "mm10" and "hg38" available
 assembly: "mm10"
 # Number of rounds of tags used, including DPM
@@ -31,7 +33,8 @@ bowtie2_index:
     hg38: "assets/index_hg38/GRCh38_noalt_as"
 # Generate BAM files for individual targets
 generate_splitbams: true
-merge_and_index_splitbams: true
 min_oligos: 2
 proportion: 0.8
 max_size: 10000
+# Merge and index split BAM files across samples
+merge_and_index_splitbams: true

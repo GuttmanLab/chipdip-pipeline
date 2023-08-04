@@ -29,7 +29,7 @@ def construct_sam_header(config):
     df = pd.read_csv(
         config,
         comment="#",
-        error_bad_lines=False,
+        on_bad_lines="warn",
         sep="\t",
         names=["Tag", "Name", "Sequence", "Number"],
     ).dropna()
