@@ -458,8 +458,9 @@ def collect_pipeline_counts(
 
 def main():
     parser = argparse.ArgumentParser(description='Count reads at each step of the ChIP-DIP pipeline.')
-    parser.add_argument('-d', '--dir-pipeline', help='path to pipeline')
-    parser.add_argument('-n', '--n-processes', help='number of processes to use')
+    parser.add_argument('--samples', required=True, help='path to samples.json file')
+    parser.add_argument('-w', '--dir-workup', required=True, help='path to workup directory')
+    parser.add_argument('-n', '--n-processes', type=int, help='number of processes to use')
     parser.add_argument('-v', '--verbose', action='store_true', help='print status messages to stderr')
     parser.add_argument('-o', '--out', help='path to save counts as CSV file')
     parser.add_argument(
@@ -472,19 +473,15 @@ def main():
 
     args = parser.parse_args()
     n_processes = args.n_processes
-    DIR_PIPELINE = args.dir_pipeline
     if n_processes is None:
         try:
             n_processes = len(os.sched_getaffinity(0))
         except:
             n_processes = os.cpu_count()
 
-    if DIR_PIPELINE is None:
-        DIR_PIPELINE = os.path.abspath(os.getcwd())
-    DIR_WORKUP = os.path.join(DIR_PIPELINE, 'workup')
+    DIR_WORKUP = args.dir_workup
 
-    path_samples_json = os.path.join(DIR_PIPELINE, 'samples.json')
-    with open(path_samples_json, 'rt') as f:
+    with open(args.samples, 'rt') as f:
         aliquots = tuple(json.load(f).keys())
 
     G, G_merged = collect_pipeline_counts(

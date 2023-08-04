@@ -166,3 +166,17 @@ pipeline_counts:
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
+merge_splitbams:
+    time: "01:00:00"
+    mem: 20g
+    cpus: 4
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.out"
+    error: "workup/logs/cluster/{rule}.err"
+index_splitbams:
+    time: "01:00:00"
+    mem: 20g
+    cpus: 10
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.out"
+    error: "workup/logs/cluster/{rule}.err"

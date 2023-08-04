@@ -13,7 +13,7 @@ import datetime
 
 # Copy config file into logs
 v = datetime.datetime.now()
-run_date = v.strftime("%Y.%m.%d.")
+run_date = v.strftime("%Y.%m.%d")
 
 try:
     config_path = config["config_path"]
@@ -90,9 +90,10 @@ except:
 
 try:
     out_dir = config["output_dir"]
+    out_dir = os.path.join(out_dir, "")
     print("All data will be written to: ", out_dir, file=sys.stderr)
 except:
-    out_dir = ""
+    out_dir = "./"
     print("Defaulting to working directory as output directory", file=sys.stderr)
 
 try:
@@ -190,8 +191,9 @@ except:
 # Make output directories
 ##############################################################################
 
-os.makedirs(out_dir + "workup/logs/cluster", exist_ok=True)
-out_created = os.path.exists(out_dir + "workup/logs/cluster")
+dir_logs_cluster = os.path.join(out_dir, "workup", "logs", "cluster")
+os.makedirs(dir_logs_cluster, exist_ok=True)
+out_created = os.path.exists(dir_logs_cluster)
 print("Output logs path created:", out_created, file=sys.stderr)
 
 ##############################################################################
@@ -212,7 +214,7 @@ NUM_CHUNKS = [f"{i:03}" for i in np.arange(0, num_chunks)]
 # Logging
 ##############################################################################
 
-CONFIG = [out_dir + "workup/logs/config_" + run_date + "yaml"]
+CONFIG = [os.path.join(out_dir, "workup", "logs", "config_" + run_date + ".yaml")]
 
 LE_LOG_ALL = [out_dir + "workup/ligation_efficiency.txt"]
 
@@ -728,13 +730,15 @@ rule generate_cluster_statistics:
         expand([out_dir + "workup/clusters/{sample}.clusters"], sample=ALL_SAMPLES)
     output:
         out_dir + "workup/clusters/cluster_statistics.txt"
+    log:
+        out_dir + "workup/logs/cluster_statistics.log"
     params:
         dir = out_dir + "workup/clusters"
     conda:
         "envs/sprite.yaml"
     shell:
         '''
-        python {cluster_counts} --directory {params.dir} --pattern .clusters > {output}
+        python {cluster_counts} --directory {params.dir} --pattern .clusters > {output} 2> {log}
         '''
 
 # Generate ecdfs of oligo distribution
@@ -744,13 +748,15 @@ rule generate_cluster_ecdfs:
     output:
         ecdf = out_dir + "workup/clusters/Max_representation_ecdf.pdf",
         counts = out_dir + "workup/clusters/Max_representation_counts.pdf"
+    log:
+        out_dir + "workup/logs/cluster_ecdfs.log"
     params:
         dir = out_dir + "workup/clusters"
     conda:
         "envs/plotting.yaml"
     shell:
         '''
-        python {cluster_ecdfs} --directory {params.dir} --pattern .clusters --xlim 30
+        python {cluster_ecdfs} --directory {params.dir} --pattern .clusters --xlim 30 &> {log}
         '''
 
 # Profile size distribution of clusters
@@ -762,14 +768,16 @@ rule get_size_distribution:
         dpm2 = out_dir + "workup/clusters/DPM_cluster_distribution.pdf",
         bpm = out_dir + "workup/clusters/BPM_read_distribution.pdf",
         bpm2 = out_dir + "workup/clusters/BPM_cluster_distribution.pdf"
+    log:
+        out_dir + "workup/logs/size_distribution.log"
     params:
         dir = out_dir + "workup/clusters"
     conda:
         "envs/sprite.yaml"
     shell:
         '''
-        python {cluster_sizes} --directory {params.dir} --pattern .clusters --readtype BPM
-        python {cluster_sizes} --directory {params.dir} --pattern .clusters --readtype DPM
+        python {cluster_sizes} --directory {params.dir} --pattern .clusters --readtype BPM &> {log}
+        python {cluster_sizes} --directory {params.dir} --pattern .clusters --readtype DPM &>> {log}
         '''
 
 ##############################################################################
@@ -781,7 +789,7 @@ rule log_config:
     input:
         config_path
     output:
-        out_dir + "workup/logs/config_" + run_date + "yaml"
+        os.path.join(out_dir, "workup", "logs", "config_" + run_date + ".yaml")
     shell:
         "cp {input} {output}"
 
@@ -796,7 +804,7 @@ rule multiqc:
     conda:
         "envs/sprite.yaml"
     shell:
-        "multiqc {out_dir}workup -o {out_dir}workup/qc"
+        "multiqc {out_dir}workup -o {out_dir}workup/qc &> {log}"
 
 rule pipeline_counts:
     input:
@@ -812,13 +820,12 @@ rule pipeline_counts:
         10
     shell:
         '''
-        directory="{out_dir}"
-        if [ -z "$directory" ]; then
-            directory='.'
-        fi
-
-        (python {pipeline_counts} -d "$directory" -n {threads} -o "{output.csv}" |
-         column -t -s $'\t' > "{output.pretty}") &>{log}
+        (python {pipeline_counts} \
+           --samples {samples} \
+           -w {out_dir}/workup \
+           -o "{output.csv}" \
+           -n {threads} | \
+         column -t -s $'\t' > "{output.pretty}") &> {log}
         '''
 
 ##############################################################################
@@ -833,6 +840,8 @@ rule thresh_and_split:
     output:
         bam = out_dir + "workup/alignments/{sample}.DNA.merged.labeled.bam",
         touch = temp(touch(out_dir + "workup/splitbams/{sample}.done"))
+    params:
+        dir_splitbams = out_dir + "workup/splitbams"
     conda:
         "envs/sprite.yaml"
     log:
@@ -843,7 +852,7 @@ rule thresh_and_split:
          -i {input.bam} \
          -c {input.clusters} \
          -o {output.bam} \
-         -d workup/splitbams \
+         -d {params.dir_splitbams} \
          --min_oligos {min_oligos} \
          --proportion {proportion} \
          --max_size {max_size} \
@@ -856,6 +865,8 @@ rule generate_splitbam_statistics:
         expand([out_dir + "workup/splitbams/{sample}.done"], sample=ALL_SAMPLES)
     output:
         out_dir + "workup/splitbams/splitbam_statistics.txt"
+    log:
+        out_dir + "workup/logs/splitbam_statistics.log"
     params:
         dir = out_dir + "workup/splitbams",
         samples = [f"'{sample}'" for sample in ALL_SAMPLES]
@@ -865,13 +876,15 @@ rule generate_splitbam_statistics:
         4
     shell:
         '''
-        samples=({params.samples})
-        for sample in ${{samples[@]}}; do
-            for path in {params.dir}/${{sample}}.DNA.merged.labeled*.bam; do
-                count=$(samtools view -@ {threads} -c $path)
-                echo -e "${path}\t${count}" >> {output}
+        {{
+            samples=({params.samples})
+            for sample in ${{samples[@]}}; do
+                for path in {params.dir}/${{sample}}.DNA.merged.labeled*.bam; do
+                    count=$(samtools view -@ {threads} -c $path)
+                    echo -e "${{path}}\t${{count}}" >> {output}
+                done
             done
-        done
+        }} &> {log}
         '''
 
 rule merge_splitbams:
@@ -879,6 +892,8 @@ rule merge_splitbams:
         expand([out_dir + "workup/splitbams/{sample}.done"], sample=ALL_SAMPLES)
     output:
         temp(touch(out_dir + "workup/splitbams/merge_splitbams.done"))
+    log:
+        out_dir + "workup/logs/merge_splitbams.log"
     params:
         dir = out_dir + "workup/splitbams",
         samples = [f"'{sample}'" for sample in ALL_SAMPLES]
@@ -888,17 +903,23 @@ rule merge_splitbams:
         4
     shell:
         '''
-        targets=$(ls "{params.dir}"/*.DNA.merged.labeled_*.bam | sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\1/' | sort -u)
-        for target in ${{targets[@]}}; do
-            samtools merge -@ {threads} -o "{params.dir}"/"${{target}}.bam" "{params.dir}"/*.DNA.merged.labeled_"$target".bam
-        done
+        {{
+            targets=$(ls "{params.dir}"/*.DNA.merged.labeled_*.bam | sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\\1/' | sort -u)
+            echo "$targets"
+            for target in ${{targets[@]}}; do
+                echo "merging BAM files for target $target"
+                samtools merge -f -@ {threads} "{params.dir}"/"${{target}}.bam" "{params.dir}"/*.DNA.merged.labeled_"$target".bam
+            done
+        }} &> {log}
         '''
 
 rule index_splitbams:
     input:
         out_dir + "workup/splitbams/merge_splitbams.done"
     output:
-        out_dir + "workup/splitbams/index_splitbams.done"
+        touch(out_dir + "workup/splitbams/index_splitbams.done")
+    log:
+        out_dir + "workup/logs/index_splitbams.log"
     params:
         dir = out_dir + "workup/splitbams"
     conda:
@@ -907,5 +928,5 @@ rule index_splitbams:
         10
     shell:
         '''
-        ls "{params.dir}"/*.bam | xargs -n 1 -P {threads} samtools index
+        ls "{params.dir}"/*.bam | xargs -n 1 -P {threads} samtools index &> {log}
         '''

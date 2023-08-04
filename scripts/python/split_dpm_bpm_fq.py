@@ -64,16 +64,15 @@ def main():
 
     pattern = re.compile("\[([a-zA-Z0-9_\-]+)\]")
 
-    with file_open(read_1_path) as read_1, gzip.open(
-        dpm_out_path, "wt"
-    ) as dpm_out, gzip.open(bpm_out_path, "wt") as bpm_out, gzip.open(
-        other_out_path, "wt"
-    ) as other_out, gzip.open(
-        short_out_path, "wt"
-    ) as short_out:
+    with file_open(read_1_path) as read_1, \
+         gzip.open(dpm_out_path, "wt") as dpm_out, \
+         gzip.open(bpm_out_path, "wt") as bpm_out, \
+         gzip.open(other_out_path, "wt") as other_out, \
+         gzip.open(short_out_path, "wt") as short_out:
+
         for qname, seq, thrd, qual in fastq_parse(read_1):
             counter += 1
-            barcodes = pattern.findall(qname)
+            barcodes = pattern.findall(qname.split('::')[1])
             if counter % 10000 == 0:
                 print(counter)
             if "NOT_FOUND" in barcodes:
