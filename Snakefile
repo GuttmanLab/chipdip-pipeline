@@ -411,8 +411,8 @@ rule splitfq:
     shell:
         '''
         mkdir -p "{params.dir}"
-        bash "{split_fastq}" "{input.r1}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads}
-        bash "{split_fastq}" "{input.r2}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads}
+        bash "{split_fastq}" "{input.r1}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads} &> {log}
+        bash "{split_fastq}" "{input.r2}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads} &>> {log}
         '''
 
 # Compress the split fastq files
