@@ -37,6 +37,7 @@ Other common usage notes
 - To run the pipeline for on a local computer (e.g., laptop), comment out or remove the `--cluster-config cluster.yaml` and `--cluster "sbatch ..."` arguments within `./run_pipeline.sh`, and set the number of jobs `-j <#>` to the number of local processors available.
 - `run_pipeline.sh` passes any additional arguments to snakemake. For example, run `./run_pipeline.sh --dry-run` to perform a dry run, or `./run_pipeline.sh --forceall` to force (re)execution of all rules regardless of past output.
 - To create a reusable ChIP-DIP conda environment, run `conda env create -f envs/chipdip.yaml` and modify the `conda_env` key in [`config.yaml`](#config-yaml) to `"chipdip"`.
+- To remove intermediate pipeline files, run `./run_pipeline.sh clean`.
 
 ## Background
 
