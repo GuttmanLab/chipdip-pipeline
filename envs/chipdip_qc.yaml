@@ -1,0 +1,16 @@
+# last updated: 2023-08-05
+name: chipdip_qc
+channels:
+  - conda-forge
+dependencies:
+# - jupyterlab=4.0.4
+  - fastcluster=1.2.6
+  - ipykernel=6.25.0
+  - ipywidgets=8.1.0
+  - matplotlib=3.7.2
+  - numpy=1.23.5
+  - pandas=2.0.3
+  - python=3.10
+  - pyyaml=6.0
+  - seaborn=0.12.2
+  - tqdm=4.65

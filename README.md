@@ -31,8 +31,12 @@ to create and activate a conda environment named `snakemake`. Once all the [inpu
 ./run_pipeline.sh
 ```
 
+After the pipeline finishes, you can explore cluster properties in-depth using the cluster quality control Jupyter notebook (`chipdip_qc.ipynb`). The conda environment specified by `envs/chipdip_qc.yaml` includes all dependencies used by the Jupyter notebook, excluding Jupyter itself. Additionally include the depenency `jupyterlab=4.0.4` if you do not already have an existing Jupyter Notebook or Jupyter Lab setup.
+
+Other common usage notes
 - To run the pipeline for on a local computer (e.g., laptop), comment out or remove the `--cluster-config cluster.yaml` and `--cluster "sbatch ..."` arguments within `./run_pipeline.sh`, and set the number of jobs `-j <#>` to the number of local processors available.
 - `run_pipeline.sh` passes any additional arguments to snakemake. For example, run `./run_pipeline.sh --dry-run` to perform a dry run, or `./run_pipeline.sh --forceall` to force (re)execution of all rules regardless of past output.
+- To create a reusable ChIP-DIP conda environment, run `conda env create -f envs/chipdip.yaml` and modify the `conda_env` key in [`config.yaml`](#config-yaml) to `"chipdip"`.
 
 ## Background
 
@@ -140,7 +144,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - `bID`: path to [`config.txt` file](#config-txt)
    - `format`: path to [`format.txt` file](#format-txt)
    - `samples`: path to [`samples.json` file](#samples-json)
-   - `use_existing_conda_env`: [boolean value](https://yaml.org/type/bool.html) indicating whether to use an existing (especially system-wide) conda environment named `chipdip` instead of creating a new conda environment within the `.snakemake` folder of the [working directory](#working-directory) based on `envs/chipdip.yaml`
+   - `conda_env`: either a path to a conda environment YAML file (".yml" or ".yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
    - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
    - `cutadapt_oligos`: path to [antibody oligo barcode sequences](#bpm-fasta)
    - `mask`
@@ -156,8 +160,8 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - `min_oligos`: minimum count of deduplicated antibody oligo barcode reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
    - `proportion`: minimum proportion of deduplicated antibody oligo barcode reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
    - `max_size`: maximum count of deduplicated chromatin reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
-   - `merge_and_index_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to merge and index target-specific BAM files across samples
-   - `binsize`: integer specifying BigWig binsize; set to `false` to skip BigWig generation
+   - `merge_samples`: [boolean value](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
+   - `binsize`: integer specifying BigWig binsize; set to `false` to skip BigWig generation. Only relevant if generate_splitbams and merge_samples are both `true`.
 
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `samples`
