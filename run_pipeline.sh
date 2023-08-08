@@ -14,4 +14,5 @@ snakemake \
 --mem {cluster.mem} \
 --output {cluster.output} \
 --error {cluster.error}" \
+--cluster-cancel scancel \
 "$@"

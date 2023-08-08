@@ -377,6 +377,28 @@ onerror:
 wildcard_constraints:
     sample = "[^\.]+"
 
+# remove all output, leaving just the following in the workup folder:
+# - bigwigs/
+# - clusters/
+# - qc/
+# - splitbams/
+# - ligation_efficiency.txt
+# - pipeline_counts.txt
+rule clean:
+    shell:
+        '''
+        for path in {DIR_WORKUP}/*; do
+            if [[ "$path" != "{DIR_WORKUP}/bigwigs" ]] &&
+               [[ "$path" != "{DIR_WORKUP}/clusters" ]] &&
+               [[ "$path" != "{DIR_WORKUP}/qc" ]] &&
+               [[ "$path" != "{DIR_WORKUP}/splitbams" ]] &&
+               [[ "$path" != "{DIR_WORKUP}/ligation_efficiency.txt" ]] &&
+               [[ "$path" != "{DIR_WORKUP}/pipeline_counts.txt" ]]; then
+                echo "Removing $path" && rm -rf "$path"
+            fi
+        done
+        '''
+
 ##############################################################################
 # Trimming and barcode identification
 ##############################################################################
@@ -400,7 +422,7 @@ rule splitfq:
     conda:
         conda_env
     threads:
-        8
+        4
     shell:
         '''
         mkdir -p "{params.dir}"
@@ -540,7 +562,8 @@ rule cutadapt_dpm:
         others = "--minimum-length 20"
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.DPM.cutadapt.log")
-    threads: 10
+    threads:
+        10
     conda:
         conda_env
     shell:
@@ -566,7 +589,8 @@ rule cutadapt_oligo:
         adapters_r1 = oligos
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.BPM.cutadapt.log")
-    threads: 10
+    threads:
+        10
     conda:
         conda_env
     shell:
@@ -651,7 +675,7 @@ rule merge_dna:
     conda:
         conda_env
     threads:
-        8
+        10
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_DNA.log")
     shell:
@@ -675,7 +699,7 @@ rule fastq_to_bam:
     conda:
         conda_env
     threads:
-        8
+        4
     shell:
         '''
         python "{fq_to_bam}" --input "{input}" --output "{output.bam}" --config "{bid_config}" &> "{log}"
@@ -695,7 +719,7 @@ rule merge_beads:
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_beads.log")
     threads:
-        8
+        10
     shell:
         '''
         samtools merge -@ {threads} "{output}" {input} &> "{log}"
@@ -715,6 +739,8 @@ rule make_clusters:
         sorted = os.path.join(DIR_WORKUP, "clusters_parts/{sample}.part_{splitid}.clusters")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.make_clusters.log")
+    threads:
+        4
     conda:
         conda_env
     shell:
@@ -724,7 +750,7 @@ rule make_clusters:
         -o "{output.unsorted}" \
         -n {num_tags}) &> "{log}"
 
-        sort -k 1 -T "{temp_dir}" "{output.unsorted}" > "{output.sorted}"
+        sort -k 1 -T "{temp_dir}" --parallel={threads} "{output.unsorted}" > "{output.sorted}"
         '''
 
 # Merge clusters from parallel processing into a single cluster file per sample
@@ -740,9 +766,11 @@ rule merge_clusters:
         os.path.join(DIR_LOGS, "{sample}.merge_clusters.log")
     conda:
        conda_env
+    threads:
+        10
     shell:
         '''
-        sort -k 1 -T "{temp_dir}" -m {input} > "{output.mega}"
+        sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input} > "{output.mega}"
         python "{merge_clusters}" -i "{output.mega}" -o "{output.final}" &> "{log}"
         '''
 
@@ -839,7 +867,7 @@ rule multiqc:
         conda_env
     shell:
         '''
-        multiqc "{DIR_WORKUP}" -o "{params.dir_qc}" &> "{log}"
+        multiqc -f -o "{params.dir_qc}" "{DIR_WORKUP}" &> "{log}"
         '''
 
 rule pipeline_counts:
@@ -931,10 +959,12 @@ rule clusters_all:
     output:
         CLUSTERS_ALL
     log:
-        os.path.join(DIR_LOGS, "merge_samples_clusters.log")
+        os.path.join(DIR_LOGS, "clusters_all.log")
+    threads:
+        10
     shell:
         '''
-        sort -k 1 -T "{temp_dir}" -m {input} > "{output}"
+        sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input} > "{output}"
         '''
 
 rule splitbams_all:

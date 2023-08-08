@@ -3,15 +3,22 @@ __default__:
     mem: 20g
     cpus: 1
     nodes: 1
-    output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
-    error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
+    output: "workup/logs/cluster/{rule}.out"
+    error: "workup/logs/cluster/{rule}.err"
 splitfq:
     time: "48:00:00"
     mem: 100g
-    cpus: 1
+    cpus: 4
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
+compress_fastq:
+    time: "48:00:00"
+    mem: 20g
+    cpus: 8
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
+    error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 adaptor_trimming_pe:
     time: "12:00:00"
     mem: 50g
@@ -21,15 +28,22 @@ adaptor_trimming_pe:
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 barcode_id:
     time: "12:00:00"
-    mem: 50g
-    cpus: 10
+    mem: 20g
+    cpus: 1
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
-split_rpm_dpm:
+get_ligation_efficiency:
+    time: "05:00:00"
+    mem: 20g
+    cpus: 1
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
+    error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
+split_bpm_dpm:
     time: "12:00:00"
-    mem: 50g
-    cpus: 10
+    mem: 10g
+    cpus: 1
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
@@ -54,6 +68,20 @@ bowtie2_align:
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
+add_chr:
+    time: "12:00:00"
+    mem: 10g
+    cpus: 1
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
+    error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
+repeat_mask:
+    time: "12:00:00"
+    mem: 50g
+    cpus: 1
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
+    error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 merge_dna:
     time: "24:00:00"
     mem: 50g
@@ -61,24 +89,10 @@ merge_dna:
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
-add_chr:
-    time: "12:00:00"
-    mem: 50g
-    cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
-    error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
-repeat_mask:
-    time: "12:00:00"
-    mem: 50g
-    cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
-    error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 fastq_to_bam:
     time: "12:00:00"
     mem: 50g
-    cpus: 10
+    cpus: 4
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
@@ -92,7 +106,7 @@ merge_beads:
 make_clusters:
     time: "12:00:00"
     mem: 50g
-    cpus: 10
+    cpus: 4
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
@@ -103,79 +117,44 @@ merge_clusters:
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
-generate_cluster_statistics:
+pipeline_counts:
     time: "12:00:00"
     mem: 50g
     cpus: 10
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
-generate_cluster_ecdfs:
-    time: "12:00:00"
-    mem: 50g
-    cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-generate_splitbam_statistics:
+thresh_and_split:
     time: "24:00:00"
-    mem: 50g
-    cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-get_size_distribution:
-    time: "12:00:00"
-    mem: 50g
-    cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-multiqc:
-    time: "05:00:00"
     mem: 20g
     cpus: 1
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-tag_and_split:
-    time: "24:00:00"
-    mem: 50g
-    cpus: 10
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
-cat_ligation_efficiency:
-    time: "05:00:00"
-    mem: 20g
-    cpus: 1
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-log_config:
-    time: "05:00:00"
-    mem: 20g
-    cpus: 1
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-pipeline_counts:
-    time: "05:00:00"
+generate_splitbam_statistics:
+    time: "24:00:00"
     mem: 10g
+    cpus: 4
+    nodes: 1
+    output: "workup/logs/cluster/{rule}.out"
+    error: "workup/logs/cluster/{rule}.err"
+clusters_all:
+    time: "12:00:00"
+    mem: 100g
     cpus: 10
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
-merge_splitbams:
-    time: "01:00:00"
+splitbams_all:
+    time: "12:00:00"
     mem: 20g
     cpus: 4
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
-index_splitbams:
-    time: "01:00:00"
-    mem: 20g
+generate_bigwigs:
+    time: "12:00:00"
+    mem: 50g
     cpus: 10
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
