@@ -31,7 +31,7 @@ to create and activate a conda environment named `snakemake`. Once all the [inpu
 ./run_pipeline.sh
 ```
 
-After the pipeline finishes, you can explore cluster properties in-depth using the cluster quality control Jupyter notebook (`chipdip_qc.ipynb`). The conda environment specified by `envs/chipdip_qc.yaml` includes all dependencies used by the Jupyter notebook, excluding Jupyter itself. Additionally include the depenency `jupyterlab=4.0.4` if you do not already have an existing Jupyter Notebook or Jupyter Lab setup.
+After the pipeline finishes, you can explore cluster properties in-depth using the cluster quality control Jupyter notebook (`chipdip_qc.ipynb`). The conda environment specified by `envs/chipdip_qc.yaml` includes all dependencies used by the Jupyter notebook, excluding Jupyter itself. Additionally include the dependency `jupyterlab=4.0.4` if you do not already have an existing Jupyter Notebook or Jupyter Lab setup.
 
 Other common usage notes
 - To run the pipeline for on a local computer (e.g., laptop), comment out or remove the `--cluster-config cluster.yaml` and `--cluster "sbatch ..."` arguments within `./run_pipeline.sh`, and set the number of jobs `-j <#>` to the number of local processors available.
@@ -42,8 +42,8 @@ Other common usage notes
 ## Background
 
 Terms
-- **split-pool tag**: the individaul sequences that are added during a single round of split-pool barcoding (DPM, EVEN, ODD, TERM)  
-- **split-pool barcode**: the permutation of split-pool tags that uniquely identifes a cluster
+- **split-pool tag**: the individual sequences that are added during a single round of split-pool barcoding (DPM, EVEN, ODD, TERM)
+- **split-pool barcode**: the permutation of split-pool tags that uniquely identifies a cluster
 - **Antibody-ID**: a 9 nt sequence within the antibody oligo that uniquely identifies a type of antibody
 
 <!-- TODO: figures of expected sequences -->
@@ -343,8 +343,9 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
 Adapted from the [SPRITE](https://github.com/GuttmanLab/sprite-pipeline) and [RNA-DNA SPRITE](https://github.com/GuttmanLab/sprite2.0-pipeline) pipelines by **Isabel Goronzy** ([@igoronzy](https://github.com/igoronzy)).
 
+Updated with more extensive QC outputs and the Jupyter notebook by Benjamin Yeh  ([@bentyeh](https://github.com/bentyeh)).
+
 Other contributors
-- Benjamin Yeh ([@bentyeh](https://github.com/bentyeh))
 - Andrew Perez ([@HeyDrew64](https://github.com/heydrew64))
 - Mario Blanco ([@mrblanco](https://github.com/mrblanco))
 - Mitchell Guttman ([@mitchguttman](https://github.com/mitchguttman))
