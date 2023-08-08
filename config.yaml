@@ -12,8 +12,9 @@ scripts_dir: "scripts/"
 output_dir: ""
 # Temporary directory
 temp_dir: "/central/scratch/"
-# Use existing conda environment named chipdip
-use_existing_conda_env: false
+# Conda environment: either a path to a conda environment YAML file (".yml" or ".yaml")
+# or the name of an existing conda environment
+conda_env: "envs/chipdip.yaml"
 # Currently "mm10" and "hg38" available
 assembly: "mm10"
 # Number of rounds of tags used, including DPM
@@ -36,7 +37,9 @@ generate_splitbams: true
 min_oligos: 2
 proportion: 0.8
 max_size: 10000
-# Merge and index split BAM files across samples
-merge_and_index_splitbams: true
-# BigWig binsize; set to false to skip BigWig generation
+# Merge cluster files and BAM files for individual targets across samples
+merge_samples: true
+# Binsize for generating BigWigs for individual targets merged across samples
+# - only relevant if generate_splitbams and merge_samples are both true
+# - Set to false to skip BigWig generation
 binsize: 1000
