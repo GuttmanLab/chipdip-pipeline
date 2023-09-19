@@ -1,9 +1,10 @@
+import argparse
 import gzip
 import os
-import argparse
 import re
-import pandas as pd
+import sys
 from collections import defaultdict
+import pandas as pd
 from helpers import fastq_parse, file_open
 
 """
@@ -79,7 +80,7 @@ def main():
                 incomplete += 1
                 short_out.write(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
             else:
-                indexed = [i for i, t in enumerate(barcodes[1:]) if i != formatdict[t]]
+                indexed = [i for i, t in enumerate(barcodes[1:]) if i not in formatdict[t]]
                 if len(indexed) != 0:
                     other_count += 1
                     other_out.write(
@@ -104,10 +105,25 @@ def main():
 
 def load_format(formatfile):
     """
-    Load file containing information on which barcodes can appear at which read positions
+    Load file containing information on which tags can appear at which read positions
+    Returns: dict(str -> tuple) mapping from tag name to expected read positions (rounds)
     """
-    df = pd.read_csv(formatfile, header=None, sep="\t")
-    return df.set_index(1)[0].to_dict(into=defaultdict(lambda: -1))
+    df = pd.read_csv(formatfile, header=None, sep="\t", names=["round", "name"])
+    d = (
+        df.groupby("name")["round"]
+        .apply(lambda s: tuple(sorted(s.unique())))
+        .to_dict(into=defaultdict(lambda: -1))
+    )
+    for name, rounds in d.items():
+        if len(rounds) > 1 and -1 in rounds:
+            print(
+                (
+                    f"The format file indicates tag {name} as both being used and "
+                    f"not used (round = -1) in the experiment: {rounds}."
+                ),
+                file=sys.stderr,
+            )
+    return d
 
 
 if __name__ == "__main__":
