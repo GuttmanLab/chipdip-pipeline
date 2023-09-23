@@ -38,24 +38,17 @@ def main():
 
     read_1_path = opts.read_1
 
-    formatdict = load_format(opts.format)
+    valid_tag_positions = load_format(opts.format)
 
+    base_path = os.path.splitext(os.path.splitext(read_1_path)[0])[0]
     # Correctly formated DPM reads
-    dpm_out_path = (
-        os.path.splitext(os.path.splitext(read_1_path)[0])[0] + "_dpm.fastq.gz"
-    )
+    dpm_out_path = base_path + "_dpm.fastq.gz"
     # Correctly formated BPM reads
-    bpm_out_path = (
-        os.path.splitext(os.path.splitext(read_1_path)[0])[0] + "_bpm.fastq.gz"
-    )
+    bpm_out_path = base_path + "_bpm.fastq.gz"
     # Reads with barcode in incorrect order
-    other_out_path = (
-        os.path.splitext(os.path.splitext(read_1_path)[0])[0] + "_other.fastq.gz"
-    )
+    other_out_path = base_path + "_other.fastq.gz"
     # Reads with NOT_FOUND barcode
-    short_out_path = (
-        os.path.splitext(os.path.splitext(read_1_path)[0])[0] + "_short.fastq.gz"
-    )
+    short_out_path = base_path + "_short.fastq.gz"
 
     dpm_count = 0
     bpm_count = 0
@@ -80,12 +73,21 @@ def main():
                 incomplete += 1
                 short_out.write(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
             else:
-                indexed = [i for i, t in enumerate(barcodes[1:]) if i not in formatdict[t]]
-                if len(indexed) != 0:
+                unexpected_tag = False
+                for i, tag in enumerate(barcodes[1:]):
+                    # first tag in barcodes should either be a DPM or BEAD tag;
+                    # verify that subsequent tags are in valid positions
+                    allowed_indices = valid_tag_positions.get(tag)
+                    if allowed_indices is None:
+                        print(f'Tag {tag} not in format file.', file=sys.stderr)
+                        unexpected_tag = True
+                        break
+                    elif i not in allowed_indices:
+                        unexpected_tag = True
+                        break
+                if unexpected_tag:
                     other_count += 1
-                    other_out.write(
-                        qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n"
-                    )
+                    other_out.write(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
                 elif "DPM" in qname:
                     dpm_count += 1
                     dpm_out.write(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
@@ -93,8 +95,9 @@ def main():
                     bpm_count += 1
                     bpm_out.write(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
                 else:
-                    print("Read with unexpected barcode")
-                    print(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
+                    print("Read with unexpected barcode", file=sys.stderr)
+                    print(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n",
+                          file=sys.stderr)
                     raise Exception
 
     print("Reads without full barcode:", incomplete)
@@ -112,7 +115,7 @@ def load_format(formatfile):
     d = (
         df.groupby("name")["round"]
         .apply(lambda s: tuple(sorted(s.unique())))
-        .to_dict(into=defaultdict(lambda: -1))
+        .to_dict()
     )
     for name, rounds in d.items():
         if len(rounds) > 1 and -1 in rounds:
