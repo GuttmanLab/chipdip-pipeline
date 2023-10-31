@@ -111,7 +111,14 @@ def load_format(formatfile):
     Load file containing information on which tags can appear at which read positions
     Returns: dict(str -> tuple) mapping from tag name to expected read positions (rounds)
     """
-    df = pd.read_csv(formatfile, header=None, sep="\t", names=["round", "name"])
+    df = pd.read_csv(
+        formatfile,
+        sep="\t",
+        header=None,
+        names=["round", "name"],
+        usecols=[0, 1],
+        index_col=False,
+    )
     d = (
         df.groupby("name")["round"]
         .apply(lambda s: tuple(sorted(s.unique())))
