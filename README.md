@@ -296,8 +296,14 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
 # Output Files
 
-1. Barcode Identification Efficiency (`workup/ligation_efficiency.txt`)
-   - A statistical summary of how many barcode tags were found per read and the proportion of reads with a matching barcode at each barcode position.
+1. Barcode identification efficiency (`workup/ligation_efficiency.txt`)
+   - A statistical summary of how many tags were found per read and the proportion of reads with a matching tag at each position.
+   - The first type of statistic describes how many tags were identified per read. For example, consider a dataset of 10000 adapter-trimmed reads with the expected tag structure as specified in the `example_config.txt` file: 1 DPM tag on Read 1, 6 tags (Odd, Even, or Terminal) on Read 2.
+     - `170 (1.7%) reads found with 1 tag.` For a small fraction reads, only 1 tag was identified; this is to be expected, whether due to ligation errors, PCR artifacts, or sequencing errors. These reads are output to `workup/fastqs/<sample_name>.part<###>.barcoded_short.fastq.gz` and are not used for analysis.
+     - `7500 (75.0%) reads found with 7 tags.` This is the expected result, where all 7 tags are identified in the majority of reads. In the `split_bpm_dpm` rule, these reads are split into `workup/fastqs/<sample_name>.part<###>.barcoded_dpm.fastq.gz` or `workup/fastqs/<sample_name>.part<###>.barcoded_bpm.fastq.gz`, depending on whether a read corresponds to genomic DNA or an antibody oligo.
+   - The second type of statistic describes at which positions tags were identified in the reads.
+     - `9800 (98.0%) reads found with tag in position 1 (read 1, DPM).` As expected, a DPM-category tag is identified at the start of read 1.
+     - `9700 (97.0%) reads found with tag in position 2 (read 2, Y).` As expected, a terminal tag is identified at the start of read 2.
 
 2. Pipeline counts (`workup/pipeline_counts.txt`)
    - A tree-like summary of how many reads remained at each step of the pipeline, produced per aliquot and in aggregate. This can be used to quickly view the proportion of reads corresponding to antibody oligos versus chromatin reads; the proportion of properly barcoded reads; etc.
