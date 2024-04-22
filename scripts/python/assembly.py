@@ -2,19 +2,27 @@ from collections import OrderedDict
 
 
 class Assembly(object):
-    _chromsizes = None
-    _resolution = None
+    _chromsizes = None # OrderedDict: chromosome -> chromosome length
+    _resolution = None # length of each bin
 
     def __init__(self, resolution):
         self._resolution = resolution
         self.init_offsets()
 
     def init_offsets(self):
+        '''
+        Calculate number of resolution-length bins preceeding each chromosome.
+
+        Example: Consider 2 ordered chromosomes of length chr1 = 120 bp, chr2 = 130 bp
+        at 50 bp resolution. chr1 yields 3 bins at 50 bp resolution (1:50, 51:100, 100:120).
+        Therefore, the offset for chr2 is 3:
+          self._offsets = {'chr1': 0, 'chr2': 3}
+        '''
         count = 0
         self._offsets = OrderedDict()
         for (chrom, size) in self._chromsizes.items():
             self._offsets[chrom] = count
-            count += -(-size // self._resolution)
+            count += -(-size // self._resolution) # compute ceiling of size / self._resolution
 
     def get_size(self, chrom):
         return self._chromsizes.get(chrom)
@@ -23,12 +31,20 @@ class Assembly(object):
         return self._offsets.get(chrom)
 
     def get_position(self, n):
+        '''
+        Convert an index (units: bins, with resolution self._resolution) to a position
+        (units: bp). Returns a tuple (chromosome, position). Indices and positions are 0-indexed.
+        '''
         for (chrom, offset) in reversed(self._offsets.items()):
             if n - offset >= 0:
                 return (chrom, (n - offset) * self._resolution)
         raise ValueError
 
     def get_index(self, chrom, pos):
+        '''
+        Convert a position (units bp) to an index (units: bins, with resolution self._resolution).
+        Indices and positions are 0-indexed. Returns None if `chrom` is not in the assembly.
+        '''
         read_bin = pos // self._resolution
         offset = self.get_offset(chrom)
         if offset is not None:
@@ -145,6 +161,8 @@ class Hg19(Assembly):
 
 class Hg38(Assembly):
     def __init__(self, resolution):
+        # See https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
+        # or https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40
         self._chromsizes = OrderedDict(
             [
                 ("chr1", 248956422),

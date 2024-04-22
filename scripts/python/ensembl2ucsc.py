@@ -41,14 +41,17 @@ def parse_arguments():
 
 
 def add_chr_to_bam_header(bam_path, chroms):
-    """Add chr to alignments done with ensembl reference
+    """
+    Add chr to alignments done with Ensembl reference
 
     Args:
         bam_path (str): path to bam file
         chroms (list): list of core chromosomes to retain in the header
 
     Note:
-        Assumes main chromosomes come first followed by alt, that will be removed
+        Assumes main chromosomes come first followed by alt, that will be removed.
+        Currently does not remove from the header alternate/unlocalized/unplaced
+        chromosomes or sequences whose names already start with "chr"
 
     Return:
         header dict for pysam
@@ -75,16 +78,20 @@ def add_chr_to_bam_header(bam_path, chroms):
 
 
 def filter_reads(args):
-    """Filter bam
+    """Filter BAM
+    - Discard reads without a full barcode (containing a NOT_FOUND tag)
+      - This is redundant, as the upstream rule split_bpm_dpm already
+        removes incompletely-baroded reads
+    - Discard reads that do not map to the specified assembly
+      - The assemblies in assembly.py do not contain alternate loci,
+        unlocalized sequences, and unplaced sequences, so any reads mapping
+        to these regions will be discarded.
+      - Note that the assemblies currently include the mitochondrial genome,
+        so reads mapping to MT/chrM are NOT discarded.
+    - Update BAM file header to use UCSC chromosome names
 
     Params:
         args: argparse arguments
-
-    Notes:
-        Will filter reads without a full barcode, will remove alt chromosome and MT
-        and if aligned with ensembl (1, 2, ..., X, Y) will change chromosomes to ucsc
-        scheme (chr1, chr2, ..., chrX, chrY)
-
     """
 
     if args.assembly != "none":
