@@ -512,7 +512,7 @@ rule get_ligation_efficiency:
         conda_env
     shell:
         '''
-        python "{lig_eff}" "{input.r1}" > "{output}"
+        python "{lig_eff}" "{input.r1}" "{bid_config}" > "{output}"
         '''
 
 rule cat_ligation_efficiency:
