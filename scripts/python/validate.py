@@ -2,7 +2,7 @@ import argparse
 import json
 import re
 import yaml
-import rename_and_filter_chr
+from helpers import parse_chrom_map
 
 
 def main():
@@ -60,7 +60,7 @@ def validate_chrom_map(path_bt2_index_summary, path_chrom_map):
         print("No chromosome name map specified.")
         chrom_map = {k: k for chrom in chrom_sizes}
     else:
-        chrom_map = rename_and_filter_chr.parse_chrom_map(path_chrom_map)
+        chrom_map = parse_chrom_map(path_chrom_map)
         genome_size = 0
         for chrom in chrom_map:
             assert chrom in chrom_sizes, (

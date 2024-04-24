@@ -48,6 +48,7 @@ get_clusters = os.path.join(DIR_SCRIPTS, "python/get_clusters.py")
 merge_clusters = os.path.join(DIR_SCRIPTS, "python/merge_clusters.py")
 fq_to_bam = os.path.join(DIR_SCRIPTS, "python/fastq_to_bam.py")
 tag_and_split = os.path.join(DIR_SCRIPTS, "python/threshold_tag_and_split.py")
+calculate_effective_genome_size = os.path.join(DIR_SCRIPTS, "python/calculate_effective_genome_size.py")
 
 cluster_statistics = os.path.join(DIR_SCRIPTS, "python/generate_cluster_statistics.py")
 cluster_sizes = os.path.join(DIR_SCRIPTS, "python/get_bead_size_distribution.py")
@@ -1028,6 +1029,7 @@ rule generate_bigwigs:
     log:
         BIGWIGS_LOG
     params:
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map is not None else "",
         dir_bam = os.path.join(DIR_WORKUP, "splitbams"),
         dir_bigwig = os.path.join(DIR_WORKUP, "bigwigs"),
         binsize = binsize
@@ -1039,22 +1041,30 @@ rule generate_bigwigs:
         '''
         {{
             mkdir -p "{params.dir_bigwig}"
-            genome_size=$(bowtie2-inspect --summary "{bowtie2_index}" |
-                          grep "dna:chromosome" |
-                          cut -f 3 |
-                          awk '{{s+=$1}} END {{print s}}')
-            mask_size=$(bedtools merge -i "{mask}" | awk '{{s+=$3-$2}} END {{print s}}')
-            effective_genome_size=$((genome_size - mask_size))
-            echo "Bowtie 2 genome size (chromosomes only): $genome_size"
-            echo "Mask size: $mask_size"
-            echo "Effective genome size: $effective_genome_size"
-            targets=$(ls "{params.dir_bam}"/*.DNA.merged.labeled_*.bam |
-                      sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\\1/' |
-                      sort -u)
+
+            sorted_merged_mask="$(mktemp -p "{temp_dir}" sorted_merged_mask.bed.XXXXXX)"
+            sort -k1,1 -k2,2n "{mask}" | bedtools merge > "$sorted_merged_mask"
+
+            targets=$(
+                ls "{params.dir_bam}"/*.DNA.merged.labeled_*.bam |
+                sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\\1/' |
+                sort -u
+            )
             for target in ${{targets[@]}}; do
                 echo "Generating bigwig for target $target"
                 path_bam="{params.dir_bam}"/"${{target}}".bam
                 path_bigwig="{params.dir_bigwig}"/"${{target}}".bw
+
+                # calculate genome size from header of BAM file
+                # subtract regions (from selected chromosomes) in the mask
+                effective_genome_size=$(
+                    python {calculate_effective_genome_size} "$path_bam"
+                      -m "$sorted_merged_mask"
+                      {params.chrom_map}
+                      -t {threads}
+                )
+                echo "- Effective genome size: $effective_genome_size"
+
                 bamCoverage \
                   --binSize {params.binsize} \
                   --normalizeUsing RPGC \
@@ -1063,5 +1073,6 @@ rule generate_bigwigs:
                   --bam "$path_bam" \
                   --outFileName "$path_bigwig"
             done
+            rm "$sorted_merged_mask"
         }} &> "{log}"
         '''

@@ -1,12 +1,13 @@
 """
 Rename and reorder chromosomes in a BAM file, and select only reads aligned to those chromosomes
 """
+
 import argparse
 import os
 import re
 import shutil
 import pysam
-
+from helpers import positive_int, parse_chrom_map
 
 
 def main():
@@ -19,17 +20,6 @@ def main():
     else:
         chrom_map = parse_chrom_map(args.chrom_map)
         filter_reads(args.input, args.output, chrom_map, threads=args.threads, verbose=not args.quiet)
-
-
-def positive_int(value):
-    """
-    Check that a string represents a positive integer.
-    Source: https://stackoverflow.com/a/14117511
-    """
-    ivalue = int(value)
-    if ivalue <= 0:
-        raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
-    return ivalue
 
 
 def parse_arguments():
@@ -62,26 +52,6 @@ def parse_arguments():
         help="Do not print the number of discarded reads and output reads.",
     )
     return parser.parse_args()
-
-
-def parse_chrom_map(path):
-    """
-    Parse a chromosome name map file to a dict mapping old chromosome names to new names.
-    """
-    REGEX_RNAME = re.compile(r'[0-9A-Za-z!#$%&+./:;?@^_|~-][0-9A-Za-z!#$%&*+./:;=?@^_|~-]*')
-    chrom_map = dict()
-    with open(path, 'rt') as f:
-        for line in f:
-            if line.strip() == '' or line.strip().startswith('"'):
-                continue
-            old_name, new_name = line.strip().split("\t")
-            assert REGEX_RNAME.match(old_name) and REGEX_RNAME.match(new_name), \
-                ("At least one of these chromosome names in the chromosome name map is invalid: ",
-                 f"{old_name} or {new_name}")
-            assert old_name not in chrom_map, \
-                f"The chromosome name '{old_name}' is repeated in the chromosome name map."
-            chrom_map[old_name] = new_name
-    return chrom_map
 
 
 def reheader(old_header, chrom_map):
