@@ -1,0 +1,124 @@
+" 2-column tab-delimited file for mapping chromosome names
+"
+" Format
+" - Double quotes indicate commented lines.
+"   - The choice of using double quotes for comments derives from the set of
+"     characters disallowed for reference sequence (i.e., chromosome) names in
+"     SAM/BAM files.
+" - Empty lines, or lines containing only spaces, are ignored.
+" - The first column should match chromosome names in the genome index, while
+"   the second column is the desired name of the chromosome to use in processed
+"   SAM/BAM files.
+"   - Allowed characters for chromosome names follow the SAM v1.6 specification.
+"     See https://samtools.github.io/hts-specs/SAMv1.pdf
+"   - The first column is not allowed to contain repeated chromosome names,
+"     but the second column can contain repeated names.
+" - The order of chromosomes provided here is maintained in the SAM/BAM file
+"   header, and consequently specifies the coordinat sorting order at the
+"   reference sequence level.
+"
+" Suggested usage: common chromosome name maps for human and mouse genomes from
+" UCSC and Ensembl are included below. Comment out or delete irrelevant
+" chromosome name maps for your project.
+
+" mouse UCSC chromosomes
+chr1	chr1
+chr2	chr2
+chr3	chr3
+chr4	chr4
+chr5	chr5
+chr6	chr6
+chr7	chr7
+chr8	chr8
+chr9	chr9
+chr10	chr10
+chr11	chr11
+chr12	chr12
+chr13	chr13
+chr14	chr14
+chr15	chr15
+chr16	chr16
+chr17	chr17
+chr18	chr18
+chr19	chr19
+chrX	chrX
+chrY	chrY
+chrM	chrM
+
+" mouse Ensembl to UCSC chromosome names
+" 1	chr1
+" 2	chr2
+" 3	chr3
+" 4	chr4
+" 5	chr5
+" 6	chr6
+" 7	chr7
+" 8	chr8
+" 9	chr9
+" 10	chr10
+" 11	chr11
+" 12	chr12
+" 13	chr13
+" 14	chr14
+" 15	chr15
+" 16	chr16
+" 17	chr17
+" 18	chr18
+" 19	chr19
+" X	chrX
+" Y	chrY
+" MT	chrM
+
+" human Ensembl to UCSC chromosome names
+" 1	chr1
+" 2	chr2
+" 3	chr3
+" 4	chr4
+" 5	chr5
+" 6	chr6
+" 7	chr7
+" 8	chr8
+" 9	chr9
+" 10	chr10
+" 11	chr11
+" 12	chr12
+" 13	chr13
+" 14	chr14
+" 15	chr15
+" 16	chr16
+" 17	chr17
+" 18	chr18
+" 19	chr19
+" 20	chr20
+" 21	chr21
+" 22	chr22
+" X	chrX
+" Y	chrY
+" MT	chrM
+
+" human UCSC chromosome names
+" chr1	chr1
+" chr2	chr2
+" chr3	chr3
+" chr4	chr4
+" chr5	chr5
+" chr6	chr6
+" chr7	chr7
+" chr8	chr8
+" chr9	chr9
+" chr10	chr10
+" chr11	chr11
+" chr12	chr12
+" chr13	chr13
+" chr14	chr14
+" chr15	chr15
+" chr16	chr16
+" chr17	chr17
+" chr18	chr18
+" chr19	chr19
+" chr20	chr20
+" chr21	chr21
+" chr22	chr22
+" chrX	chrX
+" chrY	chrY
+" chrM	chrM

@@ -42,7 +42,8 @@ split_fastq = os.path.join(DIR_SCRIPTS, "bash/split_fastq.sh")
 barcode_id_jar = os.path.join(DIR_SCRIPTS, "java/BarcodeIdentification_v1.2.0.jar")
 lig_eff = os.path.join(DIR_SCRIPTS, "python/get_ligation_efficiency.py")
 split_bpm_dpm = os.path.join(DIR_SCRIPTS, "python/split_dpm_bpm_fq.py")
-add_chr = os.path.join(DIR_SCRIPTS, "python/ensembl2ucsc.py")
+validate = os.path.join(DIR_SCRIPTS, "python/validate.py")
+rename_and_filter_chr = os.path.join(DIR_SCRIPTS, "python/rename_and_filter_chr.py")
 get_clusters = os.path.join(DIR_SCRIPTS, "python/get_clusters.py")
 merge_clusters = os.path.join(DIR_SCRIPTS, "python/merge_clusters.py")
 fq_to_bam = os.path.join(DIR_SCRIPTS, "python/fastq_to_bam.py")
@@ -80,14 +81,6 @@ except:
     print('Config "num_tags" not specified, using:', num_tags, file=sys.stderr)
 
 try:
-    assembly = config["assembly"]
-    assert assembly in ["mm10", "hg38"], 'Only "mm10" or "hg38" currently supported'
-    print("Using", assembly, file=sys.stderr)
-except:
-    print('Config "assembly" not specified, defaulting to "mm10"', file=sys.stderr)
-    assembly = "mm10"
-
-try:
     samples = config["samples"]
     print("Using samples file: ", samples, file=sys.stderr)
 except:
@@ -110,7 +103,8 @@ except:
 
 try:
     num_chunks = int(config["num_chunks"])
-    print("Splitting FASTQ files into {} chunks for parallel processing".format(num_chunks), file=sys.stderr)
+    print("Splitting FASTQ files into {} chunks for parallel processing".format(num_chunks),
+          file=sys.stderr)
 except:
     print("Defaulting to 2 chunks for parallel processing", file=sys.stderr)
     num_chunks = 2
@@ -171,7 +165,7 @@ except:
 ##############################################################################
 
 try:
-    mask = config["mask"][config["assembly"]]
+    mask = config["mask"]
 except:
     print("Mask path not specified in config.yaml", file=sys.stderr)
     sys.exit()  # no default, exit
@@ -181,10 +175,19 @@ except:
 ##############################################################################
 
 try:
-    bowtie2_index = config["bowtie2_index"][config["assembly"]]
+    bowtie2_index = config["bowtie2_index"]
 except:
     print("Bowtie2 index not specified in config.yaml", file=sys.stderr)
     sys.exit()  # no default, exit
+
+##############################################################################
+# Chromosomes to keep and/or rename
+##############################################################################
+
+path_chrom_map = config.get("path_chrom_map")
+if path_chrom_map is None:
+    print("Chromosome names not specified, will use all chromosomes in the Bowtie 2 index.",
+          file=sys.stderr)
 
 ##############################################################################
 # Make output directories
@@ -202,7 +205,8 @@ print("Output logs path created:", out_created, file=sys.stderr)
 # Get sample files
 ##############################################################################
 
-FILES = json.load(open(samples))
+with open(samples) as f:
+    FILES = json.load(f)
 ALL_SAMPLES = sorted(FILES.keys())
 
 NUM_CHUNKS = [f"{i:03}" for i in range(num_chunks)]
@@ -216,6 +220,8 @@ CONFIG = [os.path.join(DIR_LOGS, "config_" + run_date + ".yaml")]
 LE_LOG_ALL = [os.path.join(DIR_WORKUP, "ligation_efficiency.txt")]
 
 MULTI_QC = [os.path.join(DIR_WORKUP, "qc", "multiqc_report.html")]
+
+LOG_VALIDATE = [os.path.join(DIR_LOGS, "validate.txt")]
 
 ##############################################################################
 # Trimming
@@ -397,6 +403,19 @@ rule clean:
                 echo "Removing $path" && rm -rf "$path"
             fi
         done
+        '''
+
+# Check that configuration files and assets are set up correctly
+rule validate:
+    log:
+        log = LOG_VALIDATE,
+        bt2_sum = os.path.join(DIR_LOGS, "bowtie2_index_summary.txt"),
+    conda:
+        conda_env
+    shell:
+        '''
+        bowtie2-inspect --summary '{bowtie2_index}' > '{log.bt2_sum}' 2> {log.log}
+        python {validate} -c '{config_path}' --bt2_index_summary '{log.bt2_sum}' &>> {log.log}
         '''
 
 ##############################################################################
@@ -634,19 +653,23 @@ rule bowtie2_align:
         samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
         '''
 
-# Add 'chr' to chromosome names
-rule add_chr:
+# Rename chromosome names and filter for chromosomes of interest
+rule rename_and_filter_chr:
     input:
         os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
     output:
         os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"),
+    params:
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map is not None else "",
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.add_chr.log"),
+        os.path.join(DIR_LOGS, "{sample}.{splitid}.rename_and_filter_chr.log"),
     conda:
         conda_env
+    threads:
+        4
     shell:
         '''
-        python "{add_chr}" -i "{input}" -o "{output}" --assembly "{assembly}" &> "{log}"
+        python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} "{input}" "{output}" &> "{log}"
         '''
 
 # Repeat mask aligned DNA reads

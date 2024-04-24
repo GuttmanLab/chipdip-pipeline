@@ -1,44 +1,54 @@
 # Email to which errors will be sent
 email: ""
+
 # Path to barcoding config file
 bID: "example_config.txt"
 # Path to barcoding format file
 format: "example_format.txt"
 # Path to samples JSON file, e.g., as produced with the fastq2json.py script
 samples: "example_samples.json"
+
 # Scripts directory
 scripts_dir: "scripts/"
 # Output directory
 output_dir: ""
 # Temporary directory
 temp_dir: "/central/scratch/"
-# Conda environment: either a path to a conda environment YAML file (".yml" or ".yaml")
+
+# Conda environment: either a path to a conda environment YAML file ("*.yml" or "*.yaml")
 # or the name of an existing conda environment
 conda_env: "envs/chipdip.yaml"
-# Currently "mm10" and "hg38" available
-assembly: "mm10"
+
+# Path to chromosome name map file
+path_chrom_map: "chrom_map.txt"
+
 # Number of rounds of tags used, including DPM
 num_tags: 7
+
 # Number of chunks to split FASTQ reads into for parallel processing
 num_chunks: 2
+
 # Files for cutadapt
 cutadapt_dpm: "assets/dpm96.fasta"
 cutadapt_oligos: "assets/bpm.fasta"
+
 # Mask used for filtering DNA reads
-mask:
-    mm10: "assets/blacklist_mm10.bed"
-    hg38: "assets/blacklist_hg38.bed"
+# e.g., "assets/blacklist_mm10.bed" or "assets/blacklist_hg38.bed"
+mask: "assets/blacklist_mm10.bed"
+
 # Bowtie2 indexes for aligning DNA reads
-bowtie2_index:
-    mm10: "assets/index_mm10/mm10"
-    hg38: "assets/index_hg38/GRCh38_noalt_as"
+# e.g., "assets/index_hg38/GRCh38_noalt_as" or "assets/index_mm10/mm10"
+bowtie2_index: "assets/index_mm10/mm10"
+
 # Generate BAM files for individual targets
 generate_splitbams: true
 min_oligos: 2
 proportion: 0.8
 max_size: 10000
+
 # Merge cluster files and BAM files for individual targets across samples
 merge_samples: true
+
 # Binsize for generating BigWigs for individual targets merged across samples
 # - only relevant if generate_splitbams and merge_samples are both true
 # - Set to false to skip BigWig generation
