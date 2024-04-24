@@ -14,7 +14,7 @@
 "   - The first column is not allowed to contain repeated chromosome names,
 "     but the second column can contain repeated names.
 " - The order of chromosomes provided here is maintained in the SAM/BAM file
-"   header, and consequently specifies the coordinat sorting order at the
+"   header, and consequently specifies the coordinate sorting order at the
 "   reference sequence level.
 "
 " Suggested usage: common chromosome name maps for human and mouse genomes from

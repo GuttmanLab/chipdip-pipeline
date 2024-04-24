@@ -69,7 +69,7 @@ Workflow
 5. Genomic DNA read workflow:
    1. DPM trimming (cutadapt)
    2. Alignment (bowtie2)
-   3. Chromosome relabeling (add "chr") and filtering (removing non-canonical chromosomes)
+   3. Chromosome renaming (e.g., to UCSC chromosome names) and filtering (e.g., removing non-canonical chromosomes)
    4. Masking (based on ENCODE blacklists)
 6. Antibody oligo read workflow:
    1. BPM trimming (cutadapt)
@@ -159,16 +159,12 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - `bID`: path to [`config.txt` file](#config-txt)
    - `format`: path to [`format.txt` file](#format-txt)
    - `samples`: path to [`samples.json` file](#samples-json)
-   - `conda_env`: either a path to a conda environment YAML file (".yml" or ".yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
+   - `conda_env`: either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
    - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
    - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
-   - `mask`
-     - `mm10`: path to mm10 genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
-     - `hg38`: path to hg38 genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
-   - `bowtie2_index`
-     - `mm10`: path to [Bowtie 2 genome index](#index-bt2) for the GRCm38 (mm10) build
-     - `hg38`: path to [Bowtie 2 genome index](#index-bt2) for the GRCh38 (hg38) build
-   - `assembly`: currently supports either `"mm10"` or `"hg38"`
+   - `mask`: path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
+   - `bowtie2_index`: path to [Bowtie 2 genome index](#index-bt2)
+   - `path_chrom_map`: path to chromosome name map file; leave blank to skip chromosome renaming and filtering
    - `num_tags`: integer giving the number of rounds of tags used, including DPM. This should equal the number of times `DPM`, `ODD`, `EVEN`, `Y` appear in the first 2 lines of the [`config.txt` file](#config-txt).
    - `num_chunks`: integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
    - `generate_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
@@ -273,8 +269,18 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - Term barcode tags (Y) are position `0`; the second to last round of barcoding tags are position `1`; etc. A value of `-1` in the position column indicates that the barcode tag was not used in the experiment.
    - Column 2 indicates the name of the tag. This must be the same as the name of the tag in [`config.txt`](#config-txt). If the same tag is used in multiple barcoding rounds, then it should appear multiple times in column 2, but with different values in column 1 indicating which rounds it is used in.
 
-7. <a name="blacklist-bed">`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`</a>: blacklisted genomic regions for ChIP-seq data
-   - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz).
+7. <a name="chrom-map">`chrom-map.txt`</a>: Tab-delimited text file specifying which chromosomes from the Bowtie 2 index to keep and how to rename them (if at all).
+   - [`config.yaml`](#config-yaml) key to specify the path to this file: `path_chrom_map`
+   - Used by: `scripts/python/rename_and_filter_chr.py` (Snakefile `rule rename_and_filter_chr`)
+   - Column 1 specifies chromosomes (following naming convention used in the index) to keep.
+     - The order of chromosomes provided here is maintained in the SAM/BAM file
+       header, and consequently specifies the coordinate sorting order at the
+       reference sequence level.
+   - Column 2 specifies new chromosome names for the corresponding chromosomes in column 1.
+   - The provided `chrom-map.txt` in this repository contains examples for retaining only canonical human or mouse chromosomes (i.e., excluding alternate loci, unlocalized sequences, and unplaced sequences) and renaming them to UCSC chromosome names (i.e., `chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`) as needed. The header of provided file also includes more detailed documentation about the specific format requirements, such as allowed characters.
+
+8. <a name="blacklist-bed">`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`</a>: blacklisted genomic regions for ChIP-seq data
+   - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz). These BED files use UCSC chromosome names (e.g., `chr1`, `chr2`, ...). The pipeline performs chromosome name remapping (if specified) before this step.
    - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. *Sci Rep*. 2019;9(1):9354. doi:10.1038/s41598-019-45839-z
    - Example code used to download them into the `assets/` directory:
 
@@ -288,7 +294,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
          sort -V -k1,3 > "assets/blacklist_mm10.bed"
      ```
 
-8. <a name="index-bt2">`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`</a>: Bowtie 2 genome index
+9. <a name="index-bt2">`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`</a>: Bowtie 2 genome index
    - [`config.yaml`](#config-yaml) key to specify the path to the index: `bowtie2_index: {'mm10': <mm10_index_prefix>, 'hg38': <hg38_index_prefix>}`
    - If you do not have an existing Bowtie 2 index, you can download [pre-built indices](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) from the Bowtie 2 developers:
 
@@ -306,7 +312,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
      This will create a set of files under `assets/index_hg38` or `assets/index_mm10`. If we want to use the `mm10` genome assembly, for example, the code above will populate `assets/index_mm10` with the following files: `mm10.1.bt2`, `mm10.2.bt2`, `mm10.3.bt2`, `mm10.4.bt2`, `mm10.rev.1.bt2`, `mm10.rev.2.bt2`. The path prefix to this index (as accepted by the `bowtie2 -x <bt2-idx>` argument) is therefore `assets/index_mm10/mm10`, which is set in the configuration file, [`config.yaml`](#config-yaml).
 
-     Note that the pre-built indices linked above use [UCSC chromosome names](https://genome.ucsc.edu/FAQ/FAQgenes.html) (`chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`). If your alignment indices use Ensembl chromosome names (`1`, `2`, ..., `X`, `Y`, `MT`), this pipeline includes a step to convert chromosome names in BAM files to UCSC chromosome names.
+     Note that the pre-built indices linked above use [UCSC chromosome names](https://genome.ucsc.edu/FAQ/FAQgenes.html) (`chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`). If your alignment indices use different chromosome names (e.g., Ensembl chromosome names are `1`, `2`, ..., `X`, `Y`, `MT`), update [`chrom-map.txt`](#chrom-map) such that chromosome names in BAM files are converted to UCSC chromosome names.
 
 # Output Files
 
