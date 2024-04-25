@@ -1006,9 +1006,11 @@ rule splitbams_all:
     shell:
         '''
         {{
-            targets=$(ls "{params.dir}"/*.DNA.merged.labeled_*.bam |
-                      sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\\1/' |
-                      sort -u)
+            targets=$(
+                ls "{params.dir}"/*.DNA.merged.labeled_*.bam |
+                sed -E -e 's/.*\.DNA\.merged\.labeled_(.*)\.bam/\\1/' |
+                sort -u
+            )
             echo "$targets"
             for target in ${{targets[@]}}; do
                 echo "merging BAM files for target $target"
@@ -1058,9 +1060,9 @@ rule generate_bigwigs:
                 # calculate genome size from header of BAM file
                 # subtract regions (from selected chromosomes) in the mask
                 effective_genome_size=$(
-                    python {calculate_effective_genome_size} "$path_bam"
-                      -m "$sorted_merged_mask"
-                      {params.chrom_map}
+                    python {calculate_effective_genome_size} "$path_bam" \
+                      -m "$sorted_merged_mask" \
+                      {params.chrom_map} \
                       -t {threads}
                 )
                 echo "- Effective genome size: $effective_genome_size"
