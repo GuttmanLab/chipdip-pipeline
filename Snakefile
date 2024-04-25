@@ -140,7 +140,7 @@ else:
 
 binsize = config.get("binsize", False)
 if binsize and not generate_splitbams:
-    print("Will not generate BigWigs as split BAMs are not being generated", file=sys.stderr)
+    print("Will not generate bigWigs as split BAMs are not being generated", file=sys.stderr)
     binsize = False
 
 ##############################################################################
@@ -1053,9 +1053,22 @@ rule generate_bigwigs:
                 sort -u
             )
             for target in ${{targets[@]}}; do
-                echo "Generating bigwig for target $target"
+                echo "Generating bigWig for target $target"
                 path_bam="{params.dir_bam}"/"${{target}}".bam
                 path_bigwig="{params.dir_bigwig}"/"${{target}}".bw
+
+                # deepTools bamCoverage currently does not support generating empty bigWig
+                # files from BAM files with no aligned reads. See
+                # https://github.com/deeptools/deepTools/issues/598
+                #
+                # This situation can occur when there are clusters with only oligo (BPM) reads
+                # and no chromatin (DPM) reads.
+                n_reads=$(samtools view -c "$path_bam")
+                if [ $n_reads -eq "0" ]; then
+                    echo "- No reads in BAM file for target. Creating empty bigWig file."
+                    touch "$path_bigwig"
+                    continue
+                fi
 
                 # calculate genome size from header of BAM file
                 # subtract regions (from selected chromosomes) in the mask
