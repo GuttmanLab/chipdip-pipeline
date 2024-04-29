@@ -67,12 +67,17 @@ except:
     bid_config = "config.txt"
     print('Config "bID" not specified, looking for config at:', bid_config, file=sys.stderr)
 
-try:
-    formatfile = config["format"]
-    print("Using split-pool format file: ", formatfile, file=sys.stderr)
-except:
-    formatfile = "format.txt"
-    print("Format file not specified, looking for file at:", formatfile, file=sys.stderr)
+toggle_format_on = config.get("toggle_format_on", True)
+if toggle_format_on:
+    try:
+        formatfile = config["format"]
+        print("Using split-pool format file: ", formatfile, file=sys.stderr)
+    except:
+        formatfile = "format.txt"
+        print("Format file not specified, looking for file at:", formatfile, file=sys.stderr)
+elif not toggle_format_on:
+    print("Will not use format file to validate positions.", file=sys.stderr)
+    toggle_format_on = False
 
 try:
     num_tags = int(config["num_tags"])
@@ -563,7 +568,7 @@ rule split_bpm_dpm:
        conda_env
     shell:
         '''
-        python "{split_bpm_dpm}" --r1 "{input}" --format "{formatfile}" &> "{log}"
+        python "{split_bpm_dpm}" --r1 "{input}" --format "{formatfile}" --toggle_format_on "{toggle_format_on}" &> "{log}"
         '''
 
 ##############################################################################

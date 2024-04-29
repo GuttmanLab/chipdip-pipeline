@@ -11,13 +11,13 @@ samples: "example_samples.json"
 # Scripts directory
 scripts_dir: "scripts/"
 # Output directory
-output_dir: ""
+output_dir: "temp_workup/"
 # Temporary directory
 temp_dir: "/central/scratch/"
 
 # Conda environment: either a path to a conda environment YAML file ("*.yml" or "*.yaml")
 # or the name of an existing conda environment
-conda_env: "envs/chipdip.yaml"
+conda_env: "chipdip"
 
 # Path to chromosome name map file
 path_chrom_map: "chrom_map.txt"
@@ -53,3 +53,7 @@ merge_samples: true
 # - only relevant if generate_splitbams and merge_samples are both true
 # - Set to false to skip BigWig generation
 binsize: 1000
+
+# Option to not use a format file, which is used for strict barcode position validation
+# Default is true.
+toggle_format_on: true

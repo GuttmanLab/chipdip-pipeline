@@ -27,6 +27,13 @@ def parse_args():
         required=True,
         help="File with allowed barcodes for each position",
     )
+    parser.add_argument(
+        "--toggle_format_on",
+        dest="toggle_format_on",
+        type=bool,
+        required=True,
+        help="Option to not use a format file"
+    )
     opts = parser.parse_args()
 
     return opts
@@ -38,7 +45,13 @@ def main():
 
     read_1_path = opts.read_1
 
-    valid_tag_positions = load_format(opts.format)
+    # Default is to use format file
+    use_format = True
+    # Option to not use a format file
+    if not opts.toggle_format_on:
+        use_format = False
+    else:
+        valid_tag_positions = load_format(opts.format)
 
     base_path = os.path.splitext(os.path.splitext(read_1_path)[0])[0]
     # Correctly formated DPM reads
@@ -74,17 +87,18 @@ def main():
                 short_out.write(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
             else:
                 unexpected_tag = False
-                for i, tag in enumerate(barcodes[1:]):
-                    # first tag in barcodes should either be a DPM or BEAD tag;
-                    # verify that subsequent tags are in valid positions
-                    allowed_indices = valid_tag_positions.get(tag)
-                    if allowed_indices is None:
-                        print(f'Tag {tag} not in format file.', file=sys.stderr)
-                        unexpected_tag = True
-                        break
-                    elif i not in allowed_indices:
-                        unexpected_tag = True
-                        break
+                if use_format:
+                    for i, tag in enumerate(barcodes[1:]):
+                        # first tag in barcodes should either be a DPM or BEAD tag;
+                        # verify that subsequent tags are in valid positions
+                        allowed_indices = valid_tag_positions.get(tag)
+                        if allowed_indices is None:
+                            print(f'Tag {tag} not in format file.', file=sys.stderr)
+                            unexpected_tag = True
+                            break
+                        elif i not in allowed_indices:
+                            unexpected_tag = True
+                            break
                 if unexpected_tag:
                     other_count += 1
                     other_out.write(qname + "\n" + seq + "\n" + thrd + "\n" + qual + "\n")
