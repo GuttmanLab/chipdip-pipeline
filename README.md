@@ -175,7 +175,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - `max_size`: maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
    - `merge_samples`: [boolean value](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
    - `binsize`: integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams and merge_samples are both `true`.
-   - `toggle_format_on`: indicating whether to use format file(#format-txt) to validate barcode position strictly. Default is true.
+   - `toggle_format_on`: indicating whether to use [format file](#format-txt) to validate barcode position strictly. Default is true.
 
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `samples`
