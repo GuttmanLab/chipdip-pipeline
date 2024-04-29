@@ -11,13 +11,13 @@ samples: "example_samples.json"
 # Scripts directory
 scripts_dir: "scripts/"
 # Output directory
-output_dir: "temp_workup/"
+output_dir: ""
 # Temporary directory
 temp_dir: "/central/scratch/"
 
 # Conda environment: either a path to a conda environment YAML file ("*.yml" or "*.yaml")
 # or the name of an existing conda environment
-conda_env: "chipdip"
+conda_env: "envs/chipdip.yaml"
 
 # Path to chromosome name map file
 path_chrom_map: "chrom_map.txt"
