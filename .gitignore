@@ -1,3 +1,8 @@
+# paths specific to this repository
+.snakemake/
+workup/
+assets/*/
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -5,5 +10,7 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-.snakemake/
-workup/
+### OS-specific files ###
+# macOS files - see https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
+.DS_Store
+._*

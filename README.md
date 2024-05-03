@@ -314,7 +314,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
      This will create a set of files under `assets/index_hg38` or `assets/index_mm10`. If we want to use the `mm10` genome assembly, for example, the code above will populate `assets/index_mm10` with the following files: `mm10.1.bt2`, `mm10.2.bt2`, `mm10.3.bt2`, `mm10.4.bt2`, `mm10.rev.1.bt2`, `mm10.rev.2.bt2`. The path prefix to this index (as accepted by the `bowtie2 -x <bt2-idx>` argument) is therefore `assets/index_mm10/mm10`, which is set in the configuration file, [`config.yaml`](#config-yaml).
 
-     Note that the pre-built indices linked above use [UCSC chromosome names](https://genome.ucsc.edu/FAQ/FAQgenes.html) (`chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`). If your alignment indices use different chromosome names (e.g., Ensembl chromosome names are `1`, `2`, ..., `X`, `Y`, `MT`), update [`chrom-map.txt`](#chrom-map) such that chromosome names in BAM files are converted to UCSC chromosome names.
+     Note that the pre-built indices linked above use [UCSC chromosome names](https://genome.ucsc.edu/FAQ/FAQgenes.html) (`chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`). If your alignment indices use different chromosome names (e.g., Ensembl chromosome names are `1`, `2`, ..., `X`, `Y`, `MT`), update [`chrom-map.txt`](#chrom-map) such that chromosome names in BAM files are converted to UCSC chromosome names. You can check the names of the reference sequences used to build the index by using the command `bowtie2-inspect -n <bt2-idx>`.
 
 # Output Files
 
