@@ -283,8 +283,11 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - The provided `chrom-map.txt` in this repository contains examples for retaining only canonical human or mouse chromosomes (i.e., excluding alternate loci, unlocalized sequences, and unplaced sequences) and renaming them to UCSC chromosome names (i.e., `chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`) as needed. The header of provided file also includes more detailed documentation about the specific format requirements, such as allowed characters.
 
 8. <a name="blacklist-bed">`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`</a>: blacklisted genomic regions for ChIP-seq data
+   - [`config.yaml`](#config-yaml) key to specify the path to this file: `mask`
+   - Used by: Snakefile `rule merge_mask`, whose output is used by `rule repeat_mask` and `rule generate_bigwigs`
+   - Required? No, but highly recommended.
    - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz). These BED files use UCSC chromosome names (e.g., `chr1`, `chr2`, ...). The pipeline performs chromosome name remapping (if specified) before this step.
-   - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. *Sci Rep*. 2019;9(1):9354. doi:10.1038/s41598-019-45839-z
+     - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. *Sci Rep*. 2019;9(1):9354. doi:10.1038/s41598-019-45839-z
    - Example code used to download them into the `assets/` directory:
 
      ```{bash}

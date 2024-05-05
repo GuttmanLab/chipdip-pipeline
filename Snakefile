@@ -173,11 +173,12 @@ except:
 # DNA Mask
 ##############################################################################
 
-try:
-    mask = config["mask"]
-except:
-    print("Mask path not specified in config.yaml", file=sys.stderr)
-    sys.exit()  # no default, exit
+mask = config.get("mask")
+if mask is not None:
+    print("Masking reads that align to regions in:", mask, file=sys.stderr)
+else:
+    mask = ""
+    print("(WARNING) Mask path (mask) not specified in config.yaml, no masking will be performed.", file=sys.stderr)
 
 ##############################################################################
 # Aligner Indexes
@@ -695,10 +696,28 @@ rule rename_and_filter_chr:
         python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} "{input}" "{output}" &> "{log}"
         '''
 
+# Merge mask
+# - This should increase the speed of the repeat_mask rule compared to a bed file with many overlapping regions.
+# - The merged mask is also used in the generate_bigwigs rule, if that is enabled.
+rule merge_mask:
+    output:
+        temp(os.path.join(DIR_WORKUP, "mask_merge.bed"))
+    conda:
+        conda_env
+    shell:
+        '''
+        if [ -n "{mask}" ]; then
+            sort -k1,1 -k2,2n "{mask}" | bedtools merge > "{output}"
+        else
+            touch "{output}"
+        fi
+        '''
+
 # Repeat mask aligned DNA reads
 rule repeat_mask:
     input:
-        os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam")
+        bam = os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"),
+        mask = os.path.join(DIR_WORKUP, "mask_merge.bed")
     output:
         os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.masked.bam")
     log:
@@ -707,7 +726,14 @@ rule repeat_mask:
         conda_env
     shell:
         '''
-        bedtools intersect -v -a "{input}" -b "{mask}" > "{output}" 2> "{log}"
+        {{
+            if [ -z "{mask}" ]; then
+                echo "No mask file specified, skipping masking."
+                ln -s "{input.bam}" "{output}"
+            else
+                bedtools intersect -v -a "{input.bam}" -b "{input.mask}" > "{output}"
+            fi
+        }} &> "{log}"
         '''
 
 # Combine all mapped DNA reads into a single bam file per sample
@@ -1038,7 +1064,8 @@ rule splitbams_all:
 
 rule generate_bigwigs:
     input:
-        SPLITBAMS_ALL_LOG
+        SPLITBAMS_ALL_LOG,
+        sorted_merged_mask = os.path.join(DIR_WORKUP, "mask_merge.bed")
     log:
         BIGWIGS_LOG
     params:
@@ -1054,9 +1081,6 @@ rule generate_bigwigs:
         '''
         {{
             mkdir -p "{params.dir_bigwig}"
-
-            sorted_merged_mask="$(mktemp -p "{temp_dir}" sorted_merged_mask.bed.XXXXXX)"
-            sort -k1,1 -k2,2n "{mask}" | bedtools merge > "$sorted_merged_mask"
 
             targets=$(
                 ls "{params.dir_bam}"/*.DNA.merged.labeled_*.bam |
@@ -1074,6 +1098,8 @@ rule generate_bigwigs:
                 #
                 # This situation can occur when there are clusters with only oligo (BPM) reads
                 # and no chromatin (DPM) reads.
+                #
+                # In such cases, create an empty (i.e., 0 byte) bigWig file.
                 n_reads=$(samtools view -c "$path_bam")
                 if [ $n_reads -eq "0" ]; then
                     echo "- No reads in BAM file for target. Creating empty bigWig file."
@@ -1085,7 +1111,7 @@ rule generate_bigwigs:
                 # subtract regions (from selected chromosomes) in the mask
                 effective_genome_size=$(
                     python {calculate_effective_genome_size} "$path_bam" \
-                      -m "$sorted_merged_mask" \
+                      -m {input.sorted_merged_mask} \
                       {params.chrom_map} \
                       -t {threads}
                 )
@@ -1099,6 +1125,5 @@ rule generate_bigwigs:
                   --bam "$path_bam" \
                   --outFileName "$path_bigwig"
             done
-            rm "$sorted_merged_mask"
         }} &> "{log}"
         '''
