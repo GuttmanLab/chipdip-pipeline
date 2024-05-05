@@ -1,16 +1,25 @@
 import argparse
 import re
 import json
+import yaml
 from helpers import parse_chrom_map
 
 
 def main():
     args = parse_arguments()
     verbose = not args.quiet
+
     config = dict()
     if args.config:
         with open(args.config, "rt") as f:
-            config = json.load(f)
+            if args.config.lower().endswith(".json"):
+                config = json.load(f)
+            elif args.config.lower().endswith(".yaml") or args.config.lower().endswith(".yml"):
+                config = yaml.safe_load(f)
+            else:
+                raise ValueError(("Unrecognized file extension (not .json, .yaml, or .yml) for config file: "
+                                  "{}".format(args.config)))
+
     path_chrom_map = args.chrom_map if args.chrom_map else config.get("path_chrom_map")
     if args.bt2_index_summary:
         if path_chrom_map:
@@ -27,7 +36,11 @@ def parse_arguments():
         description="Check for common mistakes in configuring ChIP-DIP pipeline"
     )
     parser.add_argument(
-        "-c", "--config", metavar="FILE", help="path to pipeline config [config.yaml]"
+        "-c",
+        "--config",
+        metavar="FILE",
+        help=("path to JSON or YAML file of pipeline config. Parameters provided via additional arguments (e.g., "
+              "--chrom_map) will supersede values in the config file."),
     )
     parser.add_argument(
         "--chrom_map",
