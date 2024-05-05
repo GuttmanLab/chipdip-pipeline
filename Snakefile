@@ -31,56 +31,28 @@ run_date = v.strftime("%Y.%m.%d")
 # See https://snakemake.readthedocs.io/en/stable/snakefiles/configuration.html.
 configfile: "config.yaml"
 
-try:
-    email = config["email"]
-except:
-    email = None
-    print("Will not send email on error", file=sys.stderr)
-
 ##############################################################################
-# Location of scripts
-##############################################################################
-
-try:
-    DIR_SCRIPTS = config["scripts_dir"]
-except:
-    print("Scripts directory not specificed in config.yaml", file=sys.stderr)
-    sys.exit()  # no default, exit
-
-split_fastq = os.path.join(DIR_SCRIPTS, "bash/split_fastq.sh")
-barcode_id_jar = os.path.join(DIR_SCRIPTS, "java/BarcodeIdentification_v1.2.0.jar")
-lig_eff = os.path.join(DIR_SCRIPTS, "python/get_ligation_efficiency.py")
-split_bpm_dpm = os.path.join(DIR_SCRIPTS, "python/split_dpm_bpm_fq.py")
-validate = os.path.join(DIR_SCRIPTS, "python/validate.py")
-rename_and_filter_chr = os.path.join(DIR_SCRIPTS, "python/rename_and_filter_chr.py")
-get_clusters = os.path.join(DIR_SCRIPTS, "python/get_clusters.py")
-merge_clusters = os.path.join(DIR_SCRIPTS, "python/merge_clusters.py")
-fq_to_bam = os.path.join(DIR_SCRIPTS, "python/fastq_to_bam.py")
-tag_and_split = os.path.join(DIR_SCRIPTS, "python/threshold_tag_and_split.py")
-calculate_effective_genome_size = os.path.join(DIR_SCRIPTS, "python/calculate_effective_genome_size.py")
-
-cluster_statistics = os.path.join(DIR_SCRIPTS, "python/generate_cluster_statistics.py")
-cluster_sizes = os.path.join(DIR_SCRIPTS, "python/get_bead_size_distribution.py")
-cluster_ecdfs = os.path.join(DIR_SCRIPTS, "python/max_representation_ecdfs_perlib.py")
-
-pipeline_counts = os.path.join(DIR_SCRIPTS, "python/pipeline_counts.py")
-
-##############################################################################
-# Load settings
+# Load required settings
 ##############################################################################
 
 bid_config = config.get("bID")
 if bid_config is not None:
     print("Using BarcodeID config:", bid_config, file=sys.stderr)
 else:
-    print("BarcodeID config (bid_config) not specified in config.yaml", file=sys.stderr)
+    print("Missing BarcodeID config (bID) in config.yaml", file=sys.stderr)
     sys.exit()
 
-formatfile = config.get("format")
-if formatfile is not None:
-    print("Using split-pool format file:", formatfile, file=sys.stderr)
+samples = config.get("samples")
+if samples is not None:
+    print("Using samples file:", samples, file=sys.stderr)
 else:
-    print("(WARNING) Format file not specified. The pipeline will NOT ensure barcodes are valid.", file=sys.stderr)
+    print("Missing samples file (samples) in config.yaml", file=sys.stderr)
+    sys.exit()
+
+DIR_SCRIPTS = config.get("scripts_dir")
+if DIR_SCRIPTS is None:
+    print("Scripts directory (scripts_dir) not specificed in config.yaml", file=sys.stderr)
+    sys.exit()
 
 def get_num_tags(path_config):
     """Parse a BarcodeID config file and return the number of tags (DPM, ODD, EVEN, Y) as an integer."""
@@ -106,49 +78,80 @@ except:
     sys.exit()
 
 try:
-    samples = config["samples"]
-    print("Using samples file: ", samples, file=sys.stderr)
+    adapters = "-g file:" + config["cutadapt_dpm"]
+    print("Using cutadapt sequence file", adapters, file=sys.stderr)
 except:
-    samples = "./samples.json"
-    print("Defaulting to working directory for samples JSON file", file=sys.stderr)
+    print("DPM adaptor sequences not specificed in config.yaml", file=sys.stderr)
+    sys.exit()
 
 try:
-    out_dir = config["output_dir"]
-    print("All data will be written to: ", out_dir, file=sys.stderr)
+    oligos = "-g file:" + config["cutadapt_oligos"]
+    print("Using bead oligo file", oligos, file=sys.stderr)
 except:
+    print("Oligo sequences not specified in config.yaml", file=sys.stderr)
+    sys.exit()
+
+try:
+    bowtie2_index = config["bowtie2_index"]
+except:
+    print("Bowtie 2 index not specified in config.yaml", file=sys.stderr)
+    sys.exit()
+
+##############################################################################
+# Load optional settings
+##############################################################################
+
+email = config.get("email")
+if email is not None and email != "":
+    print("If any errors are encountered during the pipeline, an email will be sent to:", email, file=sys.stderr)
+else:
+    print("Email (email) not specified in config.yaml. Will not send email on error.", file=sys.stderr)
+
+formatfile = config.get("format")
+if formatfile is not None:
+    print("Using split-pool format file:", formatfile, file=sys.stderr)
+else:
+    print("(WARNING) Format file not specified. The pipeline will NOT ensure barcodes are valid.", file=sys.stderr)
+
+out_dir = config.get("output_dir")
+if out_dir is not None:
+    print("Using output directory:", out_dir, file=sys.stderr)
+else:
     out_dir = os.getcwd()
-    print("Defaulting to working directory as output directory", file=sys.stderr)
+    print("Defaulting to working directory as output directory:", out_dir, file=sys.stderr)
 
-try:
-    temp_dir = config["temp_dir"]
-    print("Using temporary directory: ", temp_dir, file=sys.stderr)
-except:
+temp_dir = config.get("temp_dir")
+if temp_dir is not None:
+    print("Using temporary directory:", temp_dir, file=sys.stderr)
+else:
     temp_dir = "/central/scratch/"
-    print("Defaulting to /central/scratch as temporary directory", file=sys.stderr)
+    print("Defaulting to temporary directory:", temp_dir, file=sys.stderr)
 
-try:
-    num_chunks = int(config["num_chunks"])
+num_chunks = int(config.get("num_chunks"))
+if num_chunks is not None:
     print("Splitting FASTQ files into {} chunks for parallel processing".format(num_chunks),
           file=sys.stderr)
-except:
-    print("Defaulting to 2 chunks for parallel processing", file=sys.stderr)
+else:
     num_chunks = 2
+    print("Defaulting to 2 chunks for parallel processing", file=sys.stderr)
 
-try:
-    conda_env = config["conda_env"]
-except:
-    print("No conda environment specified. Defaulting to envs/chipdip.yaml", file=sys.stderr)
+conda_env = config.get("conda_env")
+if conda_env is None:
     conda_env = "envs/chipdip.yaml"
-if conda_env.lower().endswith(".yaml") or conda_env.lower().endswith(".yml"):
+    print("No conda environment specified. Defaulting to envs/chipdip.yaml", file=sys.stderr)
+if conda_env.strip().lower().endswith(".yaml") or conda_env.strip().lower().endswith(".yml"):
     print("Will create new conda environment from", conda_env, file=sys.stderr)
 else:
     print("Using existing conda environment:", conda_env, file=sys.stderr)
 
-merge_samples = config.get("merge_samples", False)
+mask = config.get("mask")
+if mask is not None:
+    print("Masking reads that align to regions in:", mask, file=sys.stderr)
+else:
+    mask = ""
+    print("(WARNING) Mask path (mask) not specified in config.yaml, no masking will be performed.", file=sys.stderr)
 
-##############################################################################
-# Load Post Clustering Setting
-##############################################################################
+merge_samples = config.get("merge_samples", False)
 
 generate_splitbams = config.get("generate_splitbams", False)
 if generate_splitbams:
@@ -167,53 +170,32 @@ if binsize and not generate_splitbams:
     print("Will not generate bigWigs as split BAMs are not being generated", file=sys.stderr)
     binsize = False
 
-##############################################################################
-# Trimming Sequences
-##############################################################################
-
-try:
-    adapters = "-g file:" + config["cutadapt_dpm"]
-    print("Using cutadapt sequence file", adapters, file=sys.stderr)
-except:
-    print("DPM adaptor sequences not specificed in config.yaml", file=sys.stderr)
-    sys.exit()  # no default, exit
-
-try:
-    oligos = "-g file:" + config["cutadapt_oligos"]
-    print("Using bead oligo file", oligos, file=sys.stderr)
-except:
-    print("Oligo sequences not specified in config.yaml", file=sys.stderr)
-    sys.exit()  # no default, exit
-
-##############################################################################
-# DNA Mask
-##############################################################################
-
-mask = config.get("mask")
-if mask is not None:
-    print("Masking reads that align to regions in:", mask, file=sys.stderr)
-else:
-    mask = ""
-    print("(WARNING) Mask path (mask) not specified in config.yaml, no masking will be performed.", file=sys.stderr)
-
-##############################################################################
-# Aligner Indexes
-##############################################################################
-
-try:
-    bowtie2_index = config["bowtie2_index"]
-except:
-    print("Bowtie2 index not specified in config.yaml", file=sys.stderr)
-    sys.exit()  # no default, exit
-
-##############################################################################
-# Chromosomes to keep and/or rename
-##############################################################################
-
 path_chrom_map = config.get("path_chrom_map")
 if path_chrom_map is None:
     print("Chromosome names not specified, will use all chromosomes in the Bowtie 2 index.",
           file=sys.stderr)
+
+##############################################################################
+# Location of scripts
+##############################################################################
+
+split_fastq = os.path.join(DIR_SCRIPTS, "bash/split_fastq.sh")
+barcode_id_jar = os.path.join(DIR_SCRIPTS, "java/BarcodeIdentification_v1.2.0.jar")
+lig_eff = os.path.join(DIR_SCRIPTS, "python/get_ligation_efficiency.py")
+split_bpm_dpm = os.path.join(DIR_SCRIPTS, "python/split_dpm_bpm_fq.py")
+validate = os.path.join(DIR_SCRIPTS, "python/validate.py")
+rename_and_filter_chr = os.path.join(DIR_SCRIPTS, "python/rename_and_filter_chr.py")
+get_clusters = os.path.join(DIR_SCRIPTS, "python/get_clusters.py")
+merge_clusters = os.path.join(DIR_SCRIPTS, "python/merge_clusters.py")
+fq_to_bam = os.path.join(DIR_SCRIPTS, "python/fastq_to_bam.py")
+tag_and_split = os.path.join(DIR_SCRIPTS, "python/threshold_tag_and_split.py")
+calculate_effective_genome_size = os.path.join(DIR_SCRIPTS, "python/calculate_effective_genome_size.py")
+
+cluster_statistics = os.path.join(DIR_SCRIPTS, "python/generate_cluster_statistics.py")
+cluster_sizes = os.path.join(DIR_SCRIPTS, "python/get_bead_size_distribution.py")
+cluster_ecdfs = os.path.join(DIR_SCRIPTS, "python/max_representation_ecdfs_perlib.py")
+
+pipeline_counts = os.path.join(DIR_SCRIPTS, "python/pipeline_counts.py")
 
 ##############################################################################
 # Make output directories

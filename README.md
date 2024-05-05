@@ -164,19 +164,19 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
      - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
    - Optional keys
-     - `output_dir`: path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
-     - `temp_dir`: path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
-     - `format`: path to [`format.txt` file](#format-txt)
-     - `conda_env`: either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
-     - `mask`: path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
-     - `path_chrom_map`: path to [chromosome name map file](#chrom-map); leave blank to skip chromosome renaming and filtering
-     - `num_chunks`: integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
-     - `generate_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
-     - `min_oligos`: integer giving the minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
-     - `proportion`: float giving the minimum proportion of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
-     - `max_size`: integer giving the maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
-     - `merge_samples`: [boolean](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
-     - `binsize`: integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams is `true`.
+     - `output_dir` (default = [working directory](#working-directory)): path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
+     - `temp_dir` (default = `"/central/scratch"`): path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
+     - `format` (default = `null`): path to [`format.txt` file](#format-txt)
+     - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
+     - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
+     - `path_chrom_map` (default = `null`): path to [chromosome name map file](#chrom-map); leave blank to skip chromosome renaming and filtering
+     - `num_chunks` (default = `2`): integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
+     - `generate_splitbams` (default = `false`): [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
+     - `min_oligos` (default = `2`): integer giving the minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
+     - `proportion` (default = `0.8`): float giving the minimum proportion of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
+     - `max_size` (default = `10000`): integer giving the maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
+     - `merge_samples` (default = `false`): [boolean](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
+     - `binsize` (default = `false`): integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams is `true`.
 
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - Required? Yes.
