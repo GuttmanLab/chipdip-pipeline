@@ -170,7 +170,6 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `conda_env`: either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
      - `mask`: path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
      - `path_chrom_map`: path to [chromosome name map file](#chrom-map); leave blank to skip chromosome renaming and filtering
-     - `num_tags`: integer giving the number of rounds of tags used, including DPM. This should equal the number of times `DPM`, `ODD`, `EVEN`, `Y` appear in the first 2 lines of the [`config.txt` file](#config-txt).
      - `num_chunks`: integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
      - `generate_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
      - `min_oligos`: integer giving the minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria

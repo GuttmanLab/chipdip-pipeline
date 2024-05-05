@@ -22,9 +22,6 @@ conda_env: "envs/chipdip.yaml"
 # Path to chromosome name map file
 path_chrom_map: "chrom_map.txt"
 
-# Number of rounds of tags used, including DPM
-num_tags: 7
-
 # Number of chunks to split FASTQ reads into for parallel processing
 num_chunks: 2
 

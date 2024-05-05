@@ -69,12 +69,12 @@ pipeline_counts = os.path.join(DIR_SCRIPTS, "python/pipeline_counts.py")
 # Load settings
 ##############################################################################
 
-try:
-    bid_config = config["bID"]
-    print("Using BarcodeID config: ", bid_config, file=sys.stderr)
-except:
-    bid_config = "config.txt"
-    print('Config "bID" not specified, looking for config at:', bid_config, file=sys.stderr)
+bid_config = config.get("bID")
+if bid_config is not None:
+    print("Using BarcodeID config:", bid_config, file=sys.stderr)
+else:
+    print("BarcodeID config (bid_config) not specified in config.yaml", file=sys.stderr)
+    sys.exit()
 
 formatfile = config.get("format")
 if formatfile is not None:
@@ -82,12 +82,28 @@ if formatfile is not None:
 else:
     print("(WARNING) Format file not specified. The pipeline will NOT ensure barcodes are valid.", file=sys.stderr)
 
+def get_num_tags(path_config):
+    """Parse a BarcodeID config file and return the number of tags (DPM, ODD, EVEN, Y) as an integer."""
+    num_tags = 0
+    with open(path_config, 'rt') as f:
+        n_lines_processed = 0
+        for line in f:
+            if line.strip() == "" or line.startswith("#"):
+                continue
+            if n_lines_processed >= 2:
+                break
+            line = line.strip().upper()
+            if line.startswith("READ1") or line.startswith("READ2"):
+                num_tags += line.count("DPM") + line.count("ODD") + line.count("EVEN") + line.count("Y")
+            n_lines_processed += 1
+    return num_tags
+
 try:
-    num_tags = int(config["num_tags"])
+    num_tags = get_num_tags(bid_config)
     print("Using", num_tags, "tags", file=sys.stderr)
 except:
-    num_tags = 6
-    print('Config "num_tags" not specified, using:', num_tags, file=sys.stderr)
+    print("Could not determine number of tags from BarcodeID config file.", file=sys.stderr)
+    sys.exit()
 
 try:
     samples = config["samples"]
