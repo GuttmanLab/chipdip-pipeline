@@ -155,28 +155,32 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 # Input Files
 
 1. <a name="config-yaml">`config.yaml`</a>: YAML file containing the processing settings and paths of required input files. As noted [above](#input-directory), paths are specified relative to the [working directory](#working-directory).
-   - `output_dir`: path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
-   - `scripts_dir`: path to scripts folder in the [pipeline directory](#pipeline-directory)
-   - `temp_dir`: path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
-   - `bID`: path to [`config.txt` file](#config-txt)
-   - `format`: path to [`format.txt` file](#format-txt)
-   - `samples`: path to [`samples.json` file](#samples-json)
-   - `conda_env`: either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
-   - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
-   - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
-   - `mask`: path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
-   - `bowtie2_index`: path to [Bowtie 2 genome index](#index-bt2)
-   - `path_chrom_map`: path to chromosome name map file; leave blank to skip chromosome renaming and filtering
-   - `num_tags`: integer giving the number of rounds of tags used, including DPM. This should equal the number of times `DPM`, `ODD`, `EVEN`, `Y` appear in the first 2 lines of the [`config.txt` file](#config-txt).
-   - `num_chunks`: integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
-   - `generate_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
-   - `min_oligos`: minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
-   - `proportion`: minimum proportion of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
-   - `max_size`: maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
-   - `merge_samples`: [boolean value](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
-   - `binsize`: integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams and merge_samples are both `true`.
+   - Required? Yes. Must be provided in the [working directory](#working-directory), or specified via `--configfile <path_to_config.yaml>` when invoking Snakemake.
+   - Required keys
+     - `scripts_dir`: path to scripts folder in the [pipeline directory](#pipeline-directory)
+     - `samples`: path to [`samples.json` file](#samples-json)
+     - `bID`: path to [`config.txt` file](#config-txt)
+     - `bowtie2_index`: path to [Bowtie 2 genome index](#index-bt2)
+     - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
+     - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
+   - Optional keys
+     - `output_dir`: path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
+     - `temp_dir`: path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
+     - `format`: path to [`format.txt` file](#format-txt)
+     - `conda_env`: either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
+     - `mask`: path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
+     - `path_chrom_map`: path to [chromosome name map file](#chrom-map); leave blank to skip chromosome renaming and filtering
+     - `num_tags`: integer giving the number of rounds of tags used, including DPM. This should equal the number of times `DPM`, `ODD`, `EVEN`, `Y` appear in the first 2 lines of the [`config.txt` file](#config-txt).
+     - `num_chunks`: integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
+     - `generate_splitbams`: [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
+     - `min_oligos`: integer giving the minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
+     - `proportion`: float giving the minimum proportion of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
+     - `max_size`: integer giving the maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
+     - `merge_samples`: [boolean](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
+     - `binsize`: integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams is `true`.
 
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
+   - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `samples`
    - This can be prepared using `fastq2json.py --fastq_dir <path_to_directory_of_FASTQs>` or manually formatted as follows:
 
@@ -200,17 +204,20 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - The provided sample read files under the `data/` folder were simulated via a [Google Colab notebook](https://colab.research.google.com/drive/1CyjY0fJSiBl4vCz6FGFuT3IZEQR5XYlI). The genomic DNA reads correspond to ChIP-seq peaks on chromosome 19 (mm10) for transcription factors MYC (simulated as corresponding to Antibody ID `BEAD_AB1-A1`) and TCF12 (simulated as corresponding to Antibody ID `BEAD_AB2-A2`).
 
 3. <a name="bpm-fasta">`assets/bpm.fasta`</a>: FASTA file containing the sequences of Antibody IDs
+   - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `cutadapt_oligos`
    - Used by: `cutadapt` (Snakefile `rule cutadapt_oligo`)
    - Each sequence should be preceeded by `^` to anchor the sequence during cutadapt trimming (see Snakefile `rule cutadapt_oligo`).
 
 4. <a name="dpm-fasta">`assets/dpm96.fasta`</a>: FASTA file containing the sequences of DPM tags
+   - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `cutadapt_dpm`
    - Used by: `cutadapt` (Snakefile `rule cutadapt_dpm`)
    - Each of these sequences are 10 nt long, consisting of a unique 9 nt DPM_Bottom sequences as originally designed for SPRITE (technically, only the first 8 nt are unique, and the 9th sequence is always a `T`), plus a `T` that is complementary to a 3' `A` added to a genomic DNA sequence via dA-tailing.
 <!--TODO: for chromatin read 1 - we are trimming the 5' DPM, but are we trimming the 3' DPM if the read extends beyond the DNA insert sequence? -->
 
 5. <a name="config-txt">`config.txt`</a>: Text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
+   - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `bID` (for "barcode ID")
    - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`) and `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`)
    - Format: SPRITE configuration file (see our SPRITE [GitHub Wiki](https://github.com/GuttmanLab/sprite-pipeline/wiki/1.-Barcode-Identification#configuration-file) or [*Nature Protocols* paper](https://doi.org/10.1038/s41596-021-00633-y) for details).
@@ -265,14 +272,15 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        <!-- TODO: why are the DPM sequences in the config.txt file trimmed compared to dpm96.fasta? -->
 
 6. <a name="format-txt">`format.txt`</a>: Tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
+   - Required? No, but highly recommended.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `format`
    - Used by: `scripts/python/split_dpm_bpm_fq.py` (Snakefile `rule split_bpm_dpm`)
-   - Not required, but highly recommended.
    - Column 1 indicates the zero-indexed position of the barcode string where a tag can be found.
      - Term barcode tags (Y) are position `0`; the second to last round of barcoding tags are position `1`; etc. A value of `-1` in the position column indicates that the barcode tag was not used in the experiment.
    - Column 2 indicates the name of the tag. This must be the same as the name of the tag in [`config.txt`](#config-txt). If the same tag is used in multiple barcoding rounds, then it should appear multiple times in column 2, but with different values in column 1 indicating which rounds it is used in.
 
 7. <a name="chrom-map">`chrom-map.txt`</a>: Tab-delimited text file specifying which chromosomes from the Bowtie 2 index to keep and how to rename them (if at all).
+   - Required? No, but necessary if using a [blacklist mask](#blacklist-bed) that uses different chromosome names than used in the Bowtie 2 index.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `path_chrom_map`
    - Used by: `scripts/python/rename_and_filter_chr.py` (Snakefile `rule rename_and_filter_chr`)
    - Column 1 specifies chromosomes (following naming convention used in the index) to keep.
@@ -283,24 +291,25 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - The provided `chrom-map.txt` in this repository contains examples for retaining only canonical human or mouse chromosomes (i.e., excluding alternate loci, unlocalized sequences, and unplaced sequences) and renaming them to UCSC chromosome names (i.e., `chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`) as needed. The header of provided file also includes more detailed documentation about the specific format requirements, such as allowed characters.
 
 8. <a name="blacklist-bed">`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`</a>: blacklisted genomic regions for ChIP-seq data
+   - Required? No, but highly recommended.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `mask`
    - Used by: Snakefile `rule merge_mask`, whose output is used by `rule repeat_mask` and `rule generate_bigwigs`
-   - Required? No, but highly recommended.
    - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz). These BED files use UCSC chromosome names (e.g., `chr1`, `chr2`, ...). The pipeline performs chromosome name remapping (if specified) before this step.
      - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. *Sci Rep*. 2019;9(1):9354. doi:10.1038/s41598-019-45839-z
-   - Example code used to download them into the `assets/` directory:
+     - Example code used to download them into the `assets/` directory:
 
-     ```{bash}
-     wget -O - https://www.encodeproject.org/files/ENCFF356LFX/@@download/ENCFF356LFX.bed.gz |
-         zcat |
-         sort -V -k1,3 > "assets/blacklist_hg38.bed"
+       ```{bash}
+       wget -O - https://www.encodeproject.org/files/ENCFF356LFX/@@download/ENCFF356LFX.bed.gz |
+             zcat |
+             sort -V -k1,3 > "assets/blacklist_hg38.bed"
 
-     wget -O - https://github.com/Boyle-Lab/Blacklist/raw/master/lists/mm10-blacklist.v2.bed.gz |
-         zcat |
-         sort -V -k1,3 > "assets/blacklist_mm10.bed"
-     ```
+       wget -O - https://github.com/Boyle-Lab/Blacklist/raw/master/lists/mm10-blacklist.v2.bed.gz |
+             zcat |
+             sort -V -k1,3 > "assets/blacklist_mm10.bed"
+       ```
 
 9. <a name="index-bt2">`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`</a>: Bowtie 2 genome index
+   - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to the index: `bowtie2_index: {'mm10': <mm10_index_prefix>, 'hg38': <hg38_index_prefix>}`
    - If you do not have an existing Bowtie 2 index, you can download [pre-built indices](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) from the Bowtie 2 developers:
 
