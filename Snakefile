@@ -435,9 +435,9 @@ rule validate:
     shell:
         '''
         {{
-            bowtie2-inspect --summary '{bowtie2_index}' > '{log.bt2_sum}'
-            python {validate} -c '{input.config}' --bt2_index_summary '{log.bt2_sum}'
-        }} &> '{log.log}'
+            bowtie2-inspect --summary "{bowtie2_index}" > "{log.bt2_sum}"
+            python "{validate}" -c "{input.config}" --bt2_index_summary "{log.bt2_sum}"
+        }} &> "{log.log}"
         '''
 
 ##############################################################################
@@ -466,9 +466,11 @@ rule splitfq:
         4
     shell:
         '''
-        mkdir -p "{params.dir}"
-        bash "{split_fastq}" "{input.r1}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads} &> {log}
-        bash "{split_fastq}" "{input.r2}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads} &>> {log}
+        {{
+            mkdir -p "{params.dir}"
+            bash "{split_fastq}" "{input.r1}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads}
+            bash "{split_fastq}" "{input.r2}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads}
+        }} &> "{log}"
         '''
 
 # Compress the split fastq files
@@ -516,13 +518,13 @@ rule adaptor_trimming_pe:
         fi
 
         trim_galore \
-        --paired \
-        --gzip \
-        --cores $cores \
-        --quality 20 \
-        --fastqc \
-        -o "{params.dir}" \
-        {input} &> "{log}"
+          --paired \
+          --gzip \
+          --cores $cores \
+          --quality 20 \
+          --fastqc \
+          -o "{params.dir}" \
+          {input:q} &> "{log}"
         '''
 
 # Identify barcodes using BarcodeIdentification_v1.2.0.jar
@@ -538,9 +540,9 @@ rule barcode_id:
     shell:
         '''
         java -jar "{barcode_id_jar}" \
-        --input1 "{input.r1}" --input2 "{input.r2}" \
-        --output1 "{output.r1_barcoded}" --output2 "{output.r2_barcoded}" \
-        --config "{bid_config}" &> "{log}"
+          --input1 "{input.r1}" --input2 "{input.r2}" \
+          --output1 "{output.r1_barcoded}" --output2 "{output.r2_barcoded}" \
+          --config "{bid_config}" &> "{log}"
         '''
 
 # Get ligation efficiency
@@ -566,7 +568,7 @@ rule cat_ligation_efficiency:
         LE_LOG_ALL
     shell:
         '''
-        tail -n +1 {input} > "{output}"
+        tail -n +1 {input:q} > "{output}"
         '''
 
 # Split barcoded reads into BPM and DPM, remove incomplete barcodes
@@ -611,14 +613,16 @@ rule cutadapt_dpm:
         conda_env
     shell:
         '''
-        (cutadapt \
-         {params.adapters_r1} \
-         {params.others} \
-         -o "{output.fastq}" \
-         -j {threads} \
-         "{input}" > "{output.qc}") &> "{log}"
+        {{
+            cutadapt \
+              {params.adapters_r1} \
+              {params.others} \
+              -o "{output.fastq}" \
+              -j {threads} \
+              "{input}" > "{output.qc}"
 
-        fastqc "{output.fastq}"
+            fastqc "{output.fastq}"
+        }} &> "{log}"
         '''
 
 # Trim 9mer oligo sequence from read1 of BPM reads
@@ -638,11 +642,11 @@ rule cutadapt_oligo:
         conda_env
     shell:
         '''
-        (cutadapt \
-         {params.adapters_r1} \
-         -o "{output.fastq}" \
-         -j {threads} \
-         "{input}" > "{output.qc}") &> "{log}"
+        cutadapt \
+          {params.adapters_r1} \
+          -o "{output.fastq}" \
+          -j {threads} \
+          "{input}" > "{output.qc}" 2> "{log}"
         '''
 
 ##############################################################################
@@ -667,14 +671,16 @@ rule bowtie2_align:
         conda_env
     shell:
         '''
-        (bowtie2 \
-         -p 10 \
-         -t \
-         --phred33 \
-         -x "{bowtie2_index}" \
-         -U "{input.fq}" | \
-         samtools view -bq 20 -F 4 -F 256 - > "{output.bam}") &> "{log}"
-        samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
+        {{
+            bowtie2 \
+              -p 10 \
+              -t \
+              --phred33 \
+              -x "{bowtie2_index}" \
+              -U "{input.fq}" | \
+            samtools view -bq 20 -F 4 -F 256 - > "{output.bam}"
+            samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
+        }} &> "{log}"
         '''
 
 # Rename chromosome names and filter for chromosomes of interest
@@ -752,7 +758,7 @@ rule merge_dna:
         os.path.join(DIR_LOGS, "{sample}.merge_DNA.log")
     shell:
         '''
-        samtools merge -@ {threads} "{output}" {input} &> "{log}"
+        samtools merge -@ {threads} "{output}" {input:q} &> "{log}"
         '''
 
 ##############################################################################
@@ -774,8 +780,10 @@ rule fastq_to_bam:
         4
     shell:
         '''
-        python "{fq_to_bam}" --input "{input}" --output "{output.bam}" --config "{bid_config}" &> "{log}"
-        samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
+        {{
+            python "{fq_to_bam}" --input "{input}" --output "{output.bam}" --config "{bid_config}"
+            samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
+        }} &> "{log}"
         '''
 
 # Combine all oligo reads into a single file per sample
@@ -794,7 +802,7 @@ rule merge_beads:
         10
     shell:
         '''
-        samtools merge -@ {threads} "{output}" {input} &> "{log}"
+        samtools merge -@ {threads} "{output}" {input:q} &> "{log}"
         '''
 
 ##############################################################################
@@ -817,12 +825,14 @@ rule make_clusters:
         conda_env
     shell:
         '''
-        (python "{get_clusters}" \
-        -i "{input.bpm}" "{input.dpm}" \
-        -o "{output.unsorted}" \
-        -n {num_tags}) &> "{log}"
+        {{
+            python "{get_clusters}" \
+              -i "{input.bpm}" "{input.dpm}" \
+              -o "{output.unsorted}" \
+              -n {num_tags}
 
-        sort -k 1 -T "{temp_dir}" --parallel={threads} "{output.unsorted}" > "{output.sorted}"
+            sort -k 1 -T "{temp_dir}" --parallel={threads} "{output.unsorted}" > "{output.sorted}"
+        }} &> "{log}"
         '''
 
 # Merge clusters from parallel processing into a single cluster file per sample
@@ -842,8 +852,10 @@ rule merge_clusters:
         10
     shell:
         '''
-        sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input} > "{output.mega}"
-        python "{merge_clusters}" -i "{output.mega}" -o "{output.final}" &> "{log}"
+        {{
+            sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input:q} > "{output.mega}"
+            python "{merge_clusters}" -i "{output.mega}" -o "{output.final}"
+        }} &> "{log}"
         '''
 
 ##############################################################################
@@ -904,10 +916,12 @@ rule get_size_distribution:
         conda_env
     shell:
         '''
-        python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \
-            --readtype BPM &> "{log}"
-        python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \
-            --readtype DPM &>> "{log}"
+        {{
+            python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \
+              --readtype BPM
+            python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \
+              --readtype DPM
+        }} &> "{log}"
         '''
 
 ##############################################################################
@@ -948,12 +962,14 @@ rule pipeline_counts:
         10
     shell:
         '''
-        (python "{pipeline_counts}" \
-           --samples "{samples}" \
-           -w "{DIR_WORKUP}" \
-           -o "{output.csv}" \
-           -n {threads} | \
-         column -t -s $'\t' > "{output.pretty}") &> "{log}"
+        {{
+            python "{pipeline_counts}" \
+              --samples "{samples}" \
+              -w "{DIR_WORKUP}" \
+              -o "{output.csv}" \
+              -n {threads} | \
+            column -t -s $'\t' > "{output.pretty}"
+        }} &> "{log}"
         '''
 
 ##############################################################################
@@ -976,14 +992,14 @@ rule thresh_and_split:
     shell:
         '''
         python "{tag_and_split}" \
-         -i "{input.bam}" \
-         -c "{input.clusters}" \
-         -o "{output}" \
-         -d "{params.dir_splitbams}" \
-         --min_oligos {min_oligos} \
-         --proportion {proportion} \
-         --max_size {max_size} \
-         --num_tags {num_tags} &> "{log}"
+          -i "{input.bam}" \
+          -c "{input.clusters}" \
+          -o "{output}" \
+          -d "{params.dir_splitbams}" \
+          --min_oligos {min_oligos} \
+          --proportion {proportion} \
+          --max_size {max_size} \
+          --num_tags {num_tags} &> "{log}"
         '''
 
 # Generate summary statistics of individiual bam files
@@ -1025,7 +1041,7 @@ rule clusters_all:
         10
     shell:
         '''
-        sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input} > "{output}"
+        sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input:q} > "{output}"
         '''
 
 rule splitbams_all:
