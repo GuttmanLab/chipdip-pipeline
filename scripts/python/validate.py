@@ -1,17 +1,23 @@
 import argparse
-import json
 import re
-import yaml
+import json
 from helpers import parse_chrom_map
 
 
 def main():
     args = parse_arguments()
-    with open(args.config, "rt") as f:
-        config = yaml.safe_load(f)
+    verbose = not args.quiet
+    config = dict()
+    if args.config:
+        with open(args.config, "rt") as f:
+            config = json.load(f)
+    path_chrom_map = args.chrom_map if args.chrom_map else config.get("path_chrom_map")
+    if args.bt2_index_summary:
+        if path_chrom_map:
+            validate_chrom_map(args.bt2_index_summary, path_chrom_map, verbose=verbose)
+        else:
+            print("Bowtie 2 index summary path provided, but no chromosome name map specified.")
     # validate_config(config)
-    if config["path_chrom_map"]:
-        validate_chrom_map(args.bt2_index_summary, config["path_chrom_map"])
     # validate_barcode_config(config["bID"])
     # validate_format(config["format"])
 
@@ -24,14 +30,23 @@ def parse_arguments():
         "-c", "--config", metavar="FILE", help="path to pipeline config [config.yaml]"
     )
     parser.add_argument(
+        "--chrom_map",
+        metavar="FILE",
+        help="path to chromosome name map file (e.g., chrom_map.json)",
+    )
+    parser.add_argument(
         "--bt2_index_summary",
         metavar="FILE",
         help="path to Bowtie 2 index summary (i.e., bowtie2-inspect --summary <index>)",
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="suppress output"
     )
     return parser.parse_args()
 
 
 def validate_config(config):
+    # check that temp_dir is writeable 
     pass
 
 
@@ -43,7 +58,7 @@ def validate_format():
     pass
 
 
-def validate_chrom_map(path_bt2_index_summary, path_chrom_map):
+def validate_chrom_map(path_bt2_index_summary, path_chrom_map, verbose=True):
     """
     Validate the chromosome name map against the Bowtie 2 index - i.e.,
     all chromosome name to be renamed should be in the Bowtie 2 index.
@@ -55,19 +70,16 @@ def validate_chrom_map(path_bt2_index_summary, path_chrom_map):
         Path to chromsome name map file.
     """
     chrom_sizes = parse_bt2_index_summary(path_bt2_index_summary)
-    print("Genome size of Bowtie 2 index:", sum(chrom_sizes.values()))
-    if path_chrom_map is None:
-        print("No chromosome name map specified.")
-        chrom_map = {k: k for chrom in chrom_sizes}
-    else:
-        chrom_map = parse_chrom_map(path_chrom_map)
-        genome_size = 0
-        for chrom in chrom_map:
-            assert chrom in chrom_sizes, (
-                "Chromosome '{}' specified in chromosome name map '{}' not found in "
-                "Bowtie 2 index summary '{}'"
-            ).format(chrom, path_chrom_map, path_bt2_index_summary)
-            genome_size += chrom_sizes[chrom]
+    chrom_map = parse_chrom_map(path_chrom_map)
+    genome_size = 0
+    for chrom in chrom_map:
+        assert chrom in chrom_sizes, (
+            "Chromosome '{}' specified in chromosome name map '{}' not found in "
+            "Bowtie 2 index summary '{}'"
+        ).format(chrom, path_chrom_map, path_bt2_index_summary)
+        genome_size += chrom_sizes[chrom]
+    if verbose:
+        print("Genome size of Bowtie 2 index:", sum(chrom_sizes.values()))
         print("Genome size of chromosome map:", genome_size)
 
 

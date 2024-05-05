@@ -15,12 +15,21 @@ import datetime
 v = datetime.datetime.now()
 run_date = v.strftime("%Y.%m.%d")
 
-try:
-    config_path = config["config_path"]
-except:
-    config_path = "config.yaml"
-
-configfile: config_path
+# Priority (lowest-to-highest) of defining configuration parameters, where each option adds to the `config` dictionary
+# available in the Snakefile.
+# 1. Configuration file specified by the `configfile` directive in this Snakefile: `configfile: <path_to_configfile>`
+# 2. Configuration files specified on the command line: `snakemake --configfile <path_to_configfile>`
+# 3. Parameters specified directly on the command line: `snakemake --config key=value`
+#
+# If the Snakefile includes a `configfile` directive, then a configuration file must be provided:
+# - at the path specified by the `configfile` directive,
+# - via the `--configfile` or `--configfiles` command line arguments,
+# - or both.
+# Snakemake can run the Snakefile even if the path specified by the `configfile` directive does not actually exist, as
+# long as a config file is provided via the command line.
+#
+# See https://snakemake.readthedocs.io/en/stable/snakefiles/configuration.html.
+configfile: "config.yaml"
 
 try:
     email = config["email"]
@@ -216,7 +225,7 @@ NUM_CHUNKS = [f"{i:03}" for i in range(num_chunks)]
 # Logging
 ##############################################################################
 
-CONFIG = [os.path.join(DIR_LOGS, "config_" + run_date + ".yaml")]
+CONFIG = [os.path.join(DIR_LOGS, "config_" + run_date + ".json")]
 
 LE_LOG_ALL = [os.path.join(DIR_WORKUP, "ligation_efficiency.txt")]
 
@@ -406,8 +415,18 @@ rule clean:
         done
         '''
 
+# Output all snakemake configuration parameters into logs folder with run date
+rule log_config:
+    output:
+        CONFIG
+    run:
+        with open(output[0], "wt") as f:
+            json.dump(config, f, indent=4, sort_keys=True)
+
 # Check that configuration files and assets are set up correctly
 rule validate:
+    input:
+        config = CONFIG
     log:
         log = LOG_VALIDATE,
         bt2_sum = os.path.join(DIR_LOGS, "bowtie2_index_summary.txt"),
@@ -415,8 +434,10 @@ rule validate:
         conda_env
     shell:
         '''
-        bowtie2-inspect --summary '{bowtie2_index}' > '{log.bt2_sum}' 2> {log.log}
-        python {validate} -c '{config_path}' --bt2_index_summary '{log.bt2_sum}' &>> {log.log}
+        {{
+            bowtie2-inspect --summary '{bowtie2_index}' > '{log.bt2_sum}'
+            python {validate} -c '{input.config}' --bt2_index_summary '{log.bt2_sum}'
+        }} &> '{log.log}'
         '''
 
 ##############################################################################
@@ -865,17 +886,6 @@ rule get_size_distribution:
 ##############################################################################
 # Logging and MultiQC
 ##############################################################################
-
-# Copy config.yaml into logs folder with run date
-rule log_config:
-    input:
-        config_path
-    output:
-        os.path.join(DIR_LOGS, "config_" + run_date + ".yaml")
-    shell:
-        '''
-        cp "{input}" "{output}"
-        '''
 
 # Aggregate metrics using multiqc
 rule multiqc:
