@@ -267,6 +267,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 6. <a name="format-txt">`format.txt`</a>: Tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `format`
    - Used by: `scripts/python/split_dpm_bpm_fq.py` (Snakefile `rule split_bpm_dpm`)
+   - Not required, but highly recommended.
    - Column 1 indicates the zero-indexed position of the barcode string where a tag can be found.
      - Term barcode tags (Y) are position `0`; the second to last round of barcoding tags are position `1`; etc. A value of `-1` in the position column indicates that the barcode tag was not used in the experiment.
    - Column 2 indicates the name of the tag. This must be the same as the name of the tag in [`config.txt`](#config-txt). If the same tag is used in multiple barcoding rounds, then it should appear multiple times in column 2, but with different values in column 1 indicating which rounds it is used in.

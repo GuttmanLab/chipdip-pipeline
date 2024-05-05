@@ -47,9 +47,9 @@ proportion: 0.8
 max_size: 10000
 
 # Merge cluster files and BAM files for individual targets across samples
-merge_samples: true
+merge_samples: false
 
 # Binsize for generating BigWigs for individual targets merged across samples
-# - only relevant if generate_splitbams and merge_samples are both true
+# - only relevant if generate_splitbams is true
 # - Set to false to skip BigWig generation
 binsize: 1000

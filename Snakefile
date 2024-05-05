@@ -76,12 +76,11 @@ except:
     bid_config = "config.txt"
     print('Config "bID" not specified, looking for config at:', bid_config, file=sys.stderr)
 
-try:
-    formatfile = config["format"]
-    print("Using split-pool format file: ", formatfile, file=sys.stderr)
-except:
-    formatfile = "format.txt"
-    print("Format file not specified, looking for file at:", formatfile, file=sys.stderr)
+formatfile = config.get("format")
+if formatfile is not None:
+    print("Using split-pool format file:", formatfile, file=sys.stderr)
+else:
+    print("(WARNING) Format file not specified. The pipeline will NOT ensure barcodes are valid.", file=sys.stderr)
 
 try:
     num_tags = int(config["num_tags"])
@@ -580,11 +579,13 @@ rule split_bpm_dpm:
         os.path.join(DIR_WORKUP, "fastqs/{sample}_R1.part_{splitid}.barcoded_short.fastq.gz")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.BPM_DPM.log")
+    params:
+        format = f"--format '{formatfile}'" if formatfile is not None else ""
     conda:
        conda_env
     shell:
         '''
-        python "{split_bpm_dpm}" --r1 "{input}" --format "{formatfile}" &> "{log}"
+        python "{split_bpm_dpm}" --r1 "{input}" {params.format} &> "{log}"
         '''
 
 ##############################################################################
