@@ -10,6 +10,15 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+.snakemake/
+workup/
+workup2/
+scripts/python_bam
+assets/
+config.yaml
+Snakefile_old
+rulegraph_old.pdf
+samples.json
 ### OS-specific files ###
 # macOS files - see https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
 .DS_Store

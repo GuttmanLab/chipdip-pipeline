@@ -7,8 +7,8 @@ __default__:
     error: "workup/logs/cluster/{rule}.err"
 splitfq:
     time: "48:00:00"
-    mem: 100g
-    cpus: 4
+    mem: 20g
+    cpus: 8
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"

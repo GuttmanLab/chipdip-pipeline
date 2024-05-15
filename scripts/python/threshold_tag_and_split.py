@@ -1,15 +1,8 @@
 import argparse
 import pysam
-import re
-import os
 from collections import defaultdict, Counter
 from pathlib import Path
 import tqdm
-
-"""
-Generate individual bam files for each antibody from a master bam file of all read alignments based on cluster assignments. Reads are deduplicated as individual files are generated (ie. only one read per start position per cluster is kept).
-"""
-
 
 def parse_args():
 
@@ -25,27 +18,20 @@ def parse_args():
         help="Master aligned DNA Bamfile",
     )
     parser.add_argument(
+        "-c",
+        "--cluster_bam",
+        dest="cluster_bam",
+        type=str,
+        required=True,
+        help="Master aligned cluster Bamfile",
+    )
+    parser.add_argument(
         "-o",
         "--output_bam",
         dest="output_bam",
         type=str,
         required=True,
         help="Path to output master bam with antibody tag added",
-    )
-    parser.add_argument(
-        "-c",
-        "--clusters",
-        dest="clusters",
-        type=str,
-        required=True,
-        help="Path to clusters used to assign antibody labels",
-    )
-    parser.add_argument(
-        "--num_tags",
-        dest="num_tags",
-        type=int,
-        required=True,
-        help="Number of tags in barcode",
     )
     parser.add_argument(
         "-d",
@@ -78,10 +64,7 @@ def parse_args():
         help="The maximum cluster size to keep",
     )
 
-    opts = parser.parse_args()
-
-    return opts
-
+    return parser.parse_args()
 
 def main():
     args = parse_args()
@@ -90,122 +73,93 @@ def main():
     print("Using max_size: ", args.max_size)
     print("Writing bam to: ", args.output_bam)
     print("Writing splitbams to: ", args.dir)
-    labels = assign_labels(
-        args.clusters, args.min_oligos, args.proportion, args.max_size
+    RG_dict = assign_labels(
+        args.cluster_bam, args.min_oligos, args.proportion, args.max_size
     )
-    label_bam_file(args.input_bam, args.output_bam, labels, args.num_tags)
+    label_bam_file(args.input_bam, args.output_bam, RG_dict)
     split_bam_by_RG(args.output_bam, args.dir)
 
 
-def assign_labels(clusterfile, min_oligos, proportion, max_size):
-    """
-    Assign labels to all clusters based on oligo reads
+def assign_labels(bamfile, min_oligos, threshold, max_size):
 
-    Args:
-        clusterfile(str): Path to clusterfile
-        min_oligos(int): number of oligos that are of one type that need to be exceeded to assign the cluster (ie. stricktly greater than)
-        proportion(float): fraction of oligo reads that are of one type needed to assign the cluster
-        max_size(int): maximum dna reads allowed per cluster
-    """
-    labels = {}
-    with open(clusterfile, "r") as clusters:
-        for line in tqdm.tqdm(clusters):
-            barcode, *reads = line.rstrip("\n").split("\t")
-            multilabel = label_cluster_reads(reads, min_oligos, proportion, max_size)
-            labels[barcode] = multilabel
-    return labels
+    # threshold_tag_and_split
+    RG_dict = defaultdict(str)
+    beads_dict = defaultdict(list)
+    total_dict = defaultdict(int)
 
+    with pysam.AlignmentFile(bamfile, 'rb') as inbam:
+        
+        for read in inbam.fetch(until_eof=True):
+            read_type = read.get_tag("RT")
+            barcode = read.get_tag("BC")
+            chromesome = read.reference_name
+            total_dict[barcode] += 1
+            if "BEAD" in read_type or "BPM" in read_type:
+                beads_dict[barcode].append(chromesome)
 
-def label_cluster_reads(reads, min_oligos, threshold, max_size):
-    """
-    Assign a label to a cluster based on oligo reads
+        # threshold tag and split
+        for bc in total_dict.keys():
+            count_beads = len(beads_dict[bc])
+            if count_beads == 0:
+                RG_dict[bc] = "none"
+                continue
+            cluster_size = total_dict[bc] - count_beads
+            if int(cluster_size) > int(max_size):
+                RG_dict[bc] = "filtered"
+                continue
+            bead_labels = Counter(beads_dict[bc])
+            candidate = bead_labels.most_common()[0]
+            if candidate[1] < min_oligos:
+                RG_dict[bc] = "uncertain"
+                continue
+            elif candidate[1] / sum(bead_labels.values()) < threshold:
+                RG_dict[bc] = "ambiguous"
+                continue
+            else:
+                RG_dict[bc] = candidate[0]
+                continue
+            RG_dict[bc] = "malformed"
 
-    Args:
-        reads(list): list of cluster formated reads
-        threshold(float): fraction of oligo reads that are of one type needed to assign the cluster
-        min_oligos(int): number of oligos of one type that need to be exceeded to assign the cluster (ie. strictly greater than)
-        max_size(int): maximum dna reads allowed per cluster
-    """
-    bead_reads = [read for read in reads if read.startswith("BPM")]
-    if len(bead_reads) == 0:
-        return "none"
-    cluster_size = len(reads) - len(bead_reads)
-    if int(cluster_size) > int(max_size):
-        return "filtered"
-    bead_labels = Counter([read.split(":")[0].split("_", 1)[1] for read in bead_reads])
-    candidate = bead_labels.most_common()[0]
-    if candidate[1] < min_oligos:
-        return "uncertain"
-    elif candidate[1] / sum(bead_labels.values()) < threshold:
-        return "ambiguous"
-    else:
-        return candidate[0]
-    return "malformed"
+    return RG_dict
 
+def label_bam_file(input_bam, output_bam, RG_dict):
 
-def label_bam_file(input_bam, output_bam, labels, num_tags):
-    """
-    Add antibody label to individual reads of the master DNA bam file
-
-    Args:
-        input_bam(str): Path to input master bam file
-        output_bam(str): Path to write labeled bam file
-        labels(dict): Dictionary of cluster assignments [barcode-> antibody]
-        num_tags(int): number of tags in barcode
-    """
-    count, duplicates, skipped = 0, 0, 0
-    written = defaultdict(int)
-    pattern = re.compile("::" + num_tags * "\[([a-zA-Z0-9_\-]+)\]")
-    library = os.path.basename(input_bam).split(".")[0]
-    header = construct_read_group_header(input_bam, labels)
-    found = defaultdict(set)
+    count, written, skipped = 0, 0, 0
+    header = construct_read_group_header(input_bam, RG_dict)
     with pysam.AlignmentFile(input_bam, "rb") as in_bam, \
          pysam.AlignmentFile(output_bam, "wb", header=header) as out_bam:
         for read in in_bam.fetch(until_eof=True):
             count += 1
             if count % 10000000 == 0:
                 print(count)
-            name = read.query_name
-            match = pattern.search(name)
-            barcode = list(match.groups())[1:]
-            barcode.append(library)
-            full_barcode = ".".join(barcode)
-            position = read.reference_name + ":" + str(read.reference_start) + '-' + str(read.reference_end)
-            if position in found[full_barcode]:
-                duplicates += 1
-            else:
-                try:
-                    readlabel = labels[full_barcode]
-                    found[full_barcode].add(position)
-                    read.set_tag("RG", readlabel, replace=True)
-                    out_bam.write(read)
-                    written[readlabel] += 1
-                except KeyError:
-                    skipped += 1
-
+            barcode = read.get_tag("BC")
+            read_group = RG_dict[barcode]
+            try:
+                read.set_tag("RG", read_group, replace=True)
+                out_bam.write(read)
+                written += 1
+            except KeyError:
+                skipped += 1
     print("Total reads:", count)
     print("Reads written:", written)
-    print("Duplicate reads:", duplicates)
     print("Reads with an error not written out:", skipped)
 
-
-def construct_read_group_header(input_bam, labels):
+def construct_read_group_header(input_bam, RG_dict):
     """
     Add read group tags for each antibody to the bam file header
 
     Args:
         input_bam(str): Path to input master bam file
-        labels(dict): Dictionary of cluster assignments [barcode-> antibody]
+        RG_dict(dict): Dictionary of cluster assignments [barcode-> antibody]
     """
-    proteins = set(labels.values())
+    proteins = set(RG_dict.values())
     sample_name = input_bam.split(".", 1)[0]
     with pysam.AlignmentFile(input_bam, "rb") as input_file:
         bam_header = input_file.header.to_dict()
         read_group_dict = [{"ID": name, "SM": sample_name} for name in list(proteins)]
         bam_header["RG"] = read_group_dict
         return bam_header
-
-
+    
 def split_bam_by_RG(output_bam, output_dir):
     """
     Split a bam file based on the read group
@@ -217,7 +171,6 @@ def split_bam_by_RG(output_bam, output_dir):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     format_string = output_dir + "/%*_%!.%."
     pysam.split("-f", format_string, output_bam)
-
 
 if __name__ == "__main__":
     main()
