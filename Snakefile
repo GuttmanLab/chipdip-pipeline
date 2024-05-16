@@ -687,7 +687,8 @@ rule rename_and_filter_chr:
     input:
         os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
     output:
-        os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"),
+        sorted = os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"),
+        renamed = temp(os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.tmp.bam"))
     params:
         chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else "",
     log:
@@ -698,7 +699,10 @@ rule rename_and_filter_chr:
         4
     shell:
         '''
-        python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} "{input}" "{output}" &> "{log}"
+        {{
+            python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} "{input}" "{output.renamed}"
+            samtools sort -@ {threads} -o "{output.sorted}" "{output.renamed}"
+        }} &> "{log}"
         '''
 
 # Merge mask
