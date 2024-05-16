@@ -1,17 +1,21 @@
-# Email to which errors will be sent
+# Email to which errors will be sent; set to null or "" to skip emails
 email: ""
 
-# Path to barcoding config file
+# (Required) Path to barcoding config file
 bID: "example_config.txt"
-# Path to barcoding format file
+
+# Path to barcoding format file; set to null or "" to skip barcode validation
 format: "example_format.txt"
-# Path to samples JSON file, e.g., as produced with the fastq2json.py script
+
+# (Required) Path to samples JSON file, e.g., as produced with the fastq2json.py script
 samples: "example_samples.json"
 
-# Scripts directory
+# (Required) Scripts directory
 scripts_dir: "scripts/"
+
 # Output directory
 output_dir: ""
+
 # Temporary directory
 temp_dir: "/central/scratch/"
 
@@ -19,21 +23,22 @@ temp_dir: "/central/scratch/"
 # or the name of an existing conda environment
 conda_env: "envs/chipdip.yaml"
 
-# Path to chromosome name map file
+# Path to chromosome name map file; set to null or "" to skip chromosome renaming and filtering
 path_chrom_map: "chrom_map.txt"
 
 # Number of chunks to split FASTQ reads into for parallel processing
 num_chunks: 2
 
-# Files for cutadapt
+# (Required) Files for cutadapt
 cutadapt_dpm: "assets/dpm96.fasta"
 cutadapt_oligos: "assets/bpm.fasta"
 
 # Mask used for filtering DNA reads
 # e.g., "assets/blacklist_mm10.bed" or "assets/blacklist_hg38.bed"
+# Set to null or "" to skip filtering
 mask: "assets/blacklist_mm10.bed"
 
-# Bowtie2 indexes for aligning DNA reads
+# (Required) Bowtie2 indexes for aligning DNA reads
 # e.g., "assets/index_hg38/GRCh38_noalt_as" or "assets/index_mm10/mm10"
 bowtie2_index: "assets/index_mm10/mm10"
 
@@ -46,7 +51,7 @@ max_size: 10000
 # Merge cluster files and BAM files for individual targets across samples
 merge_samples: false
 
-# Binsize for generating BigWigs for individual targets merged across samples
+# Binsize for generating bigWigs for individual targets merged across samples
 # - only relevant if generate_splitbams is true
-# - Set to false to skip BigWig generation
+# - Set to false to skip bigWig generation
 binsize: 1000

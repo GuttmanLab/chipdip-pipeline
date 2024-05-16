@@ -102,13 +102,13 @@ except:
 ##############################################################################
 
 email = config.get("email")
-if email is not None and email != "":
+if email not in (None, ""):
     print("If any errors are encountered during the pipeline, an email will be sent to:", email, file=sys.stderr)
 else:
     print("Email (email) not specified in config.yaml. Will not send email on error.", file=sys.stderr)
 
 formatfile = config.get("format")
-if formatfile is not None:
+if formatfile not in (None, ""):
     print("Using split-pool format file:", formatfile, file=sys.stderr)
 else:
     print("(WARNING) Format file not specified. The pipeline will NOT ensure barcodes are valid.", file=sys.stderr)
@@ -145,7 +145,7 @@ else:
     print("Using existing conda environment:", conda_env, file=sys.stderr)
 
 mask = config.get("mask")
-if mask is not None:
+if mask not in (None, ""):
     print("Masking reads that align to regions in:", mask, file=sys.stderr)
 else:
     mask = ""
@@ -171,7 +171,7 @@ if binsize and not generate_splitbams:
     binsize = False
 
 path_chrom_map = config.get("path_chrom_map")
-if path_chrom_map is None:
+if path_chrom_map not in (None, ""):
     print("Chromosome names not specified, will use all chromosomes in the Bowtie 2 index.",
           file=sys.stderr)
 
@@ -386,7 +386,8 @@ rule all:
 
 # Send and email if an error occurs during execution
 onerror:
-    shell('mail -s "an error occurred" ' + email + ' < {log}')
+    if email not in (None, ""):
+        shell('mail -s "an error occurred" ' + email + ' < {log}')
 
 wildcard_constraints:
     sample = "[^\.]+"
@@ -581,7 +582,7 @@ rule split_bpm_dpm:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.BPM_DPM.log")
     params:
-        format = f"--format '{formatfile}'" if formatfile is not None else ""
+        format = f"--format '{formatfile}'" if formatfile not in (None, "") else ""
     conda:
        conda_env
     shell:
@@ -688,7 +689,7 @@ rule rename_and_filter_chr:
     output:
         os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"),
     params:
-        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map is not None else "",
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else "",
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.rename_and_filter_chr.log"),
     conda:
@@ -731,11 +732,11 @@ rule repeat_mask:
     shell:
         '''
         {{
-            if [ -z "{mask}" ]; then
+            if [ -n "{mask}" ]; then
+                bedtools intersect -v -a "{input.bam}" -b "{input.mask}" > "{output}"
+            else
                 echo "No mask file specified, skipping masking."
                 ln -s "{input.bam}" "{output}"
-            else
-                bedtools intersect -v -a "{input.bam}" -b "{input.mask}" > "{output}"
             fi
         }} &> "{log}"
         '''
@@ -1083,7 +1084,7 @@ rule generate_bigwigs:
     log:
         BIGWIGS_LOG
     params:
-        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map is not None else "",
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else "",
         dir_bam = os.path.join(DIR_WORKUP, "splitbams"),
         dir_bigwig = os.path.join(DIR_WORKUP, "bigwigs"),
         binsize = binsize

@@ -163,13 +163,13 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `bowtie2_index`: path to [Bowtie 2 genome index](#index-bt2)
      - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
      - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
-   - Optional keys
+   - Optional keys: If these keys are omitted from `config.yaml` or set to `null`, then they will take on the default values indicated. For keys whose default values are `null`, setting them to `null` will produce behaviors as described below.
      - `output_dir` (default = [working directory](#working-directory)): path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
      - `temp_dir` (default = `"/central/scratch"`): path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
-     - `format` (default = `null`): path to [`format.txt` file](#format-txt)
+     - `format` (default = `null`): path to [`format.txt` file](#format-txt). If `null`, no barcode validation is performed.
      - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
-     - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded
-     - `path_chrom_map` (default = `null`): path to [chromosome name map file](#chrom-map); leave blank to skip chromosome renaming and filtering
+     - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded. If `null`, no masking is performed.
+     - `path_chrom_map` (default = `null`): path to [chromosome name map file](#chrom-map). If `null`, chromosome renaming and filtering are skipped, and the final BAM and/or bigWig files will use all chromosome names as-is from the Bowtie 2 index.
      - `num_chunks` (default = `2`): integer giving the number of chunks to split FASTQ files from each sample into for parallel processing
      - `generate_splitbams` (default = `false`): [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
      - `min_oligos` (default = `2`): integer giving the minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
@@ -177,6 +177,10 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `max_size` (default = `10000`): integer giving the maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
      - `merge_samples` (default = `false`): [boolean](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
      - `binsize` (default = `false`): integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams is `true`.
+     - `email` (default = `null`): email to send error notifications to if errors are encountered during the pipeline. If `null`, no emails are sent.
+   - Additional notes
+     - `null` values can be specified explicitly (e.g., `format: null`) or implicitly (e.g., `format: `).
+     - For keys `format`, `mask`, `path_chrom_map`, and `email`, an empty string `""` is treated identically to if the value is `null`.
 
 2. <a name="samples-json">`samples.json`</a>: JSON file with the location of FASTQ files (read1, read2) to process.
    - Required? Yes.
