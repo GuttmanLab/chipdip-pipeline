@@ -163,6 +163,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `bowtie2_index`: path to [Bowtie 2 genome index](#index-bt2)
      - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
      - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
+     - `bead_umi_length`: integer length of bead oligo UMIs
    - Optional keys: If these keys are omitted from `config.yaml` or set to `null`, then they will take on the default values indicated. For keys whose default values are `null`, setting them to `null` will produce behaviors as described below.
      - `output_dir` (default = [working directory](#working-directory)): path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
      - `temp_dir` (default = `"/central/scratch"`): path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
@@ -222,7 +223,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 5. <a name="config-txt">`config.txt`</a>: Text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
    - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `bID` (for "barcode ID")
-   - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`) and `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`)
+   - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`), `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`), and `scripts/python/get_ligation_efficiency.py` (Snakefile `rule get_ligation_efficiency`)
    - Format: SPRITE configuration file (see our SPRITE [GitHub Wiki](https://github.com/GuttmanLab/sprite-pipeline/wiki/1.-Barcode-Identification#configuration-file) or [*Nature Protocols* paper](https://doi.org/10.1038/s41596-021-00633-y) for details).
      - Blank lines and lines starting with `#` are ignored.
      - An example barcoding configuration file is annotated below:
@@ -237,7 +238,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        
        # DPM tag sequences formatted as tab-delimited lines
        # 1. Tag category: DPM
-       # 2. Tag name: must contain "DPM", such as "DPM<xxx>"
+       # 2. Tag name: must contain "DPM", such as "DPM<xxx>"; must NOT contain "BEAD"
        # 3. Tag sequence (see assets/dpm96.fasta)
        # 4. Tag error tolerance: acceptable Hamming distance between
        #    expected tag sequence (column 3) and tag sequence in the read
@@ -247,7 +248,9 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        
        # Antibody ID sequences formatted as tab-delimited lines
        # - Identical format as for DPM tag sequences, except that Tag name (column 2)
-       #   must contain "BEAD", such as "BEAD_<name of antibody>"
+       #   must match the regular expression pattern "BEAD_[a-zA-Z0-9_\-]+", such as
+       #   "BEAD_<name of antibody>" where <name of antibody> can only contain
+       #   alphanumeric characters, underscores, and hyphens.
        # - Tag sequences must match assets/bpm.fasta
        DPM	BEAD_AB1-A1	GGAACAGTT	0
        DPM	BEAD_AB2-A2	CGCCGAATT	0
@@ -255,7 +258,8 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        
        # Split-pool tag sequences: same 4-column tab-delimited format as the
        #   DPM and Antibody ID section above, except that
-       #   Tag category (column 1) is now ODD, EVEN, or Y
+       #   Tag category (column 1) is now ODD, EVEN, or Y.
+       #   Tag name must NOT contain "BEAD" or "DPM".
        EVEN	EvenBot_1-A1	ATACTGCGGCTGACG	2
        EVEN	EvenBot_2-A2	GTAGGTTCTGGAATC	2
        ...

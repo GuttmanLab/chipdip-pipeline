@@ -2,30 +2,37 @@ import argparse
 import pysam
 import pandas as pd
 import re
+import sys
 from helpers import fastq_parse, file_open
+
+# regular expression for bead oligo name
+PATTERN = re.compile("\[BEAD_([a-zA-Z0-9_\-]+)\]")
 
 
 def main():
     args = parse_arguments()
     header = construct_sam_header(args.config)
-    convert_reads(args, header)
+    convert_reads(args.input, args.output, header, args.UMI_length)
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Convert a fastq file to a bam file")
-    parser.add_argument(
-        "-i", "--input", action="store", metavar="FILE", help="Input fastq"
-    )
-    parser.add_argument(
-        "-o", "--output", action="store", metavar="FILE", help="Output BAM file"
-    )
-    parser.add_argument(
-        "--config", metavar="CONFIG", action="store", help="The config file"
-    )
+    parser = argparse.ArgumentParser(description="Convert an antibody oligo FASTQ file to a BAM file")
+    parser.add_argument("input", metavar="in.fastq", help="Input FASTQ file with barcodes in the read name")
+    parser.add_argument("output", metavar="out.bam", help="Output BAM file")
+    parser.add_argument("config", metavar="config.txt", help="Barcode config file")
+    parser.add_argument("UMI_length", metavar="#", type=int, help="Length of the UMI")
     return parser.parse_args()
 
 
 def construct_sam_header(config):
+    """
+    Args
+    - config: str
+        Path to a barcode config file
+
+    Returns
+    - header: pysam.AlignmentHeader
+    """
     df = pd.read_csv(
         config,
         comment="#",
@@ -33,11 +40,7 @@ def construct_sam_header(config):
         sep="\t",
         names=["Tag", "Name", "Sequence", "Number"],
     ).dropna()
-    names = list(df["Name"])
-    beads = [x for x in names if "BEAD" in x]
-    reference_names = list()
-    for protein in beads:
-        reference_names.append(protein.replace("BEAD_", ""))
+    reference_names = [x.replace("BEAD_", "") for x in df["Name"] if "BEAD_" in x]
     header = pysam.AlignmentHeader().from_references(
         reference_names=reference_names,
         reference_lengths=[44444444] * len(reference_names),
@@ -45,38 +48,56 @@ def construct_sam_header(config):
     return header
 
 
-def convert_reads(args, header):
-    output_bam = pysam.AlignmentFile(args.output, "wb", header=header)
-    pattern = re.compile("\[BEAD_([a-zA-Z0-9_\-]+)\]")
+def convert_reads(path_in, path_out, header, UMI_length):
+    """
+    Args
+    - path_in: str
+        Path to input FASTQ file
+    - path_out: str or file object
+        Path to output BAM file, or a file object to write to
+    - header: dict or pysam.AlignmentHeader
+        SAM/BAM format header
+    - UMI_length: int
+        Length of the UMI
+    """
     counter = 0
-    with file_open(args.input) as reads:
-        for qname, seq, thrd, qual in fastq_parse(reads):
-            counter = counter + 1
+    with pysam.AlignmentFile(path_out, "wb", header=header) as output_bam, file_open(path_in) as reads:
+        for qname, seq, _, _ in fastq_parse(reads):
+            counter += 1
             if counter % 100000 == 0:
-                print(counter)
-            match = pattern.search(qname)
-            protein_name = list(match.groups())[0]
-            a = initialize_alignment(header, qname, protein_name, seq)
-            output_bam.write(a)
-    output_bam.close()
-    print("The total number of bead reads was: ", counter)
+                print(counter, file=sys.stderr)
+            match = PATTERN.search(qname)
+            target_name = list(match.groups())[0]
+            aligned_segment = initialize_alignment(header, qname, target_name, seq, UMI_length)
+            output_bam.write(aligned_segment)
+    print("The total number of bead reads was: ", counter, file=sys.stderr)
 
 
-def initialize_alignment(header, query_name, reference_name, query_sequence):
+def initialize_alignment(header, query_name, reference_name, query_sequence, UMI_length):
     """
-    Create a `Pysam.AlignedSegment` object.
+    Create a `pysam.AlignedSegment` object.
 
-    The UMI is extracted from the first 8 bases, encoded as an integer using sequence_to_int(),
+    The UMI is extracted from the first `UMI_length` bases, encoded as an integer using sequence_to_int(),
     and used as the reference start (column 4 in the SAM/BAM format).
+
+    Args
+    - header: pysam.AlignmentHeader
+    - query_name: str
+    - reference_name: str
+    - query_sequence: str
+    - UMI_length: int
+
+    Returns
+    - aligned_segment: pysam.AlignedSegment
     """
-    a = pysam.AlignedSegment(header)
-    a.query_name = query_name
-    a.reference_name = reference_name
-    a.reference_start = sequence_to_int(query_sequence[0:8], query_name)
-    a.query_sequence = query_sequence
-    a.flag = 0
-    a.cigar = ((0, len(query_sequence)),)
-    return a
+    aligned_segment = pysam.AlignedSegment(header)
+    aligned_segment.query_name = query_name
+    aligned_segment.reference_name = reference_name
+    aligned_segment.reference_start = sequence_to_int(query_sequence[0:UMI_length], query_name)
+    aligned_segment.query_sequence = query_sequence
+    aligned_segment.flag = 0
+    aligned_segment.cigar = ((0, len(query_sequence)),)
+    return aligned_segment
 
 
 def sequence_to_int(seq, query_name):
@@ -84,7 +105,7 @@ def sequence_to_int(seq, query_name):
     try:
         value = int(seq.translate(table))
     except ValueError:
-        print("The sequence ", query_name, "cannot be translated")
+        print("The sequence ", query_name, "cannot be translated", file=sys.stderr)
         value = 0
     return value
 

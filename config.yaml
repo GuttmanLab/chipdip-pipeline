@@ -33,6 +33,9 @@ num_chunks: 2
 cutadapt_dpm: "assets/dpm96.fasta"
 cutadapt_oligos: "assets/bpm.fasta"
 
+# (Required) Bead oligo UMI length
+bead_umi_length: 8
+
 # Mask used for filtering DNA reads
 # e.g., "assets/blacklist_mm10.bed" or "assets/blacklist_hg38.bed"
 # Set to null or "" to skip filtering

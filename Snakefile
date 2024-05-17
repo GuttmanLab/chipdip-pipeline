@@ -91,6 +91,14 @@ except:
     print("Oligo sequences not specified in config.yaml", file=sys.stderr)
     sys.exit()
 
+bead_umi_length = config.get("bead_umi_length")
+if bead_umi_length is not None:
+    bead_umi_length = int(bead_umi_length)
+    print("Assumimng bead UMI length:", bead_umi_length, file=sys.stderr)
+else:
+    print("Bead oligo UMI length not specified in config.yaml", file=sys.stderr)
+    sys.exit()
+
 try:
     bowtie2_index = config["bowtie2_index"]
 except:
@@ -127,8 +135,9 @@ else:
     temp_dir = "/central/scratch/"
     print("Defaulting to temporary directory:", temp_dir, file=sys.stderr)
 
-num_chunks = int(config.get("num_chunks"))
+num_chunks = config.get("num_chunks")
 if num_chunks is not None:
+    num_chunks = int(num_chunks)
     print("Splitting FASTQ files into {} chunks for parallel processing".format(num_chunks),
           file=sys.stderr)
 else:
@@ -780,7 +789,7 @@ rule fastq_to_bam:
     shell:
         '''
         {{
-            python "{fq_to_bam}" --input "{input}" --output "{output.bam}" --config "{bid_config}"
+            python "{fq_to_bam}" "{input}" "{output.bam}" "{bid_config}" "{bead_umi_length}"
             samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
         }} &> "{log}"
         '''
