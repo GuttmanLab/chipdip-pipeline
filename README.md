@@ -84,7 +84,7 @@ Workflow
     2. Maximum representation oligo ECDFs
 11. Summary statistics
     1. MultiQC (trimming, alignments)
-    2. Ligation efficiency
+    2. Barcode identification efficiency
     3. Cluster statistics
     4. Read assignment statistics
 
@@ -135,12 +135,12 @@ We will refer to 4 directories:
    - `logs/`
    - `qc/`
    - [`splitbams/`](#splitbams)
-   - `splitfq/`: unprocessed reads split into chunks for parallel processing
+   - `split_fastq/`: unprocessed reads split into chunks for parallel processing
    - `trimmed/`: adapter- and tag-trimmed reads
      - `<sample>_R<1|2>.part_<###>_val_<1|2>.fq.gz`: adapter-trimmed reads
      - `<sample>_R1.part_<###>.barcoded_bpm.RDtrim.fastq.gz`: read 1 of fully-barcoded templates with a BPM tag (corresponding to antibody oligos) where the BPM tag has been trimmed
      - `<sample>_R1.part_<###>.barcoded_dpm.RDtrim.fastq.gz`: read 1 of fully-barcoded templates with a DPM tag (corresponding to genomic DNA) where the DPM tag has been trimmed
-   - [`ligation_efficiency.txt`](#bid-efficiency)
+   - [`barcode_identification_efficiency.txt`](#bid-efficiency)
    - [`pipeline_counts.txt`](#pipeline-counts)
 
 For reproducibility, we recommend keeping the pipeline, input, and output directories together. In other words, the complete directory should look like this GitHub repository with an extra `workup` subdirectory created upon running this pipeline.
@@ -204,7 +204,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
    - The pipeline (in particular, the script `scripts/bash/split_fastq.sh`) currently only supports one read 1 (R1) and one read 2 (R2) FASTQ file per sample.
      - If there are multiple FASTQ files per read orientation per sample (for example, if the same sample was sequenced multiple times, or it was split across multiple lanes during sequencing), the FASTQ files will first need to be concatenated together, and the paths to the concatenated FASTQ files should be supplied in the JSON file.
-   - Each sample is processed independently, generating independent cluster and BAM files. Statistics used for quality assessment (ligation efficiency, cluster statistics, MultiQC report, cluster size distributions, splitbam statistics) are computed independently for each sample but reported together in aggregate files to enable quick quality comparison across samples.
+   - Each sample is processed independently, generating independent cluster and BAM files. Statistics used for quality assessment (barcode identification efficiency, cluster statistics, MultiQC report, cluster size distributions, splitbam statistics) are computed independently for each sample but reported together in aggregate files to enable quick quality comparison across samples.
    - The provided sample read files under the `data/` folder were simulated via a [Google Colab notebook](https://colab.research.google.com/drive/1CyjY0fJSiBl4vCz6FGFuT3IZEQR5XYlI). The genomic DNA reads correspond to ChIP-seq peaks on chromosome 19 (mm10) for transcription factors MYC (simulated as corresponding to Antibody ID `BEAD_AB1-A1`) and TCF12 (simulated as corresponding to Antibody ID `BEAD_AB2-A2`).
 
 3. <a name="bpm-fasta">`assets/bpm.fasta`</a>: FASTA file containing the sequences of Antibody IDs
@@ -223,7 +223,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 5. <a name="config-txt">`config.txt`</a>: Text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
    - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `bID` (for "barcode ID")
-   - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`), `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`), and `scripts/python/get_ligation_efficiency.py` (Snakefile `rule get_ligation_efficiency`)
+   - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`), `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`), and `scripts/python/barcode_identification_efficiency.py` (Snakefile `rule barcode_identification_efficiency`)
    - Format: SPRITE configuration file (see our SPRITE [GitHub Wiki](https://github.com/GuttmanLab/sprite-pipeline/wiki/1.-Barcode-Identification#configuration-file) or [*Nature Protocols* paper](https://doi.org/10.1038/s41596-021-00633-y) for details).
      - Blank lines and lines starting with `#` are ignored.
      - An example barcoding configuration file is annotated below:
@@ -239,6 +239,8 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        # DPM tag sequences formatted as tab-delimited lines
        # 1. Tag category: DPM
        # 2. Tag name: must contain "DPM", such as "DPM<xxx>"; must NOT contain "BEAD"
+       #    - Can only contain alphanumeric characters, underscores, and hyphens,
+       #      i.e., must match the regular expression "[a-zA-Z0-9_\-]+"
        # 3. Tag sequence (see assets/dpm96.fasta)
        # 4. Tag error tolerance: acceptable Hamming distance between
        #    expected tag sequence (column 3) and tag sequence in the read
@@ -248,9 +250,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        
        # Antibody ID sequences formatted as tab-delimited lines
        # - Identical format as for DPM tag sequences, except that Tag name (column 2)
-       #   must match the regular expression pattern "BEAD_[a-zA-Z0-9_\-]+", such as
-       #   "BEAD_<name of antibody>" where <name of antibody> can only contain
-       #   alphanumeric characters, underscores, and hyphens.
+       #   must start with "BEAD_".
        # - Tag sequences must match assets/bpm.fasta
        DPM	BEAD_AB1-A1	GGAACAGTT	0
        DPM	BEAD_AB2-A2	CGCCGAATT	0
@@ -281,7 +281,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 6. <a name="format-txt">`format.txt`</a>: Tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
    - Required? No, but highly recommended.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `format`
-   - Used by: `scripts/python/split_dpm_bpm_fq.py` (Snakefile `rule split_bpm_dpm`)
+   - Used by: `scripts/python/split_bpm_dpm.py` (Snakefile `rule split_bpm_dpm`)
    - Column 1 indicates the zero-indexed position of the barcode string where a tag can be found.
      - Term barcode tags (Y) are position `0`; the second to last round of barcoding tags are position `1`; etc. A value of `-1` in the position column indicates that the barcode tag was not used in the experiment.
    - Column 2 indicates the name of the tag. This must be the same as the name of the tag in [`config.txt`](#config-txt). If the same tag is used in multiple barcoding rounds, then it should appear multiple times in column 2, but with different values in column 1 indicating which rounds it is used in.
@@ -317,7 +317,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
 9. <a name="index-bt2">`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`</a>: Bowtie 2 genome index
    - Required? Yes.
-   - [`config.yaml`](#config-yaml) key to specify the path to the index: `bowtie2_index: {'mm10': <mm10_index_prefix>, 'hg38': <hg38_index_prefix>}`
+   - [`config.yaml`](#config-yaml) key to specify the path to the index: `bowtie2_index`
    - If you do not have an existing Bowtie 2 index, you can download [pre-built indices](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) from the Bowtie 2 developers:
 
      ```{bash}
@@ -338,7 +338,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
 # Output Files
 
-1. <a name="bid-efficiency">Barcode identification efficiency</a> (`workup/ligation_efficiency.txt`): A statistical summary of how many tags were found per read and the proportion of reads with a matching tag at each position.
+1. <a name="bid-efficiency">Barcode identification efficiency</a> (`workup/barcode_identification_efficiency.txt`): A statistical summary of how many tags were found per read and the proportion of reads with a matching tag at each position.
    - The first type of statistic describes how many tags were identified per read. For example, consider a dataset of 10000 adapter-trimmed reads with the expected tag structure as specified in the [`example_config.txt`](https://github.com/GuttmanLab/chipdip-pipeline/blob/main/example_config.txt) file: 1 DPM tag on Read 1, 6 tags (Odd, Even, or Terminal) on Read 2.
      - `170 (1.7%) reads found with 1 tag.` For a small fraction reads, only 1 tag was identified; this is to be expected, whether due to ligation errors, PCR artifacts, or sequencing errors. These reads are output to `workup/fastqs/<sample_name>.part<###>.barcoded_short.fastq.gz` and are not used for analysis.
      - `7500 (75.0%) reads found with 7 tags.` This is the expected result, where all 7 tags are identified in the majority of reads. In the `split_bpm_dpm` rule, these reads are split into `workup/fastqs/<sample_name>.part<###>.barcoded_dpm.fastq.gz` or `workup/fastqs/<sample_name>.part<###>.barcoded_bpm.fastq.gz`, depending on whether a read corresponds to genomic DNA or an antibody oligo.

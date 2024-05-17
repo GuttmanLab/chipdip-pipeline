@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import fastq_parse, file_open
 import pysam
 
-# Program for checking barcoding success rate.
+# Calculate barcode identification success rate.
 
 
 def main():
@@ -17,15 +17,15 @@ def main():
         appended to read names
     - (optional) path to config.txt file
     '''
-    lig = LigationEfficiency()
+    bid = BarcodeIdentificationEfficiency()
     assert len(sys.argv) in (2, 3)
     if len(sys.argv) == 3:
-        lig.get_position_names(sys.argv[2])
-    lig.count_tags(sys.argv[1])
-    lig.print_to_stdout()
+        bid.get_position_names(sys.argv[2])
+    bid.count_tags(sys.argv[1])
+    bid.print_to_stdout()
 
 
-class LigationEfficiency:
+class BarcodeIdentificationEfficiency:
     def __init__(self):
         self._aggregate_count = Counter()
         self._position_count = Counter()
