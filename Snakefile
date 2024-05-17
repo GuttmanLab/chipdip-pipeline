@@ -36,14 +36,14 @@ configfile: "config.yaml"
 ##############################################################################
 
 bid_config = config.get("bID")
-if bid_config is not None:
+if bid_config not in (None, ""):
     print("Using BarcodeID config:", bid_config, file=sys.stderr)
 else:
     print("Missing BarcodeID config (bID) in config.yaml", file=sys.stderr)
     sys.exit()
 
 samples = config.get("samples")
-if samples is not None:
+if samples not in (None, ""):
     print("Using samples file:", samples, file=sys.stderr)
 else:
     print("Missing samples file (samples) in config.yaml", file=sys.stderr)
@@ -99,9 +99,8 @@ else:
     print("Bead oligo UMI length not specified in config.yaml", file=sys.stderr)
     sys.exit()
 
-try:
-    bowtie2_index = config["bowtie2_index"]
-except:
+bowtie2_index = config.get("bowtie2_index")
+if bowtie2_index is None:
     print("Bowtie 2 index not specified in config.yaml", file=sys.stderr)
     sys.exit()
 
@@ -178,9 +177,12 @@ binsize = config.get("binsize", False)
 if binsize and not generate_splitbams:
     print("Will not generate bigWigs as split BAMs are not being generated", file=sys.stderr)
     binsize = False
+if binsize and not merge_samples:
+    print("Will not generate bigWigs as samples are not being merged", file=sys.stderr)
+    binsize = False
 
 path_chrom_map = config.get("path_chrom_map")
-if path_chrom_map not in (None, ""):
+if path_chrom_map in (None, ""):
     print("Chromosome names not specified, will use all chromosomes in the Bowtie 2 index.",
           file=sys.stderr)
 
@@ -368,11 +370,11 @@ FINAL = \
 if binsize:
     FINAL.extend(BIGWIGS_LOG)
 else:
-    if generate_splitbams and merge_clusters:
+    if generate_splitbams and merge_samples:
         FINAL.extend(SPLITBAMS_ALL_LOG + CLUSTERS_ALL)
     elif generate_splitbams:
         FINAL.extend(SPLITBAMS_STATISTICS)
-    elif merge_clusters:
+    elif merge_samples:
         FINAL.extend(CLUSTERS_ALL + MERGE_DNA)
 
 # ALL_OUTPUTS = \
