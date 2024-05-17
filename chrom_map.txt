@@ -11,8 +11,8 @@
 "   SAM/BAM files.
 "   - Allowed characters for chromosome names follow the SAM v1.6 specification.
 "     See https://samtools.github.io/hts-specs/SAMv1.pdf
-"   - The first column is not allowed to contain repeated chromosome names,
-"     but the second column can contain repeated names.
+"   - The mapping must be one-to-one. No names are allowed to be repeated within
+"     a given column.
 " - The order of chromosomes provided here is maintained in the SAM/BAM file
 "   header, and consequently specifies the coordinate sorting order at the
 "   reference sequence level.

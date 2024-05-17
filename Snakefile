@@ -660,8 +660,7 @@ rule bowtie2_align:
     input:
         fq = os.path.join(DIR_WORKUP, "trimmed/{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz")
     output:
-        sorted = os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
-        bam = temp(os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.unsorted.bam"))
+        os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.bowtie2.log")
     threads:
@@ -677,32 +676,29 @@ rule bowtie2_align:
               --phred33 \
               -x "{bowtie2_index}" \
               -U "{input.fq}" | \
-            samtools view -bq 20 -F 4 -F 256 - > "{output.bam}"
-            samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
+            samtools view -bq 20 -F 4 -F 256 - |
+            samtools sort -@ {threads} -o "{output}"
         }} &> "{log}"
         '''
 
 # Rename chromosome names and filter for chromosomes of interest
 rule rename_and_filter_chr:
     input:
-        os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
+        os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     output:
-        sorted = os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"),
-        renamed = temp(os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.tmp.bam"))
+        os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam")
     params:
-        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else "",
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else ""
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.rename_and_filter_chr.log"),
+        os.path.join(DIR_LOGS, "{sample}.{splitid}.rename_and_filter_chr.log")
     conda:
         conda_env
     threads:
         4
     shell:
         '''
-        {{
-            python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} "{input}" "{output.renamed}"
-            samtools sort -@ {threads} -o "{output.sorted}" "{output.renamed}"
-        }} &> "{log}"
+        python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} --try-symlink \
+            -o "{output}" "{input}" &> "{log}"
         '''
 
 # Merge mask

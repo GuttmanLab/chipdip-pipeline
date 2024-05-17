@@ -86,5 +86,7 @@ def parse_chrom_map(path):
                  f"{old_name} or {new_name}")
             assert old_name not in chrom_map, \
                 f"The chromosome name '{old_name}' is repeated in the chromosome name map."
+            assert new_name not in chrom_map.values(), \
+                f"The chromosome name '{new_name}' is repeated in the chromosome name map."
             chrom_map[old_name] = new_name
     return chrom_map
