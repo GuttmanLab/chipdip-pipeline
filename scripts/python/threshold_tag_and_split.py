@@ -1,9 +1,9 @@
 import argparse
-import pysam
-import re
-import os
 from collections import defaultdict, Counter
+import os
 from pathlib import Path
+import re
+import pysam
 import tqdm
 
 """

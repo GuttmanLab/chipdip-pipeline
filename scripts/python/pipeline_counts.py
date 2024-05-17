@@ -28,10 +28,10 @@ regex_fastq = re.compile(r'(\.fastq\.gz$)|(\.fq.gz$)|(\.fastq$)|(\.fq$)')
 regex_bam = re.compile(r'(\.bam$)|(\.sam$)|(\.cram$)')
 
 PIPELINE = {
-    # (splitfq) raw reads
-    "splitfq": {"parent": None, "path": os.path.join("splitfq", "{sample}_R1.part_*.fastq.gz")},
+    # (split_fastq) raw reads
+    "split_fastq": {"parent": None, "path": os.path.join("split_fastq", "{sample}_R1.part_*.fastq.gz")},
     # (adaptor_trimming_pe) adapter trimming
-    "trim": {"parent": "splitfq", "path": os.path.join("trimmed", "{sample}*val_1.fq.gz")},
+    "trim": {"parent": "split_fastq", "path": os.path.join("trimmed", "{sample}*val_1.fq.gz")},
     # (barcode_id) barcode idenfication - should not discard any reads; barcode gets appended to read name
     "barcode": {
         "parent": "trim",

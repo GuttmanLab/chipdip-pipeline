@@ -1,8 +1,11 @@
 import argparse
-import re
 import json
-import yaml
+import os
+import re
+import sys
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import parse_chrom_map
+import yaml
 
 
 def main():

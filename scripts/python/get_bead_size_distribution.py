@@ -1,9 +1,9 @@
+import argparse
+from collections import defaultdict
+import glob
 import pandas as pd
 import numpy as np
-import argparse
-import glob
 import tqdm
-from collections import defaultdict
 from matplotlib import cm
 import matplotlib
 

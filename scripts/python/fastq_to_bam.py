@@ -1,9 +1,11 @@
 import argparse
-import pysam
-import pandas as pd
+import os
 import re
 import sys
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import fastq_parse, file_open
+import pandas as pd
+import pysam
 
 # regular expression for bead oligo name
 PATTERN = re.compile("\[BEAD_([a-zA-Z0-9_\-]+)\]")

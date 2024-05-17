@@ -1,11 +1,12 @@
 import argparse
+from collections import defaultdict
 import gzip
 import os
 import re
 import sys
-from collections import defaultdict
-import pandas as pd
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import fastq_parse, file_open
+import pandas as pd
 
 """
 Program to split barcoded reads into two files based on DPM and BPM tags and remove reads with impossible or incomplete barcods

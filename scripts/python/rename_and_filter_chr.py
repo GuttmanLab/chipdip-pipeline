@@ -8,8 +8,9 @@ import os
 import shutil
 import subprocess
 import sys
-import pysam
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import positive_int, parse_chrom_map
+import pysam
 
 
 def main():

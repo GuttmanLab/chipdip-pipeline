@@ -1,9 +1,9 @@
+import argparse
 from collections import Counter
+import glob
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import glob
-import argparse
 
 mpl.use("Agg")
 

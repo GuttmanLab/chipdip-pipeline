@@ -1,10 +1,11 @@
-import pysam
+from collections import defaultdict, Counter
 import re
 import os
 import sys
-from collections import defaultdict, Counter
-from tqdm import tqdm
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import file_open
+import pysam
+from tqdm import tqdm
 
 
 class Position:

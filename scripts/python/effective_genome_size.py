@@ -3,8 +3,11 @@ Calculate effective genome size from BAM file header and excluding masked region
 """
 
 import argparse
-import pysam
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import file_open, positive_int, parse_chrom_map
+import pysam
 
 
 def main():

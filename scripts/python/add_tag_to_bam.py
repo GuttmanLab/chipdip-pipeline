@@ -1,10 +1,11 @@
-import cluster as c
 import argparse
-import pysam
-import re
-import os
 from collections import defaultdict
-
+import os
+import re
+import sys
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+import cluster as c
+import pysam
 
 def parse_args():
 

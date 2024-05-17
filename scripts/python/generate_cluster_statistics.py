@@ -1,6 +1,6 @@
-import tqdm
-import glob
 import argparse
+import glob
+import tqdm
 
 """
 Count 1) number of clusters, 2) number of DPM reads (aligned) and 3) number of  BPM reads within each clusterfile for a directory of clusterfiles.
