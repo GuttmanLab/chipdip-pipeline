@@ -1,11 +1,11 @@
 # Email to which errors will be sent; set to null or "" to skip emails
 email: ""
 
-# (Required) Path to barcoding config file
-bID: "example_config.txt"
+# (Required) Path to barcode config file
+barcode_config: "example_config.txt"
 
-# Path to barcoding format file; set to null or "" to skip barcode validation
-format: "example_format.txt"
+# Path to barcode format file; set to null or "" to skip barcode validation
+barcode_format: "example_format.txt"
 
 # (Required) Path to samples JSON file, e.g., as produced with the fastq2json.py script
 samples: "example_samples.json"

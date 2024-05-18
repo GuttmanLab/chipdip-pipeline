@@ -159,7 +159,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - Required keys
      - `scripts_dir`: path to scripts folder in the [pipeline directory](#pipeline-directory)
      - `samples`: path to [`samples.json` file](#samples-json)
-     - `bID`: path to [`config.txt` file](#config-txt)
+     - `barcode_config`: path to [barcode config file](#config-txt) (e.g., `config.txt`)
      - `bowtie2_index`: path to [Bowtie 2 genome index](#index-bt2)
      - `cutadapt_dpm`: path to [DPM sequences](#dpm-fasta)
      - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
@@ -167,7 +167,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - Optional keys: If these keys are omitted from `config.yaml` or set to `null`, then they will take on the default values indicated. For keys whose default values are `null`, setting them to `null` will produce behaviors as described below.
      - `output_dir` (default = [working directory](#working-directory)): path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
      - `temp_dir` (default = `"/central/scratch"`): path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
-     - `format` (default = `null`): path to [`format.txt` file](#format-txt). If `null`, no barcode validation is performed.
+     - `barcode_format` (default = `null`): path to [barcode format file](#format-txt) (e.g., `format.txt`). If `null`, no barcode validation is performed.
      - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("*.yml" or "*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
      - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded. If `null`, no masking is performed.
      - `path_chrom_map` (default = `null`): path to [chromosome name map file](#chrom-map). If `null`, chromosome renaming and filtering are skipped, and the final BAM and/or bigWig files will use all chromosome names as-is from the Bowtie 2 index.
@@ -220,9 +220,9 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - Each of these sequences are 10 nt long, consisting of a unique 9 nt DPM_Bottom sequences as originally designed for SPRITE (technically, only the first 8 nt are unique, and the 9th sequence is always a `T`), plus a `T` that is complementary to a 3' `A` added to a genomic DNA sequence via dA-tailing.
 <!--TODO: for chromatin read 1 - we are trimming the 5' DPM, but are we trimming the 3' DPM if the read extends beyond the DNA insert sequence? -->
 
-5. <a name="config-txt">`config.txt`</a>: Text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
+5. <a name="config-txt">`config.txt`</a>: Barcode config file - text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
    - Required? Yes.
-   - [`config.yaml`](#config-yaml) key to specify the path to this file: `bID` (for "barcode ID")
+   - [`config.yaml`](#config-yaml) key to specify the path to this file: `barcode_config`
    - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`), `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`), and `scripts/python/barcode_identification_efficiency.py` (Snakefile `rule barcode_identification_efficiency`)
    - Format: SPRITE configuration file (see our SPRITE [GitHub Wiki](https://github.com/GuttmanLab/sprite-pipeline/wiki/1.-Barcode-Identification#configuration-file) or [*Nature Protocols* paper](https://doi.org/10.1038/s41596-021-00633-y) for details).
      - Blank lines and lines starting with `#` are ignored.
@@ -278,13 +278,13 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        - The design of Y (terminal) tags allows for 9-12 bp of unique sequence.
        <!-- TODO: why are the DPM sequences in the config.txt file trimmed compared to dpm96.fasta? -->
 
-6. <a name="format-txt">`format.txt`</a>: Tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
+6. <a name="format-txt">`format.txt`</a>: Barcode format file - tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
    - Required? No, but highly recommended.
-   - [`config.yaml`](#config-yaml) key to specify the path to this file: `format`
+   - [`config.yaml`](#config-yaml) key to specify the path to this file: `barcode_format`
    - Used by: `scripts/python/split_bpm_dpm.py` (Snakefile `rule split_bpm_dpm`)
    - Column 1 indicates the zero-indexed position of the barcode string where a tag can be found.
      - Term barcode tags (Y) are position `0`; the second to last round of barcoding tags are position `1`; etc. A value of `-1` in the position column indicates that the barcode tag was not used in the experiment.
-   - Column 2 indicates the name of the tag. This must be the same as the name of the tag in [`config.txt`](#config-txt). If the same tag is used in multiple barcoding rounds, then it should appear multiple times in column 2, but with different values in column 1 indicating which rounds it is used in.
+   - Column 2 indicates the name of the tag. This must be the same as the name of the tag in the [barcode config file](#config-txt). If the same tag is used in multiple barcoding rounds, then it should appear multiple times in column 2, but with different values in column 1 indicating which rounds it is used in.
 
 7. <a name="chrom-map">`chrom-map.txt`</a>: Tab-delimited text file specifying which chromosomes from the Bowtie 2 index to keep and how to rename them (if at all).
    - Required? No, but necessary if using a [blacklist mask](#blacklist-bed) that uses different chromosome names than used in the Bowtie 2 index.

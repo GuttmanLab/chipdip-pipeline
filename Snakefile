@@ -35,11 +35,11 @@ configfile: "config.yaml"
 # Load required settings
 ##############################################################################
 
-bid_config = config.get("bID")
-if bid_config not in (None, ""):
-    print("Using BarcodeID config:", bid_config, file=sys.stderr)
+barcode_config = config.get("barcode_config")
+if barcode_config not in (None, ""):
+    print("Using barcode config:", barcode_config, file=sys.stderr)
 else:
-    print("Missing BarcodeID config (bID) in config.yaml", file=sys.stderr)
+    print("Missing barcode config (barcode_config) in config.yaml", file=sys.stderr)
     sys.exit()
 
 samples = config.get("samples")
@@ -71,7 +71,7 @@ def get_num_tags(path_config):
     return num_tags
 
 try:
-    num_tags = get_num_tags(bid_config)
+    num_tags = get_num_tags(barcode_config)
     print("Using", num_tags, "tags", file=sys.stderr)
 except:
     print("Could not determine number of tags from BarcodeID config file.", file=sys.stderr)
@@ -114,18 +114,18 @@ if email not in (None, ""):
 else:
     print("Email (email) not specified in config.yaml. Will not send email on error.", file=sys.stderr)
 
-formatfile = config.get("format")
-if formatfile not in (None, ""):
-    print("Using split-pool format file:", formatfile, file=sys.stderr)
+barcode_format = config.get("barcode_format")
+if barcode_format not in (None, ""):
+    print("Using barcode format file:", barcode_format, file=sys.stderr)
 else:
-    print("(WARNING) Format file not specified. The pipeline will NOT ensure barcodes are valid.", file=sys.stderr)
+    print("(WARNING) Barcode format file not specified. The pipeline will NOT ensure barcodes are valid.", file=sys.stderr)
 
-out_dir = config.get("output_dir")
-if out_dir is not None:
-    print("Using output directory:", out_dir, file=sys.stderr)
+output_dir = config.get("output_dir")
+if output_dir is not None:
+    print("Using output directory:", output_dir, file=sys.stderr)
 else:
-    out_dir = os.getcwd()
-    print("Defaulting to working directory as output directory:", out_dir, file=sys.stderr)
+    output_dir = os.getcwd()
+    print("Defaulting to working directory as output directory:", output_dir, file=sys.stderr)
 
 temp_dir = config.get("temp_dir")
 if temp_dir is not None:
@@ -212,7 +212,7 @@ pipeline_counts = os.path.join(DIR_SCRIPTS, "python/pipeline_counts.py")
 # Make output directories
 ##############################################################################
 
-DIR_WORKUP = os.path.join(out_dir, "workup")
+DIR_WORKUP = os.path.join(output_dir, "workup")
 DIR_LOGS = os.path.join(DIR_WORKUP, "logs")
 
 DIR_LOGS_CLUSTER = os.path.join(DIR_LOGS, "cluster")
@@ -552,7 +552,7 @@ rule barcode_id:
         java -jar "{barcode_id_jar}" \
           --input1 "{input.r1}" --input2 "{input.r2}" \
           --output1 "{output.r1_barcoded}" --output2 "{output.r2_barcoded}" \
-          --config "{bid_config}" &> "{log}"
+          --config "{barcode_config}" &> "{log}"
         '''
 
 # Calculate barcode identification efficiency
@@ -565,7 +565,7 @@ rule barcode_identification_efficiency:
         conda_env
     shell:
         '''
-        python "{barcode_identification_efficiency}" "{input}" "{bid_config}" > "{output}"
+        python "{barcode_identification_efficiency}" "{input}" "{barcode_config}" > "{output}"
         '''
 
 rule cat_barcode_identification_efficiency:
@@ -593,7 +593,7 @@ rule split_bpm_dpm:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.split_bpm_dpm.log")
     params:
-        format = f"--format '{formatfile}'" if formatfile not in (None, "") else ""
+        format = f"--format '{barcode_format}'" if barcode_format not in (None, "") else ""
     conda:
        conda_env
     shell:
@@ -791,7 +791,7 @@ rule fastq_to_bam:
     shell:
         '''
         {{
-            python "{fastq_to_bam}" "{input}" "{output.bam}" "{bid_config}" "{bead_umi_length}"
+            python "{fastq_to_bam}" "{input}" "{output.bam}" "{barcode_config}" "{bead_umi_length}"
             samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
         }} &> "{log}"
         '''
