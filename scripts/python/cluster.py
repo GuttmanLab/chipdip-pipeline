@@ -260,14 +260,13 @@ def label_cluster_reads(reads, min_oligos, threshold, max_size):
     if int(cluster_size) > int(max_size):
         return "filtered"
     bead_labels = Counter([read.split(":")[0].split("_", 1)[1] for read in bead_reads])
-    candidate = bead_labels.most_common()[0]
-    if candidate[1] < min_oligos:
+    candidate, count = bead_labels.most_common()[0]
+    if count < min_oligos:
         return "uncertain"
-    elif candidate[1] / sum(bead_labels.values()) < threshold:
+    elif count / sum(bead_labels.values()) < threshold:
         return "ambiguous"
     else:
-        return candidate[0]
-    return "malformed"
+        return candidate
 
 
 def write_clusters_to_file(clusters, outfile):

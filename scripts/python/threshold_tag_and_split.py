@@ -3,168 +3,136 @@ from collections import defaultdict, Counter
 import os
 from pathlib import Path
 import re
+import sys
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+import cluster as c
 import pysam
-import tqdm
+from tqdm import tqdm
 
 """
-Generate individual bam files for each antibody from a master bam file of all read alignments based on cluster assignments. Reads are deduplicated as individual files are generated (ie. only one read per start position per cluster is kept).
+Assign reads to antibodies and generate individual BAM files for each antibody.
+Reads are deduplicated as individual files are generated: only one read per position (start and end) per cluster is
+kept.
 """
 
 
 def parse_args():
-
     parser = argparse.ArgumentParser(
-        description="Add antibody label to DNA bamfile and generate individual bamfiles for each antibody"
+        description="Assign reads to antibodies and generate individual BAM files for each antibody"
     )
-    parser.add_argument(
-        "-i",
-        "--input_bam",
-        dest="input_bam",
-        type=str,
-        required=True,
-        help="Master aligned DNA Bamfile",
-    )
-    parser.add_argument(
-        "-o",
-        "--output_bam",
-        dest="output_bam",
-        type=str,
-        required=True,
-        help="Path to output master bam with antibody tag added",
-    )
-    parser.add_argument(
-        "-c",
-        "--clusters",
-        dest="clusters",
-        type=str,
-        required=True,
-        help="Path to clusters used to assign antibody labels",
-    )
+    parser.add_argument("input_bam", help="Input BAM file")
+    parser.add_argument("output_bam", help="Output labeled BAM file with antibody assignment added via read group (RG) tag")
+    parser.add_argument("clusters", help="Clusters file to assign antibody labels")
+    parser.add_argument("output_dir", help="Directory to write individual antibody BAMs to")
     parser.add_argument(
         "--num_tags",
-        dest="num_tags",
         type=int,
         required=True,
         help="Number of tags in barcode",
     )
     parser.add_argument(
-        "-d",
-        "--dir",
-        dest="dir",
-        type=str,
-        action="store",
-        required=True,
-        help="Directory to write individual antibody bams to",
-    )
-    parser.add_argument(
         "--min_oligos",
-        action="store",
         type=int,
         required=True,
         help="The minimum number of oligos needed to call a cluster",
     )
     parser.add_argument(
         "--proportion",
-        action="store",
         type=float,
         required=True,
-        help="The maximum representation proportion of oligos needed to call a cluster",
+        help="The minimum representation proportion of oligos needed to call a cluster",
     )
     parser.add_argument(
         "--max_size",
-        action="store",
         type=int,
         required=True,
         help="The maximum cluster size to keep",
     )
-
-    opts = parser.parse_args()
-
-    return opts
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        help="Display a progress bar",
+    )
+    args = parser.parse_args()
+    return args
 
 
 def main():
     args = parse_args()
-    print("Using min_oligos: ", args.min_oligos)
-    print("Using proportion: ", args.proportion)
-    print("Using max_size: ", args.max_size)
-    print("Writing bam to: ", args.output_bam)
-    print("Writing splitbams to: ", args.dir)
-    labels = assign_labels(
-        args.clusters, args.min_oligos, args.proportion, args.max_size
-    )
+    print("Using min_oligos: ", args.min_oligos, file=sys.stderr)
+    print("Using proportion: ", args.proportion, file=sys.stderr)
+    print("Using max_size: ", args.max_size, file=sys.stderr)
+    print("Writing labeled BAM to: ", args.output_bam, file=sys.stderr)
+    print("Writing splitbams to: ", args.output_dir, file=sys.stderr)
+
+    labels = assign_labels(args.clusters, args.min_oligos, args.proportion, args.max_size, progress=args.progress)
     label_bam_file(args.input_bam, args.output_bam, labels, args.num_tags)
-    split_bam_by_RG(args.output_bam, args.dir)
+    split_bam_by_RG(args.output_bam, args.output_dir)
 
 
-def assign_labels(clusterfile, min_oligos, proportion, max_size):
+def assign_labels(path_clusters, min_oligos, proportion, max_size, progress=False):
     """
     Assign labels to all clusters based on oligo reads
 
-    Args:
-        clusterfile(str): Path to clusterfile
-        min_oligos(int): number of oligos that are of one type that need to be exceeded to assign the cluster (ie. stricktly greater than)
-        proportion(float): fraction of oligo reads that are of one type needed to assign the cluster
-        max_size(int): maximum dna reads allowed per cluster
+    Args
+    - path_clusters: str
+        Path to clusters file
+    - min_oligos: int
+        The minimum number of oligos needed to call a cluster
+    - proportion: float
+        The minimum representation proportion of oligos needed to call a cluster
+    - max_size: int
+        The maximum cluster size to keep
+    - progress: bool
+        Whether to display a progress bar
+
+    Returns
+    - labels: dict(str -> str)
+        Map from barcode string to antibody label
     """
     labels = {}
-    with open(clusterfile, "r") as clusters:
-        for line in tqdm.tqdm(clusters):
+    with open(path_clusters, "r") as clusters:
+        for line in tqdm(clusters, disable=not progress):
             barcode, *reads = line.rstrip("\n").split("\t")
-            multilabel = label_cluster_reads(reads, min_oligos, proportion, max_size)
-            labels[barcode] = multilabel
+            label = c.label_cluster_reads(reads, min_oligos, proportion, max_size)
+            labels[barcode] = label
     return labels
 
 
-def label_cluster_reads(reads, min_oligos, threshold, max_size):
+def label_bam_file(input_bam, output_bam, labels, num_tags, progress=False):
     """
-    Assign a label to a cluster based on oligo reads
+    Add antibody label to individual reads in a BAM file.
+    - Antibody labels are added as read group (RG) tags
+    - Reads are deduplicated based on cluster assignment, start position, and end position (last aligned residue)
 
-    Args:
-        reads(list): list of cluster formated reads
-        threshold(float): fraction of oligo reads that are of one type needed to assign the cluster
-        min_oligos(int): number of oligos of one type that need to be exceeded to assign the cluster (ie. strictly greater than)
-        max_size(int): maximum dna reads allowed per cluster
-    """
-    bead_reads = [read for read in reads if read.startswith("BPM")]
-    if len(bead_reads) == 0:
-        return "none"
-    cluster_size = len(reads) - len(bead_reads)
-    if int(cluster_size) > int(max_size):
-        return "filtered"
-    bead_labels = Counter([read.split(":")[0].split("_", 1)[1] for read in bead_reads])
-    candidate = bead_labels.most_common()[0]
-    if candidate[1] < min_oligos:
-        return "uncertain"
-    elif candidate[1] / sum(bead_labels.values()) < threshold:
-        return "ambiguous"
-    else:
-        return candidate[0]
-    return "malformed"
-
-
-def label_bam_file(input_bam, output_bam, labels, num_tags):
-    """
-    Add antibody label to individual reads of the master DNA bam file
-
-    Args:
-        input_bam(str): Path to input master bam file
-        output_bam(str): Path to write labeled bam file
-        labels(dict): Dictionary of cluster assignments [barcode-> antibody]
-        num_tags(int): number of tags in barcode
+    Args
+    - input_bam: str
+        Path to input BAM file
+    - output_bam: str or file object
+        Path to write labeled BAM file
+    - labels: dict(str -> str)
+        Map from barcode string to antibody label
+    - num_tags: int
+        Number of tags in barcode
+    - progress: bool
+        Whether to display a progress bar
     """
     count, duplicates, skipped = 0, 0, 0
+
+    # map from read group label to number of reads written
     written = defaultdict(int)
+
     pattern = re.compile("::" + num_tags * "\[([a-zA-Z0-9_\-]+)\]")
+
+    # map from full barcode to set of positions, where a "full barcode" is the barcode plus the library name, and
+    # the library name is derived from the name of the input BAM file
+    found = defaultdict(set)
     library = os.path.basename(input_bam).split(".")[0]
     header = construct_read_group_header(input_bam, labels)
-    found = defaultdict(set)
     with pysam.AlignmentFile(input_bam, "rb") as in_bam, \
          pysam.AlignmentFile(output_bam, "wb", header=header) as out_bam:
-        for read in in_bam.fetch(until_eof=True):
+        for read in tqdm(in_bam.fetch(until_eof=True), disable=not progress):
             count += 1
-            if count % 10000000 == 0:
-                print(count)
             name = read.query_name
             match = pattern.search(name)
             barcode = list(match.groups())[1:]
@@ -191,11 +159,17 @@ def label_bam_file(input_bam, output_bam, labels, num_tags):
 
 def construct_read_group_header(input_bam, labels):
     """
-    Add read group tags for each antibody to the bam file header
+    Add read group tags for each antibody to the BAM file header
 
-    Args:
-        input_bam(str): Path to input master bam file
-        labels(dict): Dictionary of cluster assignments [barcode-> antibody]
+    Args
+    - input_bam: str
+        Path to input BAM file
+    - labels: dict(str -> str)
+        Map from barcode string to antibody label
+
+    Returns
+    - bam_header: dict
+        Updated BAM header
     """
     proteins = set(labels.values())
     sample_name = input_bam.split(".", 1)[0]
@@ -208,11 +182,13 @@ def construct_read_group_header(input_bam, labels):
 
 def split_bam_by_RG(output_bam, output_dir):
     """
-    Split a bam file based on the read group
+    Split a BAM file based on the read group
 
-    Args:
-        output_bam(str): Path to bam file containing reads with read group assignments
-        output_dir(str): Directory to write read group specific bam files to
+    Args
+    - output_bam: str
+        Path to BAM file containing reads with read group assignments
+    - output_dir: str
+        Directory to write read group specific BAM files to
     """
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     format_string = output_dir + "/%*_%!.%."
