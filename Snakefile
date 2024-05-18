@@ -1002,10 +1002,10 @@ rule threshold_tag_and_split:
     shell:
         '''
         python "{threshold_tag_and_split}" \
-          -i "{input.bam}" \
-          -c "{input.clusters}" \
-          -o "{output}" \
-          -d "{params.dir_splitbams}" \
+          "{input.bam}" \
+          "{output}" \
+          "{input.clusters}" \
+          "{params.dir_splitbams}" \
           --min_oligos {min_oligos} \
           --proportion {proportion} \
           --max_size {max_size} \
