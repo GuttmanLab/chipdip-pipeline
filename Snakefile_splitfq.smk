@@ -203,7 +203,7 @@ pipeline_counts = os.path.join(DIR_SCRIPTS, "python/pipeline_counts.py")
 # Make output directories
 ##############################################################################
 
-DIR_WORKUP = os.path.join(out_dir, "workup")
+DIR_WORKUP = os.path.join(out_dir, "workup_splitfq")
 DIR_LOGS = os.path.join(DIR_WORKUP, "logs")
 
 DIR_LOGS_CLUSTER = os.path.join(DIR_LOGS, "cluster")
@@ -449,48 +449,51 @@ rule validate:
 ##############################################################################
 
 # Split fastq files into chunks to processes in parallel
-rule splitfq_R1:
+rule splitfq:
     input:
-        r1 = lambda wildcards: FILES[wildcards.sample]['R1']
-    output:
-        expand(
-            [os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R1.part_{splitid}.fastq.gz")],
-             splitid=NUM_CHUNKS)
-    params:
-        dir = os.path.join(DIR_WORKUP, "splitfq"),
-        outstring_r1 = ' '.join(expand(["-o " + os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R1.part_{splitid}.fastq.gz")], splitid=NUM_CHUNKS)),
-    log:
-        os.path.join(DIR_LOGS, "{sample}.splitfq_R1.log")
-    conda:
-        conda_env
-    threads:
-        1
-    shell:
-        '''
-        mkdir -p "{params.dir}"
-        fastqsplitter -i {input.r1} {params.outstring_r1} -t {threads}
-        '''
-
-rule splitfq_R2:
-    input:
+        r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
         r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output:
-        expand(
-            [os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R2.part_{splitid}.fastq.gz")],
-             splitid=NUM_CHUNKS)
+        temp(expand(
+            [os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R1.part_{splitid}.fastq"),
+             os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R2.part_{splitid}.fastq")],
+             splitid=NUM_CHUNKS))
     params:
         dir = os.path.join(DIR_WORKUP, "splitfq"),
-        outstring_r2 = ' '.join(expand(["-o " + os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R2.part_{splitid}.fastq.gz")], splitid=NUM_CHUNKS)),
+        benchmark_dir = os.path.join(DIR_WORKUP, "benchmark"),
+        prefix_r1 = "{sample}_R1.part_0",
+        prefix_r2 = "{sample}_R2.part_0"
     log:
-        os.path.join(DIR_LOGS, "{sample}.splitfq_R2.log")
+        os.path.join(DIR_LOGS, "{sample}.splitfq.log")
+    benchmark:
+        os.path.join(DIR_WORKUP, "{sample}.splitfq.benchmark.txt")
     conda:
         conda_env
     threads:
-        1
+        4
     shell:
         '''
         mkdir -p "{params.dir}"
-        fastqsplitter -i {input.r2} {params.outstring_r2} -t {threads}
+        bash "{split_fastq}" "{input.r1}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads} &> {log}
+        bash "{split_fastq}" "{input.r2}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads} &>> {log}
+        '''
+
+# Compress the split fastq files
+rule compress_fastq:
+    input:
+        r1 = os.path.join(DIR_WORKUP, "splitfq/{sample}_R1.part_{splitid}.fastq"),
+        r2 = os.path.join(DIR_WORKUP, "splitfq/{sample}_R2.part_{splitid}.fastq")
+    output:
+        r1 = os.path.join(DIR_WORKUP, "splitfq/{sample}_R1.part_{splitid}.fastq.gz"),
+        r2 = os.path.join(DIR_WORKUP, "splitfq/{sample}_R2.part_{splitid}.fastq.gz")
+    conda:
+        conda_env
+    threads:
+        8
+    shell:
+        '''
+        pigz -p {threads} "{input.r1}"
+        pigz -p {threads} "{input.r2}"
         '''
 
 # Trim adaptors

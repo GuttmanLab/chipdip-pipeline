@@ -1,5 +1,5 @@
 # last updated: 2024-04-24
-name: chipdip
+name: chipdip-2
 channels:
   - conda-forge
   - bioconda
@@ -20,3 +20,4 @@ dependencies:
   - seaborn=0.12.2
   - tqdm=4.65
   - trim-galore=0.6.10
+  - fastqsplitter=1.2.0
