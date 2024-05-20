@@ -17,7 +17,7 @@ temp_dir: "/central/scratch/"
 
 # Conda environment: either a path to a conda environment YAML file ("*.yml" or "*.yaml")
 # or the name of an existing conda environment
-conda_env: "chipdip"
+conda_env: "envs/chipdip.yaml"
 
 # Path to chromosome name map file
 path_chrom_map: "chrom_map.txt"
@@ -35,11 +35,11 @@ mask: "assets/blacklist_mm10.bed"
 
 # Bowtie2 indexes for aligning DNA reads
 # e.g., "assets/index_hg38/GRCh38_noalt_as" or "assets/index_mm10/mm10"
-bowtie2_index: "assets/index_mm10/mm10"
+bowtie2_index: "/groups/guttman/genomes/mus_musculus/GRCm38/bowtie2/GRCm38.primary_assembly.genome.1.bt2"
 
 # Generate BAM files for individual targets
 generate_splitbams: true
-min_oligos: 2
+min_oligos: 20
 proportion: 0.8
 max_size: 10000
 
@@ -50,7 +50,3 @@ merge_samples: false
 # - only relevant if generate_splitbams is true
 # - Set to false to skip BigWig generation
 binsize: 1000
-
-# Option to not use a format file, which is used for strict barcode position validation
-# Default is true.
-toggle_format_on: true
