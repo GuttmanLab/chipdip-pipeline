@@ -5,7 +5,7 @@ __default__:
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
-splitfq:
+split_fastq:
     time: "48:00:00"
     mem: 100g
     cpus: 4
@@ -19,7 +19,7 @@ compress_fastq:
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
-adaptor_trimming_pe:
+adaptor_trimming:
     time: "12:00:00"
     mem: 50g
     cpus: 10
@@ -33,7 +33,7 @@ barcode_id:
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
-get_ligation_efficiency:
+barcode_identification_efficiency:
     time: "05:00:00"
     mem: 20g
     cpus: 1
@@ -68,7 +68,7 @@ bowtie2_align:
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
-add_chr:
+rename_and_filter_chr:
     time: "12:00:00"
     mem: 10g
     cpus: 1
@@ -124,7 +124,7 @@ pipeline_counts:
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
-thresh_and_split:
+threshold_tag_and_split:
     time: "24:00:00"
     mem: 20g
     cpus: 1
