@@ -50,6 +50,13 @@ Other common usage notes
   ```
   and modify the `conda_env` key in [`config.yaml`](#config-yaml) to `"chipdip"`.
 
+To test that the pipeline runs correctly in your compute environment, you can verify that you obtain correctly demultiplexed BAM files from the provided example data. Note that this assumes that you are using the default configuration settings and have the `chipdip` conda environment installed:
+
+```
+cd tests
+./verify_merged_splitbams_from_example_data.sh
+```
+
 ## Background
 
 Terms
