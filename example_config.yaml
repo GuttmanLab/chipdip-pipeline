@@ -2,16 +2,16 @@
 email: ""
 
 # Path to barcoding config file
-bID: "/groups/guttman/projects/chip-dip/2022_02_18_mESC-Low-Abundance_NextSeq/config.txt"
+bID: "example_config.txt"
 # Path to barcoding format file
-format: "/groups/guttman/projects/chip-dip/2022_02_18_mESC-Low-Abundance_NextSeq/format6.3row.skipB.txt"
+format: "example_format.txt"
 # Path to samples JSON file, e.g., as produced with the fastq2json.py script
-samples: "samples.json"
+samples: "example_samples.json"
 
 # Scripts directory
 scripts_dir: "scripts/"
 # Output directory
-output_dir: "/central/scratchio/mblanco/albert/output_mESC"
+output_dir: ""
 # Temporary directory
 temp_dir: "/central/scratch/"
 
@@ -23,7 +23,7 @@ conda_env: "chipdip"
 path_chrom_map: "chrom_map.txt"
 
 # Number of chunks to split FASTQ reads into for parallel processing
-num_chunks: 20
+num_chunks: 2
 
 # Files for cutadapt
 cutadapt_dpm: "assets/dpm96.fasta"
@@ -35,7 +35,7 @@ mask: "assets/blacklist_mm10.bed"
 
 # Bowtie2 indexes for aligning DNA reads
 # e.g., "assets/index_hg38/GRCh38_noalt_as" or "assets/index_mm10/mm10"
-bowtie2_index: "/groups/guttman/genomes/mus_musculus/GRCm38/bowtie2/GRCm38.primary_assembly.genome"
+bowtie2_index: "assets/index_mm10/mm10"
 
 # Generate BAM files for individual targets
 generate_splitbams: true

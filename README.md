@@ -1,4 +1,5 @@
 Contents
+- [Development](#development)
 - [Overview](#overview)
   - [Quick Start](#quick-start)
   - [Background](#background)
@@ -14,6 +15,19 @@ Contents
   8. [`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`](#blacklist-bed)
   9. [`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`](#index-bt2)
 - [Output Files](#output-files)
+
+
+# Development
+
+The development branch employs two major changes from the original pipeline.
+
+## Split Fastq
+
+The bash script for splitting the original fastq data files (rule `splitfq`) has been modified by using the `--filter` option for the `split` command. With this, rule `compress_fastq` is no longer necessary since `splitfq` outputs compressed splitted fastq files. Further, the read 1 and read 2 split fastq are now seperated rules (`splitfq_R1`, `splitfq_R2`) to allow parallel runs and speed up the pipeline.
+
+## Moving from Cluster to Bam
+
+The original pipeline employs `.cluster` file format to store cluster information. With the development branch, the `.cluster` file format is abandonned. Instead, `.bam` file format is used. In rules `merge_dna` and `merge_beads`, the merged `.bam` files are passed to a python script `tag_bam.py` to tag each read with its read type ('RT') and its barcode ('RC'). DNA and beads reads are then further merged together. The `.bam` files are directly passed to `generate_all_statistics.py` and `threshold_tag_and_split.py` to generate the expected outputs from the corresponding rules. Note that `generate_all_statistics.py` merges `generate_cluster_statistics`, `get_bead_size_distribution.py`, and `max_representation_ecdfs_perlib.py` together to decrease the number of loops through `.bam` reads.
 
 # Overview
 

@@ -92,14 +92,12 @@ def generate_statistics(bamfile, ax1, ax2, xlimit, dir):
     cluster = 0
     dpm = 0
     bpm = 0
-    cluster_barcodes = []
+    barcodes = set()
 
     # max_representation_ecdf
     results = []
     results_counts = []
     bamname = os.path.basename(bamfile)
-    beads_dict = defaultdict(list)
-    dpm_dict = defaultdict(int)
 
     # get bead size distribution
     # count bpm and dpm at the same time
@@ -108,6 +106,28 @@ def generate_statistics(bamfile, ax1, ax2, xlimit, dir):
     read_counts_dpm = defaultdict(int)
     cluster_counts_bpm = defaultdict(int)
     read_counts_bpm = defaultdict(int)
+
+    # the cluster dictionaries
+    beads_dict = defaultdict(set)
+    dpm_dict = defaultdict(int)
+
+    count = 0
+    with pysam.AlignmentFile(bamfile, "rb") as bam:
+        for read in bam.fetch(until_eof=True):
+            count += 1
+            if count % 100000 == 0:
+                print(count)
+            read_type = read.get_tag("RT")
+            barcode = read.get_tag("RC")
+            try:
+                chromesome = read.reference_name
+                if "DPM" in read_type:
+                    dpm_dict[barcode] += 1 # get bead size distribution
+                elif "BEAD" in read_type or "BPM" in read_type:
+                    beads_dict[barcode].add((chromesome, str(count)))
+            except KeyError:
+                pass
+
     for bin in np.arange(
         1, len(bins) + 1
     ):  # initialize all bins in case any end up being empty categories
@@ -115,31 +135,19 @@ def generate_statistics(bamfile, ax1, ax2, xlimit, dir):
         read_counts_dpm[bin] = 0
         cluster_counts_bpm[bin] = 0
         read_counts_bpm[bin] = 0
-
-    with pysam.AlignmentFile(bamfile, 'rb') as inbam:
-
-        for read in inbam.fetch(until_eof=True):
-            read_type = read.get_tag("RT")
-            barcode = read.get_tag("BC")
-            chromesome = read.reference_name # max_representation_ecdf
-            if "DPM" in read_type:
-                dpm += 1 # count statistics
-                dpm_dict[barcode] += 1 # get bead size distribution
-            elif "BEAD" in read_type or "BPM" in read_type:
-                bpm += 1 # count statistics
-                beads_dict[barcode].append(chromesome) # max representation ecdf, get bead size distribution
-            if barcode not in cluster_barcodes:
-                cluster += 1 # count statistics
-                cluster_barcodes.append(barcode)
-
+    
     for bc in beads_dict.keys():
-        count_beads = len(beads_dict[bc])
+        beads_list = [ele[0] for ele in beads_dict[bc]]
+        count_beads = len(beads_list)
         # max representation ecdf
         if count_beads > 1:
-            candidate = Counter(beads_dict[bc]).most_common()[0]
+            candidate = Counter(beads_list).most_common()[0]
             results.append(candidate[1] / count_beads)
             results_counts.append(candidate[1])
         # get bead size distribution
+        cluster += 1
+        barcodes.add(bc)
+        bpm += count_beads
         bin_bpm = np.digitize(count_beads, bins, right=True)
         cluster_counts_bpm[bin_bpm] += 1
         read_counts_bpm[bin_bpm] += count_beads
@@ -147,6 +155,9 @@ def generate_statistics(bamfile, ax1, ax2, xlimit, dir):
     # get bead size distribution
     for bc in dpm_dict.keys():
         count_dpm = dpm_dict[bc]
+        if bc not in barcodes:
+            cluster += 1
+        dpm += count_dpm
         bin_dpm = np.digitize(count_dpm, bins, right=True)
         cluster_counts_dpm[bin_dpm] += 1
         read_counts_dpm[bin_dpm] += count_dpm

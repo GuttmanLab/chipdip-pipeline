@@ -12,13 +12,18 @@ __pycache__/
 
 .snakemake/
 workup/
+workup_old/
+workup_old_test/
+workup_test/
 workup2/
-scripts/python_bam
+scripts/python_bam/
+scripts/python_old/
 assets/
 config.yaml
-Snakefile_old
+Snakefile_old.smk
 rulegraph_old.pdf
-samples.json
+cluster.yaml
+config.yaml
 ### OS-specific files ###
 # macOS files - see https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
 .DS_Store

@@ -1,0 +1,10 @@
+{
+    "chipdip1pct1": {
+        "R1": [
+            "/groups/guttman/primarydata/sequencingruns/20220218/chipdip1pct1_R1.fastq.gz"
+        ],
+        "R2": [
+            "/groups/guttman/primarydata/sequencingruns/20220218/chipdip1pct1_R2.fastq.gz"
+        ]
+    }
+}

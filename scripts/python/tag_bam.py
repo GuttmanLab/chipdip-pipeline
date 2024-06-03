@@ -2,6 +2,8 @@ import argparse
 import pysam
 import re
 from collections import defaultdict
+import os
+
 '''
 Python code to add read type and barcode tags to input bam file
 '''
@@ -42,7 +44,6 @@ def main():
     print("Writing tagged bam to: ", args.output_bam)
     label_bam_file(args.input_bam, args.output_bam, args.num_tags)
 
-
 def label_bam_file(input_bam, output_bam, num_tags):
     """
     Add antibody label to individual reads of the master DNA bam file
@@ -60,7 +61,7 @@ def label_bam_file(input_bam, output_bam, num_tags):
          pysam.AlignmentFile(output_bam, "wb", template=in_bam) as out_bam:
         for read in in_bam.fetch(until_eof=True):
             count += 1
-            if count % 10000000 == 0:
+            if count % 100000 == 0:
                 print(count)
             name = read.query_name
             match = pattern.search(name)
@@ -68,16 +69,17 @@ def label_bam_file(input_bam, output_bam, num_tags):
             read_type = rt_pattern.findall(full_barcode[0])[0]
             barcode = full_barcode[1:]
             ref_barcode = ".".join(barcode)
-            fc_barcode = ".".join(full_barcode)
-            position = read.reference_name + ":" + str(read.reference_start) + '-' + str(read.reference_end)
+            if "DPM" in read_type:
+                position = read.reference_name + ":" + str(read.reference_start) + '-' + str(read.reference_end)
+            elif "BPM" in read_type or "BEAD" in read_type:
+                position = read.reference_name + ":" + str(read.reference_start) + '-' + str(0)
             if position in found[ref_barcode]:
                 duplicates += 1
             else:
                 try:
                     found[ref_barcode].add(position)
                     read.set_tag("RT", read_type, replace=True)
-                    read.set_tag("BC", ref_barcode, replace=True)
-                    read.set_tag("FC", fc_barcode, replace=True)
+                    read.set_tag("RC", ref_barcode, replace=True)
                     out_bam.write(read)
                     written += 1
                 except KeyError:

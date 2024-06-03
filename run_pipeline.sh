@@ -2,7 +2,7 @@
 
 snakemake \
 --snakefile Snakefile \
---configfile config.yaml \
+--configfile example_config.yaml \
 --use-conda \
 --conda-frontend conda \
 --printshellcmds \

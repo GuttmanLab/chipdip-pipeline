@@ -85,7 +85,7 @@ PIPELINE = {
     "merge-dna": {
         "parent": "mask",
         "base": "dpm",
-        "path": os.path.join("alignments", "{sample}.DNA.merged.bam"),
+        "path": os.path.join("alignments", "{sample}.merged.DNA.bam"),
     },
     # (thresh_and_split)
     "merge-labeled": {
@@ -117,17 +117,6 @@ PIPELINE = {
         "parent": "bpm-bam",
         "base": "bpm",
         "path": os.path.join("alignments", "{sample}.merged.BPM.bam"),
-    },
-}
-
-PIPELINE_CLUSTERS = {
-    "cluster": {
-        "parent": {"dpm": "mask", "bpm": "bpm-bam"},
-        "path": os.path.join("clusters_parts", "{sample}*.clusters"),
-    },
-    "cluster-merge": {
-        "parent": {"dpm": "cluster", "bpm": "cluster"},
-        "path": os.path.join("clusters", "{sample}.clusters"),
     },
 }
 
@@ -499,35 +488,6 @@ def count_reads(
     return sum(counts.values()) if agg else counts
 
 
-def count_reads_clusters(paths, n_processes):
-    """
-    Count the number of DPM and BPM reads in SPRITE cluster files.
-    Implemented as a wrapper around helpers.count_reads()
-
-    Args
-    - paths: list-like
-        Paths to cluster files
-    - n_processes: int
-        Number of parallel processes to use.
-
-    Returns: dict
-        Keys = 'DPM', 'BPM'
-        Values = sum of the number of DPM or BPM reads in cluster files.
-    """
-    counts = dict(DPM=0, BPM=0)
-    out = count_lines(
-        paths,
-        n_processes=n_processes,
-        cmd_unzip="cat",
-        cmd_count=f'grep -h -F -o -e "DPM" -e "BPM" | sort --parallel {n_processes} | uniq -c',
-        return_raw=True,
-    )
-    for line in out:
-        count, pattern = regex_uniq_count.match(line.strip().rsplit("\t", 1)[1].strip()).groups()
-        counts[pattern] += int(count)
-    return counts
-
-
 def collect_pipeline_counts(
     samples,
     DIR_WORKUP,
@@ -565,8 +525,6 @@ def collect_pipeline_counts(
     """
     if pipeline is None:
         pipeline = PIPELINE
-    if pipeline_clusters is None:
-        pipeline_clusters = PIPELINE_CLUSTERS
     G = Graph()
 
     for level, node_info in pipeline.items():
@@ -588,26 +546,6 @@ def collect_pipeline_counts(
             if node_info["parent"]:
                 parent = G.get_node(sample, node_info["parent"])
             node = Node(sample, level, graph=G, n_reads=count, parent=parent, base=base)
-    for level, node_info in pipeline_clusters.items():
-        if verbose:
-            print(f"Counting {level}", file=sys.stderr)
-        for sample in samples:
-            paths = glob.glob(os.path.join(DIR_WORKUP, node_info["path"].format(sample=sample)))
-            if len(paths) == 0:
-                counts = dict(DPM=0, BPM=0)
-            else:
-                counts = count_reads_clusters(paths, n_processes=n_processes)
-            for base_level, parent in node_info["parent"].items():
-                if parent == "cluster":
-                    parent += f"-{base_level}"
-                node = Node(
-                    sample,
-                    f"{level}-{base_level}",
-                    graph=G,
-                    n_reads=counts[base_level.upper()],
-                    parent=G.get_node(sample, parent),
-                    base=G.get_node(sample, base_level),
-                )
     G_merged = None
     if len(samples) > 1:
         G_merged = G.merge_samples()

@@ -112,7 +112,7 @@ make_clusters:
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 merge_clusters:
     time: "24:00:00"
-    mem: 100g
+    mem: 50g
     cpus: 10
     nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"

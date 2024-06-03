@@ -3,6 +3,9 @@ import pysam
 from collections import defaultdict, Counter
 from pathlib import Path
 import tqdm
+import os
+import pickle
+import re
 
 def parse_args():
 
@@ -63,6 +66,13 @@ def parse_args():
         required=True,
         help="The maximum cluster size to keep",
     )
+    parser.add_argument(
+        "--num_tags",
+        action="store",
+        type=int,
+        required=True,
+        help="The number of tags to consider",
+    )
 
     return parser.parse_args()
 
@@ -76,7 +86,7 @@ def main():
     RG_dict = assign_labels(
         args.cluster_bam, args.min_oligos, args.proportion, args.max_size
     )
-    label_bam_file(args.input_bam, args.output_bam, RG_dict)
+    label_bam_file(args.input_bam, args.output_bam, RG_dict, args.num_tags)
     split_bam_by_RG(args.output_bam, args.dir)
 
 
@@ -84,65 +94,89 @@ def assign_labels(bamfile, min_oligos, threshold, max_size):
 
     # threshold_tag_and_split
     RG_dict = defaultdict(str)
-    beads_dict = defaultdict(list)
+
+    count = 0
+    beads_dict = defaultdict(set)
     total_dict = defaultdict(int)
 
-    with pysam.AlignmentFile(bamfile, 'rb') as inbam:
-        
-        for read in inbam.fetch(until_eof=True):
+    with pysam.AlignmentFile(bamfile, "rb") as bam:
+        for read in bam.fetch(until_eof=True):
+            count += 1
+            if count % 1000000 == 0:
+                print(count)
             read_type = read.get_tag("RT")
-            barcode = read.get_tag("BC")
-            chromesome = read.reference_name
-            total_dict[barcode] += 1
-            if "BEAD" in read_type or "BPM" in read_type:
-                beads_dict[barcode].append(chromesome)
-
-        # threshold tag and split
-        for bc in total_dict.keys():
-            count_beads = len(beads_dict[bc])
-            if count_beads == 0:
-                RG_dict[bc] = "none"
-                continue
-            cluster_size = total_dict[bc] - count_beads
-            if int(cluster_size) > int(max_size):
-                RG_dict[bc] = "filtered"
-                continue
-            bead_labels = Counter(beads_dict[bc])
-            candidate = bead_labels.most_common()[0]
-            if candidate[1] < min_oligos:
-                RG_dict[bc] = "uncertain"
-                continue
-            elif candidate[1] / sum(bead_labels.values()) < threshold:
-                RG_dict[bc] = "ambiguous"
-                continue
-            else:
-                RG_dict[bc] = candidate[0]
-                continue
-            RG_dict[bc] = "malformed"
-
+            barcode = read.get_tag("RC")
+            try:
+                chromesome = read.reference_name
+                total_dict[barcode] += 1
+                if "BEAD" in read_type or "BPM" in read_type:
+                    beads_dict[barcode].add((chromesome, str(count)))
+            except KeyError:
+                pass
+    # threshold tag and split
+    for bc in total_dict.keys():
+        beads_list = [ele[0] for ele in beads_dict[bc]]
+        count_beads = len(beads_list)
+        if count_beads == 0:
+            RG_dict[bc] = "none"
+            continue
+        cluster_size = total_dict[bc] - count_beads
+        if int(cluster_size) > int(max_size):
+            RG_dict[bc] = "filtered"
+            continue
+        bead_labels = Counter(beads_list)
+        candidate = bead_labels.most_common()[0]
+        if candidate[1] < min_oligos:
+            RG_dict[bc] = "uncertain"
+            continue
+        elif candidate[1] / sum(bead_labels.values()) < threshold:
+            RG_dict[bc] = "ambiguous"
+            continue
+        else:
+            RG_dict[bc] = candidate[0]
+            continue
+        RG_dict[bc] = "malformed"
     return RG_dict
 
-def label_bam_file(input_bam, output_bam, RG_dict):
+def label_bam_file(input_bam, output_bam, labels, num_tags):
+    """
+    Add antibody label to individual reads of the master DNA bam file
 
-    count, written, skipped = 0, 0, 0
-    header = construct_read_group_header(input_bam, RG_dict)
+    Args:
+        input_bam(str): Path to input master bam file
+        output_bam(str): Path to write labeled bam file
+        labels(dict): Dictionary of cluster assignments [barcode-> antibody]
+        num_tags(int): number of tags in barcode
+    """
+    count, duplicates, skipped = 0, 0, 0
+    written = defaultdict(int)
+    header = construct_read_group_header(input_bam, labels)
+    found = defaultdict(set)
     with pysam.AlignmentFile(input_bam, "rb") as in_bam, \
          pysam.AlignmentFile(output_bam, "wb", header=header) as out_bam:
         for read in in_bam.fetch(until_eof=True):
             count += 1
             if count % 10000000 == 0:
                 print(count)
-            barcode = read.get_tag("BC")
-            read_group = RG_dict[barcode]
-            try:
-                read.set_tag("RG", read_group, replace=True)
-                out_bam.write(read)
-                written += 1
-            except KeyError:
-                skipped += 1
+            full_barcode = read.get_tag("RC")
+            position = read.reference_name + ":" + str(read.reference_start) + '-' + str(read.reference_end)
+            if position in found[full_barcode]:
+                duplicates += 1
+            else:
+                try:
+                    readlabel = labels[full_barcode]
+                    found[full_barcode].add(position)
+                    read.set_tag("RG", readlabel, replace=True)
+                    out_bam.write(read)
+                    written[readlabel] += 1
+                except KeyError:
+                    skipped += 1
+
     print("Total reads:", count)
     print("Reads written:", written)
+    print("Duplicate reads:", duplicates)
     print("Reads with an error not written out:", skipped)
+
 
 def construct_read_group_header(input_bam, RG_dict):
     """

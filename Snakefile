@@ -185,17 +185,13 @@ lig_eff = os.path.join(DIR_SCRIPTS, "python/get_ligation_efficiency.py")
 split_bpm_dpm = os.path.join(DIR_SCRIPTS, "python/split_dpm_bpm_fq.py")
 validate = os.path.join(DIR_SCRIPTS, "python/validate.py")
 rename_and_filter_chr = os.path.join(DIR_SCRIPTS, "python/rename_and_filter_chr.py")
-# get_clusters = os.path.join(DIR_SCRIPTS, "python/get_clusters.py")
-# merge_clusters = os.path.join(DIR_SCRIPTS, "python/merge_clusters.py")
+generate_dict = os.path.join(DIR_SCRIPTS, "python/generate_dict.py")
 fq_to_bam = os.path.join(DIR_SCRIPTS, "python/fastq_to_bam.py")
 tag_and_split = os.path.join(DIR_SCRIPTS, "python/threshold_tag_and_split.py")
 calculate_effective_genome_size = os.path.join(DIR_SCRIPTS, "python/calculate_effective_genome_size.py")
 
 generate_all_statistics = os.path.join(DIR_SCRIPTS, "python/generate_all_statistics.py")
 tag_bam = os.path.join(DIR_SCRIPTS, "python/tag_bam.py")
-# cluster_statistics = os.path.join(DIR_SCRIPTS, "python/generate_cluster_statistics.py")
-# cluster_sizes = os.path.join(DIR_SCRIPTS, "python/get_bead_size_distribution.py")
-# cluster_ecdfs = os.path.join(DIR_SCRIPTS, "python/max_representation_ecdfs_perlib.py")
 
 pipeline_counts = os.path.join(DIR_SCRIPTS, "python/pipeline_counts.py")
 
@@ -290,10 +286,6 @@ MERGE_DNA = expand(
     os.path.join(DIR_WORKUP, "alignments/{sample}.merged.DNA.bam"),
     sample=ALL_SAMPLES)
 
-TAG_DNA = expand(
-    os.path.join(DIR_WORKUP, "alignments/{sample}.tagged.DNA.bam"),
-    sample=ALL_SAMPLES)
-
 CHR_DNA = expand(
     os.path.join(DIR_WORKUP, "alignments_parts/{sample}.part_{splitid}.DNA.chr.bam"),
     sample=ALL_SAMPLES,
@@ -315,10 +307,6 @@ FQ_TO_BAM = expand(
 
 MERGE_BEAD = expand(
     os.path.join(DIR_WORKUP, "alignments/{sample}.merged.BPM.bam"),
-    sample=ALL_SAMPLES)
-
-TAG_BEAD = expand(
-    os.path.join(DIR_WORKUP, "alignments/{sample}.tagged.BPM.bam"),
     sample=ALL_SAMPLES)
 
 ##############################################################################
@@ -355,12 +343,11 @@ SPLITBAMS_ALL_LOG = [os.path.join(DIR_LOGS, "splitbams_all.log")]
 
 BIGWIGS_LOG = [os.path.join(DIR_LOGS, "bigwigs.log")]
 
-# PIPELINE_COUNTS = [os.path.join(DIR_WORKUP, "pipeline_counts.txt")]
+PIPELINE_COUNTS = [os.path.join(DIR_WORKUP, "pipeline_counts.txt")]
 
 FINAL = \
     MERGE_BEAD + CLUSTER_SIZES + ECDFS + CLUSTER_STATISTICS + MULTI_QC + \
-    LE_LOG_ALL + CONFIG
-# removed pipeline_counts
+    LE_LOG_ALL + CONFIG + PIPELINE_COUNTS
 
 if binsize:
     FINAL.extend(BIGWIGS_LOG)
@@ -451,46 +438,53 @@ rule validate:
 # Split fastq files into chunks to processes in parallel
 rule splitfq_R1:
     input:
-        r1 = lambda wildcards: FILES[wildcards.sample]['R1']
+        lambda wildcards: FILES[wildcards.sample]['R1']
     output:
-        expand(
-            [os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R1.part_{splitid}.fastq.gz")],
-             splitid=NUM_CHUNKS)
+        temp(expand(
+            os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R1.part_{splitid}.fastq.gz"),
+             splitid=NUM_CHUNKS))
     params:
         dir = os.path.join(DIR_WORKUP, "splitfq"),
-        outstring_r1 = ' '.join(expand(["-o " + os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R1.part_{splitid}.fastq.gz")], splitid=NUM_CHUNKS)),
+        prefix = "{sample}_R1.part_0",
     log:
-        os.path.join(DIR_LOGS, "{sample}.splitfq_R1.log")
+        os.path.join(DIR_LOGS, "{sample}.splitfq.log")
+    benchmark:
+        os.path.join(DIR_WORKUP, "{sample}.splitfq.benchmark.txt")
     conda:
         conda_env
     threads:
-        1
+        4
     shell:
         '''
-        mkdir -p "{params.dir}"
-        fastqsplitter -i {input.r1} {params.outstring_r1} -t {threads}
+        {{
+            mkdir -p "{params.dir}"
+            bash "{split_fastq}" "{input}" {num_chunks} "{params.dir}" "{params.prefix}" {threads}
+        }} &> "{log}"
         '''
 
+# Split fastq files into chunks to processes in parallel
 rule splitfq_R2:
     input:
-        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
+        lambda wildcards: FILES[wildcards.sample]['R2']
     output:
-        expand(
-            [os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R2.part_{splitid}.fastq.gz")],
-             splitid=NUM_CHUNKS)
+        temp(expand(
+            os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R2.part_{splitid}.fastq.gz"),
+             splitid=NUM_CHUNKS))
     params:
         dir = os.path.join(DIR_WORKUP, "splitfq"),
-        outstring_r2 = ' '.join(expand(["-o " + os.path.join(DIR_WORKUP, "splitfq/{{sample}}_R2.part_{splitid}.fastq.gz")], splitid=NUM_CHUNKS)),
+        prefix = "{sample}_R2.part_0",
     log:
-        os.path.join(DIR_LOGS, "{sample}.splitfq_R2.log")
+        os.path.join(DIR_LOGS, "{sample}.splitfq.log")
     conda:
         conda_env
     threads:
-        1
+        4
     shell:
         '''
-        mkdir -p "{params.dir}"
-        fastqsplitter -i {input.r2} {params.outstring_r2} -t {threads}
+        {{
+            mkdir -p "{params.dir}"
+            bash "{split_fastq}" "{input}" {num_chunks} "{params.dir}" "{params.prefix}" {threads}
+        }} &> "{log}"
         '''
 
 # Trim adaptors
@@ -751,8 +745,8 @@ rule merge_dna:
             os.path.join(DIR_WORKUP, "alignments_parts/{{sample}}.part_{splitid}.DNA.chr.masked.bam"),
             splitid=NUM_CHUNKS)
     output:
-        untagged = temp(os.path.join(DIR_WORKUP, "alignments/{sample}.merged.DNA.bam")),
-        tagged = os.path.join(DIR_WORKUP, "alignments/{sample}.tagged.DNA.bam")
+        untagged = temp(os.path.join(DIR_WORKUP, "alignments/{sample}.merged.DNA.untagged.bam")),
+        tagged = os.path.join(DIR_WORKUP, "alignments/{sample}.merged.DNA.bam")
     conda:
         conda_env
     threads:
@@ -797,8 +791,8 @@ rule merge_beads:
             os.path.join(DIR_WORKUP, "alignments_parts/{{sample}}.part_{splitid}.BPM.bam"),
             splitid=NUM_CHUNKS)
     output:
-        untagged = temp(os.path.join(DIR_WORKUP, "alignments/{sample}.merged.BPM.bam")),
-        tagged = os.path.join(DIR_WORKUP, "alignments/{sample}.tagged.BPM.bam")
+        untagged = temp(os.path.join(DIR_WORKUP, "alignments/{sample}.merged.BPM.untagged.bam")),
+        tagged = os.path.join(DIR_WORKUP, "alignments/{sample}.merged.BPM.bam")
     conda:
         conda_env
     log:
@@ -818,18 +812,21 @@ rule merge_beads:
 # merge bam files for each sample
 rule merge_samp:
     input:
-        [os.path.join(DIR_WORKUP, "alignments/{sample}.tagged.DNA.bam"),
-        os.path.join(DIR_WORKUP, "alignments/{sample}.tagged.BPM.bam")]
+        [os.path.join(DIR_WORKUP, "alignments/{sample}.merged.DNA.bam"),
+        os.path.join(DIR_WORKUP, "alignments/{sample}.merged.BPM.bam")]
     output:
         os.path.join(DIR_WORKUP, "clusters/{sample}.bam")
     conda:
         conda_env
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_samp.log")
+    params:
+        dir = os.path.join(DIR_WORKUP, "clusters")
     threads:
         10
     shell:
         '''
+        mkdir -p {params.dir}
         samtools merge -@ {threads} "{output}" {input} &> "{log}"
         '''
 
@@ -893,6 +890,33 @@ rule multiqc:
         multiqc -f -o "{params.dir_qc}" "{DIR_WORKUP}" &> "{log}"
         '''
 
+rule pipeline_counts:
+    input:
+        SPLIT_FQ + TRIM + BARCODEID + SPLIT_DPM_BPM + TRIM_RD + \
+        FQ_TO_BAM + MERGE_BEAD + \
+        Bt2_DNA_ALIGN + CHR_DNA + MASKED + MERGE_DNA + TAG_SAMP + \
+        (TAG_ALL if merge_samples else []) + (SPLITBAMS if generate_splitbams else [])
+    output:
+        csv = os.path.join(DIR_WORKUP, "qc/pipeline_counts.csv"),
+        pretty = os.path.join(DIR_WORKUP, "pipeline_counts.txt")
+    log:
+        os.path.join(DIR_LOGS, "pipeline_counts.log")
+    conda:
+        conda_env
+    threads:
+        10
+    shell:
+        '''
+        {{
+            python "{pipeline_counts}" \
+              --samples "{samples}" \
+              -w "{DIR_WORKUP}" \
+              -o "{output.csv}" \
+              -n {threads} | \
+            column -t -s $'\t' > "{output.pretty}"
+        }} &> "{log}"
+        '''
+
 ##############################################################################
 # Splitbams
 ##############################################################################
@@ -900,7 +924,7 @@ rule multiqc:
 # Generate bam files for individual targets based on assignments from clusterfile
 rule thresh_and_split:
     input:
-        bam = os.path.join(DIR_WORKUP, "alignments/{sample}.tagged.DNA.bam"),
+        bam = os.path.join(DIR_WORKUP, "alignments/{sample}.merged.DNA.bam"),
         clusters = os.path.join(DIR_WORKUP, "clusters/{sample}.bam")
     output:
         os.path.join(DIR_WORKUP, "alignments/{sample}.DNA.merged.labeled.bam")
@@ -919,7 +943,8 @@ rule thresh_and_split:
          -d "{params.dir_splitbams}" \
          --min_oligos {min_oligos} \
          --proportion {proportion} \
-         --max_size {max_size} &> "{log}"
+         --max_size {max_size} \
+         --num_tags {num_tags} &> "{log}"
         '''
 
 # Generate summary statistics of individiual bam files
