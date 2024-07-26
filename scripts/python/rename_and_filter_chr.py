@@ -208,6 +208,9 @@ def filter_reads(
             for read in file_bam_in.fetch(until_eof=True):
                 if read.reference_name in chrom_map:
                     read.reference_id = old_to_new_refID[read.reference_id]
+                    # if reference sequence name of paired read is not in chrom_map, set RNEXT
+                    # to be "*"
+                    read.next_reference_id = old_to_new_refID.get(read.next_reference_id, -1)
                     output_stream.write(read)
                     count_out += 1
                 else:
