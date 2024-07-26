@@ -15,6 +15,8 @@ Contents
   8. [`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`](#blacklist-bed)
   9. [`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`](#index-bt2)
 - [Output Files](#output-files)
+- [Additional Resources](#additional-resources)
+- [Credits](#credits)
 
 # Overview
 
@@ -398,6 +400,15 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
 11. <a name="bigwigs">BigWig files for individual antibodies</a> (`workup/bigwigs/*.bw`)
     - BigWigs are generated using [`deeptools bamCoverage`](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) with binsize set in [`config.yaml`](#config-yaml). Normalization is performed using effective genome size (`--normalizeUsing RPGC`), which is calculated as the size of chromosomes selected via [`chrom_map.txt`](#chrom-map) minus the size of regions in the [mask](#blacklist-bed) for those chromosomes.
+
+# Additional Resources
+
+Calculator for uniqueness of bead barcodes: [Google Colab notebook](https://colab.research.google.com/drive/1oebE8hcFLiTMxA7tPD5npYrL4vIQHFr8) (also available as [GitHub Gist](https://gist.github.com/bentyeh/33eb321538f5e5396ca0172785afd733)). This calculator can be used to calculate one of two values:
+- Given the number of beads and the number of possible unique barcodes, calculate the proportion of beads expected to be uniquely barcoded.
+- Given the number of beads and a desired proportion of beads to be uniquely barcoded, calculate the number of barcodes required.
+
+Publications
+- Preprint (bioRxiv): https://doi.org/10.1101/2023.12.14.571730
 
 # Credits
 
