@@ -1,0 +1,3 @@
+Scripts for post processing analysis of ChIP-DIP
+  (1) Normalization scripts
+  (2) Clustering scripts
