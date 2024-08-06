@@ -2,6 +2,7 @@ Contents
 - [Overview](#overview)
   - [General Requirements](#general-requirements)
   - [Quick Start](#quick-start)
+  - [Demo](#demo)
   - [Background](#background)
   - [Pipeline](#pipeline)
 - [Directory Structures](#directory-structures)
@@ -81,7 +82,9 @@ Other common usage notes
   ```
   and modify the `conda_env` key in [`config.yaml`](#config-yaml) to `"chipdip"`.
 
-To test that the pipeline runs correctly in your compute environment, you can verify that you obtain correctly demultiplexed BAM files from the provided example data. Note that this assumes that you are using the default configuration settings and have the `chipdip` conda environment installed:
+## Demo
+
+To test that the pipeline runs correctly in your compute environment, sample fastq files are provided in the data folder and anticipated output using default configuration settings (config.yaml) is provided in the tests/sample_output folder. Anticipated runtime on a local environment is ~4 minutes. You can verify that you obtain correctly demultiplexed BAM files from the provided example data. 
 
 ```
 cd tests
