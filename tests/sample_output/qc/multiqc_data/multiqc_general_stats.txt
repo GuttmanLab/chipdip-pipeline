@@ -1,0 +1,33 @@
+Sample	Bowtie 2 / HiSAT2_mqc-generalstats-bowtie_2_hisat2-overall_alignment_rate	Cutadapt_mqc-generalstats-cutadapt-percent_trimmed	FastQC_mqc-generalstats-fastqc-percent_duplicates	FastQC_mqc-generalstats-fastqc-percent_gc	FastQC_mqc-generalstats-fastqc-avg_sequence_length	FastQC_mqc-generalstats-fastqc-median_sequence_length	FastQC_mqc-generalstats-fastqc-percent_fails	FastQC_mqc-generalstats-fastqc-total_sequences
+sample1.000	100.0							
+sample1.001	98.58							
+sample1_R1.part_000		0.8004793289394848						
+sample1_R1.part_000.barcoded_bpm		12.110481586402265						
+sample1_R1.part_000.barcoded_dpm		13.667593223894686						
+sample1_R1.part_000.barcoded_dpm.RDtrim			5.078125	49.0	64.30078125	65	20.0	256.0
+sample1_R1.part_000_val_1			3.6036036036036023	47.0	74.3981981981982	75	20.0	1110.0
+sample1_R1.part_001		0.7844552728147747						
+sample1_R1.part_001.barcoded_bpm		12.107170883001382						
+sample1_R1.part_001.barcoded_dpm		13.442247062195472						
+sample1_R1.part_001.barcoded_dpm.RDtrim			8.185053380782918	51.0	64.48398576512456	65	20.0	281.0
+sample1_R1.part_001_val_1			5.248868778280553	48.0	74.40995475113122	75	20.0	1105.0
+sample1_R2.part_000		0.08505905061013512						
+sample1_R2.part_000_val_2			45.945945945945944	46.0	134.54774774774774	132	20.0	1110.0
+sample1_R2.part_001		0.07628511071121195						
+sample1_R2.part_001_val_2			48.59728506787331	46.0	135.18733031674208	132	30.0	1105.0
+sample2.000	98.53							
+sample2.001	99.34							
+sample2_R1.part_000		0.7908117485194712						
+sample2_R1.part_000.barcoded_bpm		12.107760081328363						
+sample2_R1.part_000.barcoded_dpm		13.415233415233416						
+sample2_R1.part_000.barcoded_dpm.RDtrim			7.692307692307693	49.0	64.54212454212454	65	20.0	273.0
+sample2_R1.part_000_val_1			5.220522052205226	46.0	74.4050405040504	75	20.0	1111.0
+sample2_R1.part_001		0.789410348977136						
+sample2_R1.part_001.barcoded_bpm		12.12794776508179						
+sample2_R1.part_001.barcoded_dpm		13.884507535927092						
+sample2_R1.part_001.barcoded_dpm.RDtrim			10.163934426229503	50.0	64.44262295081967	65	20.0	305.0
+sample2_R1.part_001_val_1			5.615942028985515	48.0	74.40579710144928	75	20.0	1104.0
+sample2_R2.part_000		0.1006951840591778						
+sample2_R2.part_000_val_2			47.97479747974798	46.0	135.43114311431142	132	30.0	1111.0
+sample2_R2.part_001		0.16903880150199363						
+sample2_R2.part_001_val_2			50.815217391304344	46.0	135.3804347826087	132	40.0	1104.0

@@ -1,0 +1,30 @@
+[2024-08-06 02:29:38,505] multiqc                                            [DEBUG  ]  This is MultiQC v1.14 (4577a49)
+[2024-08-06 02:29:38,505] multiqc                                            [DEBUG  ]  Command used: /home/ingoronzy/chipdip-pipeline/.snakemake/conda/7156fc8349955ac6bd3fca3cc50f2efb_/bin/multiqc -f -o workup/qc workup
+[2024-08-06 02:29:39,288] multiqc                                            [WARNING]  MultiQC Version v1.23 now available!
+[2024-08-06 02:29:39,288] multiqc                                            [DEBUG  ]  Working dir : /home/ingoronzy/chipdip-pipeline
+[2024-08-06 02:29:39,288] multiqc                                            [DEBUG  ]  Template    : default
+[2024-08-06 02:29:39,288] multiqc                                            [DEBUG  ]  Running Python 3.10.14 | packaged by conda-forge | (main, Mar 20 2024, 12:45:18) [GCC 12.3.0]
+[2024-08-06 02:29:39,288] multiqc                                            [DEBUG  ]  Analysing modules: custom_content, ccs, ngsderive, purple, conpair, lima, peddy, somalier, methylQA, mosdepth, phantompeakqualtools, qualimap, preseq, hifiasm, quast, qorts, rna_seqc, rockhopper, rsem, rseqc, busco, bustools, goleft_indexcov, gffcompare, disambiguate, supernova, deeptools, sargasso, verifybamid, mirtrace, happy, mirtop, sambamba, gopeaks, homer, hops, macs2, theta2, snpeff, gatk, htseq, bcftools, featureCounts, fgbio, dragen, dragen_fastqc, dedup, pbmarkdup, damageprofiler, biobambam2, jcvi, mtnucratio, picard, vep, sentieon, prokka, qc3C, nanostat, samblaster, samtools, sexdeterrmine, eigenstratdatabasetools, bamtools, jellyfish, vcftools, longranger, stacks, varscan2, snippy, umitools, bbmap, bismark, biscuit, diamond, hicexplorer, hicup, hicpro, salmon, kallisto, slamdunk, star, hisat2, tophat, bowtie2, bowtie1, cellranger, snpsplit, odgi, pangolin, nextclade, humid, kat, leehom, adapterRemoval, bbduk, clipandmerge, cutadapt, flexbar, kaiju, kraken, malt, motus, trimmomatic, sickle, skewer, sortmerna, biobloomtools, fastq_screen, afterqc, fastp, fastqc, filtlong, prinseqplusplus, pychopper, porechop, pycoqc, minionqc, anglerfish, multivcfanalyzer, clusterflow, checkqc, bcl2fastq, bclconvert, interop, ivar, flash, seqyclean, optitype, whatshap
+[2024-08-06 02:29:39,288] multiqc                                            [DEBUG  ]  Using temporary directory for creating report: /tmp/tmppd2yvtre
+[2024-08-06 02:29:39,339] multiqc                                            [INFO   ]  Search path : /home/ingoronzy/chipdip-pipeline/workup
+[2024-08-06 02:29:39,941] multiqc                                            [DEBUG  ]  Summary of files that were skipped by the search: [skipped_module_specific_max_filesize: 259] // [skipped_no_match: 154] // [skipped_ignore_pattern: 85]
+[2024-08-06 02:29:40,152] multiqc.plots.bargraph                             [DEBUG  ]  Using matplotlib version 3.7.3
+[2024-08-06 02:29:40,152] multiqc.plots.linegraph                            [DEBUG  ]  Using matplotlib version 3.7.3
+[2024-08-06 02:29:40,153] multiqc                                            [DEBUG  ]  No samples found: custom_content
+[2024-08-06 02:29:40,155] multiqc.modules.bowtie2.bowtie2                    [INFO   ]  Found 4 reports
+[2024-08-06 02:29:40,169] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample1_R2.part_001
+[2024-08-06 02:29:40,169] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample2_R1.part_001
+[2024-08-06 02:29:40,181] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample2_R2.part_001
+[2024-08-06 02:29:40,186] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample1_R1.part_001
+[2024-08-06 02:29:40,186] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample2_R1.part_000
+[2024-08-06 02:29:40,194] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample1_R1.part_000
+[2024-08-06 02:29:40,195] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample2_R2.part_000
+[2024-08-06 02:29:40,200] multiqc.modules.cutadapt.cutadapt                  [DEBUG  ]  Duplicate sample name found! Overwriting: sample1_R2.part_000
+[2024-08-06 02:29:40,220] multiqc.modules.cutadapt.cutadapt                  [INFO   ]  Found 16 reports
+[2024-08-06 02:29:40,670] multiqc.modules.fastqc.fastqc                      [INFO   ]  Found 12 reports
+[2024-08-06 02:29:40,800] multiqc                                            [INFO   ]  Compressing plot data
+[2024-08-06 02:29:40,865] multiqc                                            [INFO   ]  Report      : workup/qc/multiqc_report.html
+[2024-08-06 02:29:40,865] multiqc                                            [INFO   ]  Data        : workup/qc/multiqc_data
+[2024-08-06 02:29:40,865] multiqc                                            [DEBUG  ]  Moving data file from '/tmp/tmppd2yvtre/multiqc_data' to 'workup/qc/multiqc_data'
+[2024-08-06 02:29:40,920] multiqc                                            [INFO   ]  MultiQC complete
+[2024-08-06 02:29:40,920] multiqc                                            [WARNING]  1 flat-image plot used in the report due to large sample numbers

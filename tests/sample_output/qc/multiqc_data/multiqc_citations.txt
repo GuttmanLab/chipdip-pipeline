@@ -1,0 +1,6 @@
+10.1093/bioinformatics/btw354                      # MultiQC
+10.1038/nmeth.1923                                 # bowtie2
+10.1038/nmeth.3317                                 # bowtie2
+10.1038/s41587-019-0201-4                          # bowtie2
+10.14806/ej.17.1.200                               # cutadapt
+

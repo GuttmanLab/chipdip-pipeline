@@ -1,0 +1,33 @@
+Module	Section	Sample Name	Source
+Bowtie 2 / HiSAT2	all_sections	sample2.001	/home/ingoronzy/chipdip-pipeline/workup/logs/sample2.001.bowtie2.log
+Bowtie 2 / HiSAT2	all_sections	sample1.000	/home/ingoronzy/chipdip-pipeline/workup/logs/sample1.000.bowtie2.log
+Bowtie 2 / HiSAT2	all_sections	sample2.000	/home/ingoronzy/chipdip-pipeline/workup/logs/sample2.000.bowtie2.log
+Bowtie 2 / HiSAT2	all_sections	sample1.001	/home/ingoronzy/chipdip-pipeline/workup/logs/sample1.001.bowtie2.log
+Cutadapt	all_sections	sample2_R1.part_001	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_001.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample2_R2.part_001	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R2.part_001.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample1_R1.part_000	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_000.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample1_R2.part_000	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R2.part_000.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample2_R1.part_000	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_000.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample2_R2.part_000	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R2.part_000.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample1_R1.part_001	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_001.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample1_R2.part_001	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R2.part_001.fastq.gz_trimming_report.txt
+Cutadapt	all_sections	sample2_R1.part_001.barcoded_dpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_001.barcoded_dpm.RDtrim.qc.txt
+Cutadapt	all_sections	sample1_R1.part_001.barcoded_bpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_001.barcoded_bpm.RDtrim.qc.txt
+Cutadapt	all_sections	sample1_R1.part_000.barcoded_bpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_000.barcoded_bpm.RDtrim.qc.txt
+Cutadapt	all_sections	sample1_R1.part_001.barcoded_dpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_001.barcoded_dpm.RDtrim.qc.txt
+Cutadapt	all_sections	sample2_R1.part_001.barcoded_bpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_001.barcoded_bpm.RDtrim.qc.txt
+Cutadapt	all_sections	sample1_R1.part_000.barcoded_dpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_000.barcoded_dpm.RDtrim.qc.txt
+Cutadapt	all_sections	sample2_R1.part_000.barcoded_dpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_000.barcoded_dpm.RDtrim.qc.txt
+Cutadapt	all_sections	sample2_R1.part_000.barcoded_bpm	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_000.barcoded_bpm.RDtrim.qc.txt
+FastQC	all_sections	sample1_R1.part_000.barcoded_dpm.RDtrim	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_000.barcoded_dpm.RDtrim_fastqc.zip
+FastQC	all_sections	sample1_R1.part_001.barcoded_dpm.RDtrim	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_001.barcoded_dpm.RDtrim_fastqc.zip
+FastQC	all_sections	sample2_R1.part_001.barcoded_dpm.RDtrim	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_001.barcoded_dpm.RDtrim_fastqc.zip
+FastQC	all_sections	sample1_R1.part_000_val_1	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_000_val_1_fastqc.zip
+FastQC	all_sections	sample2_R2.part_001_val_2	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R2.part_001_val_2_fastqc.zip
+FastQC	all_sections	sample2_R2.part_000_val_2	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R2.part_000_val_2_fastqc.zip
+FastQC	all_sections	sample2_R1.part_000_val_1	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_000_val_1_fastqc.zip
+FastQC	all_sections	sample1_R2.part_001_val_2	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R2.part_001_val_2_fastqc.zip
+FastQC	all_sections	sample1_R1.part_001_val_1	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R1.part_001_val_1_fastqc.zip
+FastQC	all_sections	sample1_R2.part_000_val_2	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample1_R2.part_000_val_2_fastqc.zip
+FastQC	all_sections	sample2_R1.part_001_val_1	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_001_val_1_fastqc.zip
+FastQC	all_sections	sample2_R1.part_000.barcoded_dpm.RDtrim	/home/ingoronzy/chipdip-pipeline/workup/trimmed/sample2_R1.part_000.barcoded_dpm.RDtrim_fastqc.zip

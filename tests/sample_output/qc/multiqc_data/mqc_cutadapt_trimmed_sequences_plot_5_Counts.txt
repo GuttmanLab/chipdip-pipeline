@@ -1,0 +1,387 @@
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6A10	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6A11	4
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6A12	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6A2	4
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6A3	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6A4	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6B1	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6B10	5
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6B11	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6B2	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6B4	3
+	25
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6B5	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6B6	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6C1	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6C10	2
+	10	41
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6C3	1	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6C5	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6C6	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6C8	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6C9	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6D10	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6D11	7
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6D3	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6D6	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6D8	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6D9	4
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E1	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E11	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E12	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E2	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E3	5
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E4	89
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E5	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6E8	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6F1	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6F12	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6F2	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6F4	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6F7	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6F8	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6G1	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6G11	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6G2	61
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6G3	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6G4	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6G8	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6H12	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6H2	2
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6H3	3
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6H6	1
+	10
+sample1_R1.part_000.barcoded_dpm - Adapter DPM6H9	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6A1	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6A12	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6A7	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6A8	5
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6A9	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6B1	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6B11	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6B2	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6B3	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6B4	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6B7	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6B8	8
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C11	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C12	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C2	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C3	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C5	80
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C6	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C7	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6C8	4
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6D1	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6D2	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6D5	7
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6D6	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6D7	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6D9	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6E1	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6E4	8
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6E5	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6E6	80
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6E7	5
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6E9	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6F12	4
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6F2	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6F3	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6F4	3
+	14
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6G1	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6G12	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6G2	5
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6G3	4
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6G4	3
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6G6	7
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6G7	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6H1	1
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6H3	2
+	10
+sample1_R1.part_001.barcoded_dpm - Adapter DPM6H4	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6A10	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6A12	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6A5	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6A6	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6A8	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B1	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B11	4
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B12	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B2	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B4	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B5	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B7	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B8	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6B9	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6C12	5
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6C2	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6C3	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6C5	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6C6	4
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6C7	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6C9	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6D1	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6D11	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6D5	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6D7	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6D8	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6E1	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6E11	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6E2	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6E6	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6E8	85
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6E9	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6F1	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6F10	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6F12	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6F2	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6F3	3
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6F4	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6F7	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6G12	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6G2	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6G3	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6G5	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6G7	4
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6G9	78
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6H1	1
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6H10	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6H11	2
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6H12	8
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6H2	5
+	10
+sample2_R1.part_000.barcoded_dpm - Adapter DPM6H5	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6A11	3
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6A12	5
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6A2	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6A4	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6A5	87
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6A6	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6A7	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6B1	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6B10	3
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6B12	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6B2	4
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6B4	3
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6B5	1
+	10	54
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6B8	2	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C1	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C10	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C11	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C12	4
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C2	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C3	3
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C5	7
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6C8	6
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6D1	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6D11	109
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6D3	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6D5	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6D9	3
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6E1	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6E11	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6E3	4
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6E8	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6F11	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6F3	3
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6F5	2
+	62
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6F7	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6G1	5
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6G10	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6G11	4
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6G3	4
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6G6	2
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6G7	3
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6G9	4
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6H3	1
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6H4	6
+	10
+sample2_R1.part_001.barcoded_dpm - Adapter DPM6H5	1
+

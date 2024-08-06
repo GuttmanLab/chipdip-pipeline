@@ -1,0 +1,5 @@
+Sample	total_reads	unpaired_total	unpaired_aligned_none	unpaired_aligned_one	unpaired_aligned_multi	overall_alignment_rate
+sample1.000	256	256	0	241	15	100.0
+sample1.001	281	281	4	270	7	98.58
+sample2.000	273	273	4	257	12	98.53
+sample2.001	305	305	2	292	11	99.34
