@@ -99,8 +99,6 @@ Terms
 - **Antibody ID**: a 9 nt sequence within the antibody oligo that uniquely identifies a type of antibody. In the pipeline, these are identified as a "BPM" tag.
 - **cluster**: a set of reads sharing the same split-pool barcode. Antibody oligo reads in the cluster are used to assign genomic DNA reads to specific antibodies.
 
-<!-- TODO: figures of expected sequences -->
-
 ## Pipeline
 
 The pipeline relies on scripts written in Java, Bash, Python. This pipeline has been validated using Java version 8.0.322 (`openjdk version "1.8.0_322"`) and Bash version 4.2.46. Versions of Python are specified in conda environments described in `envs/`, along with other third-party programs and packages that this pipeline depends on.
@@ -267,7 +265,6 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `cutadapt_dpm`
    - Used by: `cutadapt` (Snakefile `rule cutadapt_dpm`)
    - Each of these sequences are 10 nt long, consisting of a unique 9 nt DPM_Bottom sequences as originally designed for SPRITE (technically, only the first 8 nt are unique, and the 9th sequence is always a `T`), plus a `T` that is complementary to a 3' `A` added to a genomic DNA sequence via dA-tailing.
-<!--TODO: for chromatin read 1 - we are trimming the 5' DPM, but are we trimming the 3' DPM if the read extends beyond the DNA insert sequence? -->
 
 5. <a name="config-txt">`config.txt`</a>: Barcode config file - text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
    - Required? Yes.
@@ -325,7 +322,6 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        - The design of a DPM tags allows for 9 bp of unique sequence, but only 8 bp are used in the published SPRITE tag set (in bottom tags, the 9th bp is currently a constant `'T'`). `example_config.txt` therefore only includes the unique 8 bp sequences.
        - The design of EVEN and ODD tags allows for 17 bp of unique sequence, but only 16 bp are used in the published SPRITE tag set (in bottom tags, the 17th bp is currently a constant `'T'`). `example_config.txt` further trims the 1st unique bp from the bottom tag, leaving only the middle 15 bp unique bottom sequence.
        - The design of Y (terminal) tags allows for 9-12 bp of unique sequence.
-       <!-- TODO: why are the DPM sequences in the config.txt file trimmed compared to dpm96.fasta? -->
 
 6. <a name="format-txt">`format.txt`</a>: Barcode format file - tab-delimited text file indicating which split-pool barcode tags are valid in which round of split-pool barcoding (i.e., at which positions in the barcoding string).
    - Required? No, but highly recommended.
