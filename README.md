@@ -1,5 +1,6 @@
 Contents
 - [Overview](#overview)
+  - [General Requirements](#general-requirements)
   - [Quick Start](#quick-start)
   - [Background](#background)
   - [Pipeline](#pipeline)
@@ -20,6 +21,32 @@ Contents
 
 # Overview
 
+## General Requirements
+
+The ChIP-DIP pipeline has been tested on a high performance computing cluster running CentOS Linux7 and the following local environment: Intel® Core™ i9-11900H CPU @ 2.5GHz, RAM 32Gb DDR4-3200 running Ubuntu 22.04. 
+
+Required software includes:
+- Snakemake pipeline software (https://snakemake.readthedocs.io/en/stable/)
+- Conda package (https://docs.conda.io/projects/conda/en/latest/) or miniconda package (https://docs.conda.io/en/latest/miniconda.html)
+- Python 3.10 (https://www.python.org/)
+- Java 8 (https://www.java.com/en/download/)
+- Bowtie2 v2.5.1
+- Bedtools v2.31
+- Cutadapt v4.4
+- Deeptools v3.5.2
+- Fastqc v0.12.1
+- Multiqc v1.14
+- Pigz v2.6
+- Samtools v1.17
+- Trim galore! V0.6.1
+- Python packages:
+  - Numpy v1.23.5
+  - Matplotlib v3.7.3
+  - Pysam v0.21.9
+  - Pyysml v6.0
+  - Seaborn v0.12.2
+  - Tqdm v4.65
+
 ## Quick Start
 
 This pipeline assumes an existing [conda](https://conda.io) installation and is written as a [Snakemake](https://snakemake.github.io/) workflow. To install Snakemake with conda, run
@@ -29,7 +56,9 @@ conda env create -f envs/snakemake.yaml
 conda activate snakemake
 ```
 
-to create and activate a conda environment named `snakemake`. Once all the [input files](#input-files) are ready, run the pipeline on a SLURM server environment with
+to create and activate a conda environment named `snakemake`. Local install time for snakemake was ~2 minutes.
+
+Once all the [input files](#input-files) are ready, run the pipeline on a SLURM server environment or local enviornment (details in usage notes below) with
 
 ```
 ./run_pipeline.sh
