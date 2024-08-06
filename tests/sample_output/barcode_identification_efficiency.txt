@@ -1,0 +1,99 @@
+==> workup/sample1.part_000.bid_efficiency.txt <==
+8 (0.7%) reads found with 7 tags.
+95 (8.6%) reads found with 8 tags.
+68 (6.1%) reads found with 9 tags.
+65 (5.9%) reads found with 10 tags.
+56 (5.0%) reads found with 11 tags.
+49 (4.4%) reads found with 12 tags.
+133 (12.0%) reads found with 13 tags.
+636 (57.3%) reads found with 14 tags.
+
+1110 (100.0%) reads found with tag in position 1 (read 1, DPM).
+1110 (100.0%) reads found with tag in position 2 (read 2, Y).
+1110 (100.0%) reads found with tag in position 3 (read 2, ODD).
+1110 (100.0%) reads found with tag in position 4 (read 2, EVEN).
+1110 (100.0%) reads found with tag in position 5 (read 2, ODD).
+1110 (100.0%) reads found with tag in position 6 (read 2, EVEN).
+1110 (100.0%) reads found with tag in position 7 (read 2, ODD).
+1048 (94.4%) reads found with tag in position 8.
+931 (83.9%) reads found with tag in position 9.
+952 (85.8%) reads found with tag in position 10.
+879 (79.2%) reads found with tag in position 11.
+824 (74.2%) reads found with tag in position 12.
+776 (69.9%) reads found with tag in position 13.
+735 (66.2%) reads found with tag in position 14.
+
+==> workup/sample1.part_001.bid_efficiency.txt <==
+1 (0.1%) reads found with 7 tags.
+96 (8.7%) reads found with 8 tags.
+43 (3.9%) reads found with 9 tags.
+72 (6.5%) reads found with 10 tags.
+64 (5.8%) reads found with 11 tags.
+62 (5.6%) reads found with 12 tags.
+125 (11.3%) reads found with 13 tags.
+642 (58.1%) reads found with 14 tags.
+
+1105 (100.0%) reads found with tag in position 1 (read 1, DPM).
+1105 (100.0%) reads found with tag in position 2 (read 2, Y).
+1105 (100.0%) reads found with tag in position 3 (read 2, ODD).
+1105 (100.0%) reads found with tag in position 4 (read 2, EVEN).
+1105 (100.0%) reads found with tag in position 5 (read 2, ODD).
+1105 (100.0%) reads found with tag in position 6 (read 2, EVEN).
+1105 (100.0%) reads found with tag in position 7 (read 2, ODD).
+1047 (94.8%) reads found with tag in position 8.
+941 (85.2%) reads found with tag in position 9.
+968 (87.6%) reads found with tag in position 10.
+902 (81.6%) reads found with tag in position 11.
+840 (76.0%) reads found with tag in position 12.
+775 (70.1%) reads found with tag in position 13.
+735 (66.5%) reads found with tag in position 14.
+
+==> workup/sample2.part_000.bid_efficiency.txt <==
+3 (0.3%) reads found with 7 tags.
+93 (8.4%) reads found with 8 tags.
+48 (4.3%) reads found with 9 tags.
+51 (4.6%) reads found with 10 tags.
+57 (5.1%) reads found with 11 tags.
+66 (5.9%) reads found with 12 tags.
+123 (11.1%) reads found with 13 tags.
+670 (60.3%) reads found with 14 tags.
+
+1111 (100.0%) reads found with tag in position 1 (read 1, DPM).
+1111 (100.0%) reads found with tag in position 2 (read 2, Y).
+1111 (100.0%) reads found with tag in position 3 (read 2, ODD).
+1111 (100.0%) reads found with tag in position 4 (read 2, EVEN).
+1111 (100.0%) reads found with tag in position 5 (read 2, ODD).
+1111 (100.0%) reads found with tag in position 6 (read 2, EVEN).
+1111 (100.0%) reads found with tag in position 7 (read 2, ODD).
+1060 (95.4%) reads found with tag in position 8.
+939 (84.5%) reads found with tag in position 9.
+976 (87.8%) reads found with tag in position 10.
+920 (82.8%) reads found with tag in position 11.
+866 (77.9%) reads found with tag in position 12.
+805 (72.5%) reads found with tag in position 13.
+762 (68.6%) reads found with tag in position 14.
+
+==> workup/sample2.part_001.bid_efficiency.txt <==
+6 (0.5%) reads found with 7 tags.
+77 (7.0%) reads found with 8 tags.
+50 (4.5%) reads found with 9 tags.
+42 (3.8%) reads found with 10 tags.
+47 (4.3%) reads found with 11 tags.
+59 (5.3%) reads found with 12 tags.
+129 (11.7%) reads found with 13 tags.
+694 (62.9%) reads found with 14 tags.
+
+1104 (100.0%) reads found with tag in position 1 (read 1, DPM).
+1104 (100.0%) reads found with tag in position 2 (read 2, Y).
+1104 (100.0%) reads found with tag in position 3 (read 2, ODD).
+1104 (100.0%) reads found with tag in position 4 (read 2, EVEN).
+1104 (100.0%) reads found with tag in position 5 (read 2, ODD).
+1104 (100.0%) reads found with tag in position 6 (read 2, EVEN).
+1104 (100.0%) reads found with tag in position 7 (read 2, ODD).
+1034 (93.7%) reads found with tag in position 8.
+958 (86.8%) reads found with tag in position 9.
+980 (88.8%) reads found with tag in position 10.
+929 (84.1%) reads found with tag in position 11.
+892 (80.8%) reads found with tag in position 12.
+833 (75.5%) reads found with tag in position 13.
+792 (71.7%) reads found with tag in position 14.
