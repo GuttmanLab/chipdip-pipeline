@@ -1,0 +1,12 @@
+For clusterfile  workup/clusters/sample2.clusters
+Total number of clusters:  200
+Total number of BPM:  750
+Total number of DPM:  509
+For clusterfile  workup/clusters/sample1.clusters
+Total number of clusters:  201
+Total number of BPM:  711
+Total number of DPM:  476
+For clusterfile  workup/clusters/all.clusters
+Total number of clusters:  401
+Total number of BPM:  1461
+Total number of DPM:  985
