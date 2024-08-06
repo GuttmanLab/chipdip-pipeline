@@ -1,4 +1,4 @@
-# last updated: 2024-04-24
+# last updated: 2024-08-06
 name: chipdip
 channels:
   - conda-forge
@@ -9,6 +9,7 @@ dependencies:
   - cutadapt=4.4
   - deeptools=3.5.2
   - fastqc=0.12.1
+  - matplotlib=3.7.3
   - multiqc=1.14
   - numpy=1.23.5
   - pandas=2.0.3
