@@ -55,8 +55,15 @@ Other common usage notes
 To test that the pipeline runs correctly in your compute environment, you can verify that you obtain correctly demultiplexed BAM files from the provided example data. Note that this assumes that you are using the default configuration settings and have the `chipdip` conda environment installed:
 
 ```
-cd tests
-./verify_merged_splitbams_from_example_data.sh
+conda activate chipdip
+tests/verify_merged_splitbams_from_example_data.sh
+```
+
+Expected output upon successful verification:
+
+```
+AB1-A1 matches reference
+AB2-A2 matches reference
 ```
 
 ## Background

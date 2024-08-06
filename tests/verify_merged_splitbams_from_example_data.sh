@@ -3,22 +3,41 @@
 # Verify that pipeline output using default configuration parameters on example data
 # matches reference output.
 #
+# Usage: verify_merged_splitbams_from_example_data.sh [DIR_OUTPUT] [DIR_TEST_ASSETS] [DIR_TEMP]
+# - By default, verify_merged_splitbams_from_example_data.sh assumes that it is run from the
+#     pipeline directly (i.e., DIR_OUTPUT='.', DIR_TEST_ASSETS='test/assets', DIR_TEMP='.').
+# - DIR_OUTPUT: directory containing pipeline output (i.e., the splitbam folder should be
+#     located at DIR_OUTPUT/workup/splitbams)
+#     (default: .)
+# - DIR_TEST_ASSETS: directory containing test assets (e.g., reference BED files)
+#     (default: tests/assets)
+# - DIR_TEMP: directory for temporary BED files - useful for troubleshooting if the pipeline
+#     output does not match the reference output
+#     (default: .)
+#
+# Dependencies: bedtools, tested with version 2.31
+#
 # Implementation note: due to non-determinism in the pipeline (see README), BAM file
 # outputs cannot be compared directly. Consequently, the outputs can only be compared
 # at the level of counts of unique read positions on the genome - i.e., upon converting
 # BAM files to BED files.
 
-source ~/.bashrc
-conda activate chipdip
-
 DIR_OUTPUT="$1"
 if [ -z "$DIR_OUTPUT" ]; then
     DIR_OUTPUT="."
 fi
+DIR_TEST_ASSETS="$2"
+if [ -z "$DIR_TEST_ASSETS" ]; then
+    DIR_TEST_ASSETS="tests/assets"
+fi
+DIR_TEMP="$3"
+if [ -z "$DIR_TEMP" ]; then
+    DIR_TEMP="."
+fi
 
 # paths to reference BED files
-BED_REF_AB1="assets/AB1-A1.bed"
-BED_REF_AB2="assets/AB2-A2.bed"
+BED_REF_AB1="$DIR_TEST_ASSETS/AB1-A1.bed"
+BED_REF_AB2="$DIR_TEST_ASSETS/AB2-A2.bed"
 
 # hashes for merged splitbam output, converted to 3-column BED files, sorted lexicographically
 HASH_REF_AB1="ed3ec0eb6c1bdb954921dd5c34efc3a8"

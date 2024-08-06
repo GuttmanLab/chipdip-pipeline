@@ -1,7 +1,0 @@
-@HD	VN:1.6	SO:coordinate
-@SQ	SN:chr1	LN:100
-@SQ	SN:chr2	LN:150
-read1	0	chr1	1	30	8M	*	0	0	AAAAAAAA	*
-read2	0	chr1	10	30	8M	*	0	0	AAAAAAAA	*
-read3	0	chr2	20	30	8M	*	0	0	AAAAAAAA	*
-read4	0	chr2	30	30	8M	*	0	0	AAAAAAAA	*

@@ -1,3 +1,0 @@
-ref1	chr1
-ref3	chr3
-ref2	chr2
