@@ -1,0 +1,15 @@
+workup/splitbams/sample1.DNA.merged.labeled_AB1-A1.bam	204
+workup/splitbams/sample1.DNA.merged.labeled_AB2-A2.bam	228
+workup/splitbams/sample1.DNA.merged.labeled_ambiguous.bam	11
+workup/splitbams/sample1.DNA.merged.labeled_none.bam	8
+workup/splitbams/sample1.DNA.merged.labeled_uncertain.bam	25
+workup/splitbams/sample2.DNA.merged.labeled_AB1-A1.bam	225
+workup/splitbams/sample2.DNA.merged.labeled_AB2-A2.bam	256
+workup/splitbams/sample2.DNA.merged.labeled_ambiguous.bam	7
+workup/splitbams/sample2.DNA.merged.labeled_none.bam	4
+workup/splitbams/sample2.DNA.merged.labeled_uncertain.bam	17
+workup/splitbams/AB1-A1.bam	429
+workup/splitbams/AB2-A2.bam	484
+workup/splitbams/ambiguous.bam	18
+workup/splitbams/none.bam	12
+workup/splitbams/uncertain.bam	42
