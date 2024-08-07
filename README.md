@@ -86,10 +86,11 @@ AB2-A2 matches reference
 
 ### Benchmarks
 
-| Dataset | CPU; available cores | Operating System | Pipeline wall time (HH:MM:SS) | Core-hours utilized (HH:MM:SS) | Maximum memory utilization | Disk space of output files | Notes |
+| Dataset | CPU cores and architecture | Operating System | Pipeline wall time (HH:MM:SS) | Core-hours utilized (HH:MM:SS) | Maximum RAM utilization | Disk space of output files | Notes |
 | ------- | --- | ---------------- | ----------------------------- | ------------------------------ | -------------------------- | -------------------------- | ----- |
-| example dataset: 4,532 paired reads (<= 130 bp read 1, <= 150 bp read 2) | Intel Xeon Gold 6130; 2 cores | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/); includes creating chipdip conda environment |
-| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | Intel Xeon Gold 6130; 8 cores | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/); includes creating chipdip conda environment |
+| example dataset provided in `data/`: 4,532 paired reads (≤ 130 bp read 1, ≤ 150 bp read 2) | 2 cores of AMD EPYC 7763 | Ubuntu 20.04.6 LTS | 00:13:01 | 00:20:28 | 2.91 GB | 20 MB | <ul><li>run "locally" on a single node on [GitHub Codespaces](https://github.com/features/codespaces)</li><li>does not include creating a `chipdip` conda environment, which took an extra 00:01:40 and utilized a maximum of 1 GB RAM</li></ul> |
+| example dataset provided in `data/` | 2 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | <ul><li>run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/)</li><li>includes creating a `chipdip` conda environment</li></ul> |
+| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | 8 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | <ul><li>run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/)</li><li>includes creating a `chipdip` conda environment</li></ul> |
 
 ## Pipeline
 
