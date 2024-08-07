@@ -1,7 +1,8 @@
 Contents
 - [Overview](#overview)
   - [Quick Start](#quick-start)
-  - [Background](#background)
+  - [System Requirements](#system-requirements)
+    - [Benchmarks](#benchmarks)
   - [Pipeline](#pipeline)
 - [Directory Structures](#directory-structures)
 - [Input Files](#input-files)
@@ -66,19 +67,38 @@ AB1-A1 matches reference
 AB2-A2 matches reference
 ```
 
-## Background
+<!-- TODO: figures of expected sequences -->
+
+## System requirements
+
+- Hardware: This pipeline was developed to be run on an [HPC](https://en.wikipedia.org/wiki/High-performance_computing) cluster, but it can also be run locally on a personal computer.
+  - See benchmarks below for a sense of how hardware requirements scale with dataset size.
+  - Note: the `chipdip` conda environment itself takes ~2.2 GB disk space, and the unzipped mm10 and hg38 Bowtie 2 indices occupy 3.6 GB and 3.9 GB, respectively. The disk space numbers in the benchmark table below do not account for the size of the conda environment, Bowtie 2 indices, or temporary disk usage during the pipeline run.
+  - Recommended hardware: 4+ CPU cores, 24+ GB memory, 60 GB free disk space
+- Operating system: Linux
+  - Lack of Windows and macOS support is due to our use of the [bioconda](https://bioconda.github.io/) channel for creating the conda environments described in `envs/`. Bioconda currently does not support Windows. While Bioconda supports macOS, only a limited number of packages (or versions of packages) have been built for new ARM-based Mac computers (i.e., with M-series processors).
+  - If using Windows, we recommend using Windows Subsystem for Linux.
+- Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
+  - Java: 8.0.322 (`openjdk version "1.8.0_322"`)
+  - Bash: 4.2.46
+  - Python: 3.10 (as specified in conda environments described in `envs/`)
+- Packages: Additional required third-party programs and packages are specified in conda environments described in `envs/`.
+
+### Benchmarks
+
+| Dataset | CPU; available cores | Operating System | Pipeline wall time (HH:MM:SS) | Core-hours utilized (HH:MM:SS) | Maximum memory utilization | Disk space of output files | Notes |
+| ------- | --- | ---------------- | ----------------------------- | ------------------------------ | -------------------------- | -------------------------- | ----- |
+| example dataset: 4,532 paired reads (<= 130 bp read 1, <= 150 bp read 2) | Intel Xeon Gold 6130; 2 cores | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/); includes creating chipdip conda environment |
+| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | Intel Xeon Gold 6130; 8 cores | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/); includes creating chipdip conda environment |
+
+## Pipeline
 
 Terms
+
 - **split-pool tag**: the individual sequences that are added during a single round of split-pool barcoding (DPM, EVEN, ODD, TERM)
 - **split-pool barcode**: the permutation of split-pool tags that uniquely identifies a cluster
 - **Antibody ID**: a 9 nt sequence within the antibody oligo that uniquely identifies a type of antibody. In the pipeline, these are identified as a "BPM" tag.
 - **cluster**: a set of reads sharing the same split-pool barcode. Antibody oligo reads in the cluster are used to assign genomic DNA reads to specific antibodies.
-
-<!-- TODO: figures of expected sequences -->
-
-## Pipeline
-
-The pipeline relies on scripts written in Java, Bash, Python. This pipeline has been validated using Java version 8.0.322 (`openjdk version "1.8.0_322"`) and Bash version 4.2.46. Versions of Python are specified in conda environments described in `envs/`, along with other third-party programs and packages that this pipeline depends on.
 
 Workflow
 
