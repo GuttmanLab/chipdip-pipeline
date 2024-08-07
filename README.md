@@ -80,7 +80,7 @@ AB2-A2 matches reference
   - If using Windows, we recommend using Windows Subsystem for Linux.
 - Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
   - Java: 8.0.322 (`openjdk version "1.8.0_322"`)
-  - Bash: 4.2.46
+  - Bash: 4.2 through 5.1
   - Python: 3.10 (as specified in conda environments described in `envs/`)
 - Packages: Additional required third-party programs and packages are specified in conda environments described in `envs/`.
 
