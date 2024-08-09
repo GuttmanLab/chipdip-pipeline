@@ -79,10 +79,14 @@ AB2-A2 matches reference
   - Lack of Windows and macOS support is due to our use of the [bioconda](https://bioconda.github.io/) channel for creating the conda environments described in `envs/`. Bioconda currently does not support Windows. While Bioconda supports macOS, only a limited number of packages (or versions of packages) have been built for new ARM-based Mac computers (i.e., with M-series processors).
   - If using Windows, we recommend using Windows Subsystem for Linux.
 - Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
-  - Java: 8.0.322 (`openjdk version "1.8.0_322"`)
+  - Java: 8.0.322 through 11.0.22
   - Bash: 4.2 through 5.1
-  - Python: 3.10 (as specified in conda environments described in `envs/`)
+  - Python: 3.9+
 - Packages: Additional required third-party programs and packages are specified in conda environments described in `envs/`.
+- Note: Other versions of the same software programs will likely work, but we have not tested all of them. Some specific requirements are discussed below.
+  - Some of the scripts (such as `rename_and_filter_chr.py`) take advantage of features introduced in Python 3.9.
+  - The version of `deeptools` used (3.5.2) requires a `matplotlib` version between 3.1.0 and 3.7.5, since later versions of matplotlib deprecate some functions used by `deeptools` version 3.5.2. Newer versions of `deeptools` have been updated to support the newer `matplotlib` APIs.
+  - NumPy version 2.x is not currently supported.
 
 ### Benchmarks
 
