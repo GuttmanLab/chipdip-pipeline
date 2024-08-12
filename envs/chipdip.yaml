@@ -1,4 +1,4 @@
-# last updated: 2024-08-06
+# last updated: 2024-08-12
 name: chipdip
 channels:
   - conda-forge
@@ -12,6 +12,7 @@ dependencies:
   - matplotlib=3.7.3
   - multiqc=1.14
   - numpy=1.23.5
+  - openjdk=8.0.412
   - pandas=2.0.3
   - pigz=2.6
   - pysam=0.21.0

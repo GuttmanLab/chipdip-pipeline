@@ -547,6 +547,8 @@ rule barcode_id:
         r2_barcoded = os.path.join(DIR_WORKUP, "fastqs/{sample}_R2.part_{splitid}.barcoded.fastq.gz")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.barcode_id.log")
+    conda:
+        conda_env
     shell:
         '''
         java -jar "{barcode_id_jar}" \
