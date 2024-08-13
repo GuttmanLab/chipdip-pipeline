@@ -77,7 +77,7 @@ AB2-A2 matches reference
   - Recommended hardware: 4+ CPU cores, 24+ GB memory, 60 GB free disk space
 - Operating system: Linux
   - Lack of Windows and macOS support is due to our use of the [bioconda](https://bioconda.github.io/) channel for creating the conda environments described in `envs/`. Bioconda currently does not support Windows. While Bioconda supports macOS, only a limited number of packages (or versions of packages) have been built for new ARM-based Mac computers (i.e., with M-series processors).
-  - If using Windows, we recommend using Windows Subsystem for Linux.
+  - If using Windows, we recommend using Windows Subsystem for Linux (WSL).
 - Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
   - Java: 8.0.322 through 11.0.22 (the `envs/chipdip.yaml` conda environment file currently uses version 8.0.412)
   - Bash: 4.2 through 5.1
@@ -90,11 +90,12 @@ AB2-A2 matches reference
 
 ### Benchmarks
 
-| Dataset | CPU cores and architecture | Operating System | Pipeline wall time (HH:MM:SS) | Core-hours utilized (HH:MM:SS) | Maximum RAM utilization | Disk space of output files | Notes |
-| ------- | --- | ---------------- | ----------------------------- | ------------------------------ | -------------------------- | -------------------------- | ----- |
-| example dataset provided in `data/`: 4,532 paired reads (≤ 130 bp read 1, ≤ 150 bp read 2) | 2 cores of AMD EPYC 7763 | Ubuntu 20.04.6 LTS | 00:13:01 | 00:20:28 | 2.91 GB | 20 MB | <ul><li>run "locally" on a single node on [GitHub Codespaces](https://github.com/features/codespaces)</li><li>does not include creating a `chipdip` conda environment, which took an extra 00:01:40 and utilized a maximum of 1 GB RAM</li></ul> |
-| example dataset provided in `data/` | 2 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | <ul><li>run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/)</li><li>includes creating a `chipdip` conda environment</li></ul> |
-| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | 8 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | <ul><li>run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/)</li><li>includes creating a `chipdip` conda environment</li></ul> |
+| Dataset | CPU cores and architecture | Operating System | Pipeline wall time (HH:MM:SS) | Core-hours utilized (HH:MM:SS) | Maximum RAM utilization | Disk space of output files | Benchmark times include creating `chipdip` conda environment? | Notes |
+| ------- | -------------------------- | ---------------- | ----------------------------- | ------------------------------ | ----------------------- | -------------------------- | --------------------------------------------- | ----- |
+| example dataset provided in `data/`: 4,532 paired reads (≤ 130 bp read 1, ≤ 150 bp read 2) | 2 cores of AMD EPYC 7763 | Ubuntu 20.04.6 LTS | 00:13:01 | 00:20:28 | 2.91 GB | 20 MB | No | run "locally" on a single node on [GitHub Codespaces](https://github.com/features/codespaces) |
+| example dataset provided in `data/` | Intel Core i5-4300U | Ubuntu 22.04.4 LTS via WSL | 00:12:23 | 00:41:31 | 2.76 GB | 14 MB | No | Hyperthreading enabled, `snakemake` run with `--jobs 4` |
+| example dataset provided in `data/` | 2 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | Yes | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/) |
+| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | 8 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | Yes | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/) |
 
 ## Pipeline
 
