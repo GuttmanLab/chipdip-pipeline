@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/614701579.svg)](https://doi.org/10.5281/zenodo.13952457)
+
 Contents
 - [Overview](#overview)
   - [Quick Start](#quick-start)
