@@ -73,18 +73,24 @@ AB2-A2 matches reference
 
 ## System Requirements
 
-- Hardware: This pipeline was developed to be run on an [HPC](https://en.wikipedia.org/wiki/High-performance_computing) cluster, but it can also be run locally on a personal computer.
-  - See benchmarks below for a sense of how hardware requirements scale with dataset size.
-  - Note: the `chipdip` conda environment itself takes ~2.2 GB disk space, and the unzipped mm10 and hg38 Bowtie 2 indices occupy 3.6 GB and 3.9 GB, respectively. The disk space numbers in the benchmark table below do not account for the size of the conda environment, Bowtie 2 indices, or temporary disk usage during the pipeline run.
-  - Recommended hardware: 4+ CPU cores, 24+ GB memory, 60 GB free disk space
-- Operating system: Linux
-  - Lack of Windows and macOS support is due to our use of the [bioconda](https://bioconda.github.io/) channel for creating the conda environments described in `envs/`. Bioconda currently does not support Windows. While Bioconda supports macOS, only a limited number of packages (or versions of packages) have been built for new ARM-based Mac computers (i.e., with M-series processors).
-  - If using Windows, we recommend using Windows Subsystem for Linux (WSL).
-- Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
-  - Java: 8.0.322 through 11.0.22 (the `envs/chipdip.yaml` conda environment file currently uses version 8.0.412)
-  - Bash: 4.2 through 5.1
-  - Python: 3.9+ (the `envs/chipdip.yaml` conda environment file currently uses version 3.10)
-- Packages: Additional required third-party programs and packages are specified in conda environments described in `envs/`.
+Hardware: This pipeline was developed to be run on an [HPC](https://en.wikipedia.org/wiki/High-performance_computing) cluster, but it can also be run locally on a personal computer.
+- See benchmarks below for a sense of how hardware requirements scale with dataset size.
+- Note: the `chipdip` conda environment itself takes ~2.2 GB disk space, and the unzipped mm10 and hg38 Bowtie 2 indices occupy 3.6 GB and 3.9 GB, respectively. The disk space numbers in the benchmark table below do not account for the size of the conda environment, Bowtie 2 indices, or temporary disk usage during the pipeline run.
+- Recommended hardware: 4+ CPU cores, 24+ GB memory, 60 GB free disk space
+
+Operating system: Linux, macOS
+- Lack of Windows support is due to our use of the [Bioconda](https://bioconda.github.io/) channel for creating the conda environments described in `envs/`. [Bioconda currently does not support Windows](https://bioconda.github.io/faqs.html#what-versions-are-supported). However, we have successfully run this pipeline on Windows Subsystem for Linux (WSL).
+- While Bioconda supports macOS and has built an [extensive repository of packages](https://conda.anaconda.org/bioconda/osx-64/) for x86_64-based Macs (i.e., with Intel processors; conda platform `osx-64`), only a [limited number of packages (or versions of packages) have been built](https://conda.anaconda.org/bioconda/osx-arm64/) for new ARM-based Macs (i.e., with M-series Apple Silicon processors; conda platform `osx-arm64`). Consequently, the versions specified by the environment YAML files described in `envs/` may not be available on Bioconda for the `osx-arm64` platform.
+  - To run this pipeline on an Apple Silicon Mac, we recommend using conda to create an environment targeting the `osx-64` platform, and executing the pipeline programs under [Rosetta translation](https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment):
+    - Create a reusable environment using `conda env create -f envs/chipdip.yaml --platform osx-64`, and modify the `conda_env` key in [`config.yaml`](#config-yaml) to `"chipdip"`.
+    - While [macOS should automatically prompt to install Rosetta if needed](https://support.apple.com/en-us/102527), it can also be [manually installed](https://techcommunity.microsoft.com/blog/intunecustomersuccess/support-tip-install-rosetta-2-on-new-apple-silicon-m1-macs-to-run-apps-built-for/2087631) using the terminal command `/usr/sbin/softwareupdate --install-rosetta`.
+
+Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
+- Java: 8.0.322 through 11.0.22 (the `envs/chipdip.yaml` conda environment file currently uses version 8.0.412)
+- Bash: 4.2 through 5.1
+- Python: 3.9+ (the `envs/chipdip.yaml` conda environment file currently uses version 3.10)
+
+Packages: Additional required third-party programs and packages are specified in conda environments described in `envs/`.
 - Note: Other versions of the same software programs will likely work, but we have not tested all of them. Some specific requirements are discussed below.
   - Some of the scripts (such as `rename_and_filter_chr.py`) take advantage of features introduced in Python 3.9.
   - The version of `deeptools` used (3.5.2) requires a `matplotlib` version between 3.1.0 and 3.7.5, since later versions of matplotlib deprecate some functions used by `deeptools` version 3.5.2. Newer versions of `deeptools` have been updated to support the newer `matplotlib` APIs.
