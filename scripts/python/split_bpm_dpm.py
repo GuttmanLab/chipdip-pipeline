@@ -57,7 +57,7 @@ def main():
     incomplete = 0
     counter = 0
 
-    pattern = re.compile("\[([a-zA-Z0-9_\-]+)\]")
+    pattern = re.compile(r"\[([a-zA-Z0-9_\-]+)\]")
 
     with file_open(read_1_path) as read_1, \
          gzip.open(dpm_out_path, "wt") as dpm_out, \

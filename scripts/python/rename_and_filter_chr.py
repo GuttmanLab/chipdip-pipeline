@@ -37,9 +37,9 @@ def main():
                     os.symlink(os.path.abspath(args.input), args.output)
                     return
                 except Exception as err:
-                    if verbose:
+                    if not args.quiet:
                         print(
-                            f"Error upon attempt to create a symbolic link from {path_bam_in} to {path_bam_out}:", err
+                            f"Error upon attempt to create a symbolic link from {args.output} to {args.input}:", err
                         )
             shutil.copyfile(args.input, args.output)
     else:

@@ -122,7 +122,7 @@ def label_bam_file(input_bam, output_bam, labels, num_tags, progress=False):
     # map from read group label to number of reads written
     written = defaultdict(int)
 
-    pattern = re.compile("::" + num_tags * "\[([a-zA-Z0-9_\-]+)\]")
+    pattern = re.compile("::" + num_tags * r"\[([a-zA-Z0-9_\-]+)\]")
 
     # map from full barcode to set of positions, where a "full barcode" is the barcode plus the library name, and
     # the library name is derived from the name of the input BAM file

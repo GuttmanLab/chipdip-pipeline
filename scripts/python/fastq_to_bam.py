@@ -8,7 +8,7 @@ import pandas as pd
 import pysam
 
 # regular expression for bead oligo name
-PATTERN = re.compile("\[BEAD_([a-zA-Z0-9_\-]+)\]")
+PATTERN = re.compile(r"\[BEAD_([a-zA-Z0-9_\-]+)\]")
 
 
 def main():
@@ -98,7 +98,7 @@ def initialize_alignment(header, query_name, reference_name, query_sequence, UMI
     aligned_segment.reference_start = sequence_to_int(query_sequence[0:UMI_length], query_name)
     aligned_segment.query_sequence = query_sequence
     aligned_segment.flag = 0
-    aligned_segment.cigar = ((0, len(query_sequence)),)
+    aligned_segment.cigartuples = [(0, len(query_sequence)),]
     return aligned_segment
 
 

@@ -29,7 +29,7 @@ class BarcodeIdentificationEfficiency:
     def __init__(self):
         self._aggregate_count = Counter()
         self._position_count = Counter()
-        self._pattern = re.compile("\[([a-zA-Z0-9_\-]+)\]")
+        self._pattern = re.compile(r"\[([a-zA-Z0-9_\-]+)\]")
         self._total = 0
         self._position_names = defaultdict(str)
 

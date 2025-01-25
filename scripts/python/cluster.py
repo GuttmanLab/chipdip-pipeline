@@ -205,7 +205,7 @@ def get_clusters(filelist, num_tags):
     """
 
     clusters = Clusters()
-    pattern = re.compile("::" + num_tags * "\[([a-zA-Z0-9_\-]+)\]")
+    pattern = re.compile("::" + num_tags * r"\[([a-zA-Z0-9_\-]+)\]")
     dpm_counts = 0
     bpm_counts = 0
     for sample in filelist:
@@ -297,7 +297,7 @@ def parse_clusters(c_file):
 
     total_reads = 0
     clusters = Clusters()
-    pattern = re.compile("([a-zA-Z0-9]+)\[(.*)\]_(.+):([0-9]+)\-([0-9]+)")
+    pattern = re.compile(r"([a-zA-Z0-9]+)\[(.*)\]_(.+):([0-9]+)\-([0-9]+)")
 
     with file_open(c_file) as c:
         for line in tqdm(c):
@@ -347,7 +347,7 @@ def merge_clusters(in_file, out_file):
     current_barcode = ""
     current_reads = set()
     count = 0
-    pattern = re.compile("([a-zA-Z0-9]+)\[(.*)\]_(.+):([0-9]+)\-([0-9]+)")
+    pattern = re.compile(r"([a-zA-Z0-9]+)\[(.*)\]_(.+):([0-9]+)\-([0-9]+)")
     with open(in_file, "r") as in_clusters, \
          open(out_file, "w") as out_clusters:
         for line in in_clusters:
