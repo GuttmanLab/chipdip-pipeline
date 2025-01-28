@@ -1,4 +1,4 @@
-# last updated: 2024-12-10
+# last updated: 2025-01-27
 name: chipdip
 channels:
   - conda-forge
@@ -20,10 +20,10 @@ dependencies:
   - openjdk=8.0.412
   - pandas=2.0.3
   - pigz=2.6
-  - pysam=0.21.0
+  - pysam=0.22.1
   - python=3.10
   - pyyaml=6.0
-  - samtools=1.17
+  - samtools=1.21
   - seaborn=0.12.2
   - sed>=4.7, <=4.8
   - tqdm=4.65
