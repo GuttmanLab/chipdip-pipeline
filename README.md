@@ -55,7 +55,7 @@ Other common usage notes
   ```
   and modify the `conda_env` key in [`config.yaml`](#config-yaml) to `"chipdip"`.
 
-To test that the pipeline runs correctly in your compute environment, you can verify that you obtain correctly demultiplexed BAM files from the provided example data. Note that this assumes that you are using the default configuration settings and have the `chipdip` conda environment installed:
+To test that the pipeline runs correctly in your compute environment, you can verify that you obtain correct cluster statistics and demultiplexed BAM files from the provided example data. Note that this assumes that you are using the default configuration settings and have the `chipdip` conda environment installed:
 
 ```
 conda activate chipdip
@@ -65,8 +65,9 @@ tests/verify_merged_splitbams_from_example_data.sh
 Expected output upon successful verification:
 
 ```
-AB1-A1 matches reference
-AB2-A2 matches reference
+AB1-A1 matches reference.
+AB2-A2 matches reference.
+MD5 checksum of cluster_statistics.txt matches reference.
 ```
 
 <!-- TODO: figures of expected sequences -->

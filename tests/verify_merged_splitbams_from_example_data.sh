@@ -43,6 +43,9 @@ BED_REF_AB2="$DIR_TEST_ASSETS/AB2-A2.bed"
 HASH_REF_AB1="ed3ec0eb6c1bdb954921dd5c34efc3a8"
 HASH_REF_AB2="d89dbda765c35bdde188dbdde1a1e161"
 
+# hash for expected cluster statistics file
+HASH_REF_CLUSTERS="b2efa9824814cca021e287ba36ebb20f"
+
 # check that reference BED files are not corrupted
 hash_ab1=$(md5sum "$BED_REF_AB1" | cut -f 1 -d ' ')
 [ "$hash_ab1" != "$HASH_REF_AB1" ] && echo "Corrupt reference BED file $BED_REF_AB1" && exit 1
@@ -61,8 +64,12 @@ bedtools bamtobed -i "$DIR_OUTPUT"/workup/splitbams/AB2-A2.bam |
 
 diff "$tmpbed1" "$BED_REF_AB1"
 # delete BED files if they match reference
-[ "$?" = 0 ] && echo "AB1-A1 matches reference" && rm "$tmpbed1"
+[ "$?" = 0 ] && echo "AB1-A1 matches reference." && rm "$tmpbed1"
 
 diff "$tmpbed2" "$BED_REF_AB2"
 # delete BED files if they match reference
-[ "$?" = 0 ] && echo "AB2-A2 matches reference" && rm "$tmpbed2"
+[ "$?" = 0 ] && echo "AB2-A2 matches reference." && rm "$tmpbed2"
+
+# validate cluster file
+hash_cluster=$(export LC_ALL=C; sort "$DIR_OUTPUT"/workup/clusters/cluster_statistics.txt | md5sum | cut -f 1 -d ' ')
+[ "$hash_cluster" = "$HASH_REF_CLUSTERS" ] && echo "MD5 checksum of cluster_statistics.txt matches reference."
