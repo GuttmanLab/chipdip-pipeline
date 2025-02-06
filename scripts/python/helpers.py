@@ -12,6 +12,10 @@ import re
 # - https://stackoverflow.com/a/47080739
 GZIP_MAGIC_NUMBER = b"\x1f\x8b"
 
+# valid reference sequence names, as defined in the SAM specification at
+#   https://samtools.github.io/hts-specs/SAMv1.pdf
+REGEX_RNAME = re.compile(r'[0-9A-Za-z!#$%&+./:;?@^_|~-][0-9A-Za-z!#$%&*+./:;=?@^_|~-]*')
+
 
 class AutoCloseGzipFile(gzip.GzipFile):
     """
@@ -98,9 +102,6 @@ def parse_chrom_map(path):
     """
     Parse a chromosome name map file to a dict mapping old chromosome names to new names.
     """
-    # valid reference sequence names, as defined in the SAM specification at
-    #   https://samtools.github.io/hts-specs/SAMv1.pdf
-    REGEX_RNAME = re.compile(r'[0-9A-Za-z!#$%&+./:;?@^_|~-][0-9A-Za-z!#$%&*+./:;=?@^_|~-]*')
     chrom_map = dict()
     with open(path, 'rt') as f:
         for line in f:

@@ -1,15 +1,17 @@
 """
-Rename and reorder chromosomes in a BAM file, and select only reads aligned to those chromosomes
+Rename and select chromosomes in a FASTA or BAM file.
 """
 
 import argparse
 import copy
+import gzip
+import io
 import os
 import shutil
 import subprocess
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-from helpers import positive_int, parse_chrom_map
+import helpers
 import pysam
 
 
@@ -27,11 +29,22 @@ def main():
     <path>    | True, False | <path> | Rename/filter chromosomes, write to <path>
     """
     args = parse_arguments()
+
+    # support standard input
+    if args.input == "-":
+        args.input = sys.stdin.buffer
+        args.try_symlink = False
+
     if args.chrom_map is None:
         if args.output is None:
-            with open(args.input, "rb") as f:
-                shutil.copyfileobj(f, sys.stdout.buffer)
+            # write input to standard out
+            if args.input is sys.stdin.buffer:
+                shutil.copyfileobj(sys.stdin.buffer, sys.stdout.buffer)
+            else:
+                with open(args.input, "rb") as f:
+                    shutil.copyfileobj(f, sys.stdout.buffer)
         else:
+            # try symlink if requested
             if args.try_symlink:
                 try:
                     os.symlink(os.path.abspath(args.input), args.output)
@@ -41,48 +54,79 @@ def main():
                         print(
                             f"Error upon attempt to create a symbolic link from {args.output} to {args.input}:", err
                         )
-            shutil.copyfile(args.input, args.output)
+            # if symlink fails or symlink not requested, copy input to output
+            if args.input is sys.stdin.buffer:
+                with open(args.output, "wb") as f:
+                    shutil.copyfileobj(sys.stdin.buffer, f)
+            else:
+                shutil.copyfile(args.input, args.output)
     else:
-        chrom_map = parse_chrom_map(args.chrom_map)
-        filter_reads(
-            args.input,
-            args.output,
-            chrom_map,
-            try_symlink=args.try_symlink,
-            sort=args.sort,
-            no_PG=args.no_PG,
-            threads=args.threads,
-            verbose=not args.quiet,
-        )
+        chrom_map = helpers.parse_chrom_map(args.chrom_map)
+        if args.fasta:
+            filter_fasta(
+                args.input,
+                args.output,
+                chrom_map
+            )
+        else:
+            filter_reads(
+                args.input,
+                args.output,
+                chrom_map,
+                try_symlink=args.try_symlink,
+                sort=args.sort,
+                no_PG=args.no_PG,
+                threads=args.threads,
+                verbose=not args.quiet,
+            )
 
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Rename chromosomes and keep only reads aligned to selected chromosomes."
+        description=(
+            "Rename and select chromosomes in a FASTA or BAM file. "
+            "For BAM files, keep only reads aligned to selected chromosomes, and "
+            "reorder the chromosomes in the BAM file header."
+        )
     )
-    parser.add_argument("input", metavar="in.bam", help="Input BAM file")
     parser.add_argument(
-        "-o", "--output", metavar="out.bam", help="Output BAM file. If not provided, writes to standard out."
+        "input",
+        metavar="in.bam|in.fasta(.gz)|-",
+        help=(
+            "Input file. Assumed to be BAM format unless the -f/--fasta flag is used. "
+            "Use '-' for standard input."
+        )
+    )
+    parser.add_argument(
+        "-f", "--fasta",
+        action="store_true",
+        help="Input file is FASTA format."
+    )
+    parser.add_argument(
+        "-o", "--output",
+        metavar="out.bam|out.fasta",
+        help="Output file. If not provided, writes to standard out."
     )
     parser.add_argument(
         "-c", "--chrom_map",
         metavar="PATH",
-        help="Chromosome name map file")
+        help="Chromosome name map file."
+    )
     parser.add_argument(
         "--try-symlink",
         action="store_true",
         help=(
-            "If -c/--chrom_map is not specified (i.e., no changes are required), try to make a symbolic link "
-            "from input to output."
-        ),
+            "If -c/--chrom_map is not specified (i.e., no changes are required), "
+            "try to make a symbolic link from input to output."
+        )
     )
     parser.add_argument(
         "-t", "--threads",
-        type=positive_int,
+        type=helpers.positive_int,
         default=1,
         metavar="#",
-        help="Number of threads to use for compressing/decompressing BAM files",
+        help="Number of threads to use for compressing/decompressing BAM files."
     )
     parser.add_argument(
         "--sort",
@@ -90,15 +134,16 @@ def parse_arguments():
         choices=("auto", "true", "false"),
         default="auto",
         help=(
-            "(Only relevant if -c/--chrom_map is specified) Whether to sort the processed BAM file. "
+            "(Only relevant if -c/--chrom_map is specified and the input is a BAM file) "
+            "Whether to sort the processed BAM file. "
             "If 'auto', will only re-sort if the order of chromosomes given in the chromosome name map "
             "is different than the existing chromosome order."
-        ),
+        )
     )
     parser.add_argument(
         "-q", "--quiet",
         action="store_true",
-        help="Do not print the number of discarded reads and output reads to standard error.",
+        help="Do not print the number of discarded reads and output reads to standard error."
     )
     parser.add_argument(
         "--no-PG",
@@ -169,8 +214,8 @@ def filter_reads(
     chromosomes.
 
     Args
-    - path_bam_in: str
-        Path to input BAM file
+    - path_bam_in: str, io.TextIOWrapper, io.BufferedReader
+        Path to input BAM file or sys.stdin or sys.stdin.buffer
     - path_bam_out: str or None
         Path to output BAM file. If None, writes to standard out.
     - chrom_map: dict (str -> str)
@@ -249,6 +294,54 @@ def filter_reads(
         print("Discarded reads:", count_discard, file=sys.stderr)
         print("Written out reads:", count_out, file=sys.stderr)
 
+
+def filter_fasta(path_in, path_out, chrom_map) -> None:
+    """
+    Rename and select chromosomes from a FASTA file according to a chromosome name map.
+
+    Args
+    - path_in: str or file object
+        Path to input FASTA file or file object.
+        Support normal text or gzip-compressed text.
+    - path_out: str, file object, or None
+        Path to output FASTA file or file object. If None, writes to standard out.
+    - chrom_map: dict (str -> str)
+        Map from old reference sequence names to new reference sequence names.
+    """
+    # convert path_in to a text IO stream if necessary
+    if isinstance(path_in, io.IOBase) and not isinstance(path_in, io.TextIOBase):
+        first_two_bytes = path_in.peek(2)[:2]
+        if first_two_bytes == helpers.GZIP_MAGIC_NUMBER:
+            f = gzip.GzipFile(fileobj=path_in, mode="rb")
+        else:
+            f = path_in
+        return filter_fasta(io.TextIOWrapper(f, encoding="utf-8"), path_out, chrom_map)
+    elif not isinstance(path_in, io.IOBase):
+        with helpers.file_open(path_in, mode="rt") as f:
+            return filter_fasta(f, path_out, chrom_map)
+
+    # convert path_out to a text IO stream if necessary
+    if path_out is None:
+        path_out = sys.stdout
+    if not isinstance(path_out, io.IOBase):
+        if path_out.endswith('.gz'):
+            with gzip.open(path_out, "wt") as f:
+                return filter_fasta(path_in, f, chrom_map)
+        else:
+            with open(path_out, "wt") as f:
+                return filter_fasta(path_in, f, chrom_map)
+
+    include = False
+    for line in path_in:
+        if line.startswith('>'):
+            old_name = helpers.REGEX_RNAME.search(line[1:]).group()
+            if old_name in chrom_map:
+                path_out.write('>' + chrom_map[old_name] + '\n')
+                include = True
+            else:
+                include = False
+        elif include:
+            path_out.write(line)
 
 if __name__ == "__main__":
     main()
