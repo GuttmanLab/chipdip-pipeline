@@ -95,9 +95,9 @@ def calculate_bed_size(path_bed, chrom_set=None):
         Number of base pairs
     """
     size = 0
-    with file_open(path_bed) as f:
+    with file_open(path_bed, mode="rt") as f:
         for line in f:
-            chrom, start, end = line.decode().strip().split()[:3]
+            chrom, start, end = line.strip().split()[:3]
             if chrom_set is None or chrom in chrom_set:
                 size += int(end) - int(start)
     return size

@@ -76,7 +76,7 @@ class BarcodeIdentificationEfficiency:
                 self._total += 1
 
     def count_tags_in_fastq_file(self, fastqfile):
-        with file_open(fastqfile) as f:
+        with file_open(fastqfile, mode="rt") as f:
             for qname, seq, thrd, qual in fastq_parse(f):
                 self.count_tags_in_name(qname)
                 self._total += 1

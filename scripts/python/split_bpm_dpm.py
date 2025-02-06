@@ -59,7 +59,7 @@ def main():
 
     pattern = re.compile(r"\[([a-zA-Z0-9_\-]+)\]")
 
-    with file_open(read_1_path) as read_1, \
+    with file_open(read_1_path, mode="rt") as read_1, \
          gzip.open(dpm_out_path, "wt") as dpm_out, \
          gzip.open(bpm_out_path, "wt") as bpm_out, \
          gzip.open(other_out_path, "wt") as other_out, \

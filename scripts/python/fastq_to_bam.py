@@ -63,7 +63,8 @@ def convert_reads(path_in, path_out, header, UMI_length):
         Length of the UMI
     """
     counter = 0
-    with pysam.AlignmentFile(path_out, "wb", header=header) as output_bam, file_open(path_in) as reads:
+    with pysam.AlignmentFile(path_out, "wb", header=header) as output_bam, \
+         file_open(path_in, mode="rt") as reads:
         for qname, seq, _, _ in fastq_parse(reads):
             counter += 1
             if counter % 100000 == 0:

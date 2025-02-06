@@ -299,9 +299,9 @@ def parse_clusters(c_file):
     clusters = Clusters()
     pattern = re.compile(r"([a-zA-Z0-9]+)\[(.*)\]_(.+):([0-9]+)\-([0-9]+)")
 
-    with file_open(c_file) as c:
+    with file_open(c_file, mode="rt") as c:
         for line in tqdm(c):
-            barcode, *reads = line.decode("utf-8").rstrip("\n").split("\t")
+            barcode, *reads = line.rstrip("\n").split("\t")
             for read in reads:
                 total_reads += 1
                 try:
