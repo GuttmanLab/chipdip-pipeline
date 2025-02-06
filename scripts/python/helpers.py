@@ -22,16 +22,10 @@ class AutoCloseGzipFile(gzip.GzipFile):
       since you might wish to append more material after the compressed data.
     """
 
-    def __init__(self, **kwargs):
-        self.autoclose_fileobj = None
-        if "fileobj" in kwargs:
-            self.autoclose_fileobj = kwargs["fileobj"]
-        super().__init__(**kwargs)
-
     def close(self):
+        if self.fileobj:
+            self.fileobj.close()
         super().close()
-        if self.autoclose_fileobj:
-            self.autoclose_fileobj.close()
 
 
 def file_open(filename, mode="rb", encoding="utf-8"):
