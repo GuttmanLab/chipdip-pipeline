@@ -45,7 +45,8 @@ mask: "assets/blacklist_mm10.bed"
 # e.g., "assets/index_hg38/GRCh38_noalt_as" or "assets/index_mm10/mm10"
 bowtie2_index: "assets/index_mm10/mm10"
 
-# Merge cluster files, BAM files, and bigWigs for individual targets across samples
+# Merge cluster files for all samples
+# Merge BAM files and bigWigs for individual targets across samples
 merge_samples: true
 
 # Generate BAM files for individual targets
@@ -55,7 +56,7 @@ proportion: 0.8
 max_size: 10000
 
 # bigWig generation parameters
-# - only relevant if generate_splitbams is True and merge_samples is true
+# - only relevant if generate_splitbams is True
 # - binsize: bin size in bp
 #   - Set to false to skip bigWig generation
 # - bigwig_normalization: "RPKM", "CPM", "BPM", "RPGC", or "None"

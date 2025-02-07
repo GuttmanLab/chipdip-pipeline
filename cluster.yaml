@@ -1,161 +1,120 @@
+# Values specified under __default__ will be inherited by other rules unless they are overridden.
+# See https://snakemake.readthedocs.io/en/v7.32.3/snakefiles/configuration.html.
 __default__:
     time: "12:00:00"
-    mem: 20g
+    mem: 10g
     cpus: 1
     nodes: 1
     output: "workup/logs/cluster/{rule}.out"
     error: "workup/logs/cluster/{rule}.err"
 split_fastq:
     time: "48:00:00"
-    mem: 100g
+    mem: 20g
     cpus: 4
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
 compress_fastq:
     time: "48:00:00"
     mem: 20g
     cpus: 8
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 adaptor_trimming:
-    time: "12:00:00"
     mem: 50g
     cpus: 10
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 barcode_id:
-    time: "12:00:00"
     mem: 20g
-    cpus: 1
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 barcode_identification_efficiency:
     time: "05:00:00"
     mem: 20g
-    cpus: 1
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 split_bpm_dpm:
-    time: "12:00:00"
-    mem: 10g
-    cpus: 1
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 cutadapt_dpm:
-    time: "12:00:00"
     mem: 50g
     cpus: 10
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 cutadapt_oligo:
-    time: "12:00:00"
     mem: 50g
     cpus: 10
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 bowtie2_align:
-    time: "12:00:00"
-    mem: 50g
+    mem: 20g
     cpus: 10
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 rename_and_filter_chr:
-    time: "12:00:00"
-    mem: 10g
-    cpus: 1
-    nodes: 1
+    cpus: 4
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 repeat_mask:
-    time: "12:00:00"
-    mem: 50g
-    cpus: 1
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 merge_dna:
     time: "24:00:00"
-    mem: 50g
+    mem: 20g
     cpus: 10
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
 fastq_to_bam:
-    time: "12:00:00"
-    mem: 50g
+    mem: 20g
     cpus: 4
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 merge_beads:
     time: "24:00:00"
-    mem: 50g
+    mem: 20g
     cpus: 10
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
 make_clusters:
-    time: "12:00:00"
     mem: 50g
     cpus: 4
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
 merge_clusters:
     time: "24:00:00"
     mem: 100g
     cpus: 10
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
+clusters_all:
+    mem: 100g
+    cpus: 10
 pipeline_counts:
-    time: "12:00:00"
     mem: 50g
     cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
 threshold_tag_and_split:
     time: "24:00:00"
     mem: 20g
-    cpus: 1
-    nodes: 1
     output: "workup/logs/cluster/{rule}.{wildcards.sample}.out"
     error: "workup/logs/cluster/{rule}.{wildcards.sample}.err"
+index_splitbams:
+    time: "04:00:00"
+    mem: 4g
+    cpus: 4
+    output: "workup/logs/cluster/{rule}.{wildcards.file}.out"
+    error: "workup/logs/cluster/{rule}.{wildcards.file}.err"
 generate_splitbam_statistics:
     time: "24:00:00"
-    mem: 10g
     cpus: 4
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-clusters_all:
-    time: "12:00:00"
-    mem: 100g
-    cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
-splitbams_all:
-    time: "12:00:00"
+splitbams_merged:
     mem: 20g
     cpus: 4
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
+    output: "workup/logs/cluster/{rule}.{wildcards.target}.out"
+    error: "workup/logs/cluster/{rule}.{wildcards.target}.err"
+effective_genome_size:
+    cpus: 4
 generate_bigwigs:
-    time: "12:00:00"
-    mem: 50g
+    mem: 20g
     cpus: 10
-    nodes: 1
-    output: "workup/logs/cluster/{rule}.out"
-    error: "workup/logs/cluster/{rule}.err"
+    output: "workup/logs/cluster/{rule}.{wildcards.file}.out"
+    error: "workup/logs/cluster/{rule}.{wildcards.file}.err"

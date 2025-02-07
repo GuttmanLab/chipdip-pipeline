@@ -235,8 +235,10 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `min_oligos` (default = `2`): integer giving the minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
      - `proportion` (default = `0.8`): float giving the minimum proportion of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `min_oligos` and `max_size` criteria
      - `max_size` (default = `10000`): integer giving the maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
-     - `merge_samples` (default = `false`): [boolean](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM files across samples
+     - `merge_samples` (default = `false`): [boolean](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM and bigWig files across samples
      - `binsize` (default = `false`): integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams is `true`.
+     - `bigwig_normalization` (default = `"None"`): normalization strategy for calculating coverage from reads; passed to the `--normalizeUsing` argument for the `bamCoverage` command from the deepTools suite. As of version 3.5.2, deepTools `bamCoverage` curently supports `RPKM`, `CPM`, `BPM`, `RPGC`, or `None`. Only relevant if bigWig generation is requested (i.e., `generate_splitbams` is `true` and `binsize` is not `false`).
+     - `effective_genome_size` (default = `null`): integer specifying effective genome size (see [deepTools documentation](https://deeptools.readthedocs.io/en/latest/content/feature/effectiveGenomeSize.html) for a definition). If `null`, effective genome size is computed as the number of unmasked sequences in the Bowtie 2 index, after selecting for chromosomes specified in the [chromosome name map file](#chrom-map) and excluding regions specified by the mask file. Only relevant if bigWig generation is requested using normalization strategy `RPGC` (i.e., `generate_splitbams` is `true`, `binsize` is not `false`, and `bigwig_normalization` is `RPGC`).
      - `email` (default = `null`): email to send error notifications to if errors are encountered during the pipeline. If `null`, no emails are sent.
    - Additional notes
      - `null` values can be specified explicitly (e.g., `format: null`) or implicitly (e.g., `format: `).
@@ -283,7 +285,8 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 5. <a name="config-txt">`config.txt`</a>: Barcode config file - text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
    - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `barcode_config`
-   - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`), `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`), and `scripts/python/barcode_identification_efficiency.py` (Snakefile `rule barcode_identification_efficiency`)
+   - Used by: `scripts/java/BarcodeIdentification_v1.2.0.jar` (Snakefile `rule barcode_id`), `scripts/python/fastq_to_bam.py` (Snakefile `rule fastq_to_bam`), and `scripts/python/barcode_identification_efficiency.py` (Snakefile `rule barcode_identification_efficiency`).
+     - This file is also parsed in the Snakefile itself to determine the length of the barcode (i.e., the number of rounds of barcoding) and if `generate_splitbams` is set to `true` in [`config.yaml`](#config-yaml), the set of antibody targets for which to generate individual de-multiplexed BAM files (and bigWig file too, if requested).
    - Format: SPRITE configuration file (see our SPRITE [GitHub Wiki](https://github.com/GuttmanLab/sprite-pipeline/wiki/1.-Barcode-Identification#configuration-file) or [*Nature Protocols* paper](https://doi.org/10.1038/s41596-021-00633-y) for details).
      - Blank lines and lines starting with `#` are ignored.
      - An example barcoding configuration file is annotated below:
@@ -332,6 +335,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
        ```
    - Notes regarding the entries in `example_config.txt`
      - Names: Each name ends with `#-Well` (for example, `4-A4`) where the `#` gives the row-major index of the tag in a 96-well plate, and `Well` denotes the corresponding row and column.
+     - Because only the first 2 antibody IDs are included in the example dataset, the other antibody ID rows are commented out. This prevents generation of empty (0 byte) placeholder files for the other 94 antibody IDs.
      - Sequences
        - The design of a DPM tags allows for 9 bp of unique sequence, but only 8 bp are used in the published SPRITE tag set (in bottom tags, the 9th bp is currently a constant `'T'`). `example_config.txt` therefore only includes the unique 8 bp sequences.
        - The design of EVEN and ODD tags allows for 17 bp of unique sequence, but only 16 bp are used in the published SPRITE tag set (in bottom tags, the 17th bp is currently a constant `'T'`). `example_config.txt` further trims the 1st unique bp from the bottom tag, leaving only the middle 15 bp unique bottom sequence.
@@ -349,7 +353,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 7. <a name="chrom-map">`chrom_map.txt`</a>: Chromosome names map - tab-delimited text file specifying which chromosomes from the Bowtie 2 index to keep and how to rename them (if at all).
    - Required? No, but necessary if using a [blacklist mask](#blacklist-bed) that uses different chromosome names than used in the Bowtie 2 index.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `path_chrom_map`
-   - Used by: `scripts/python/rename_and_filter_chr.py` (Snakefile `rule rename_and_filter_chr`)
+   - Used by: `scripts/python/rename_and_filter_chr.py` (Snakefile `rule rename_and_filter_chr` and `rule effective_genome_size`)
    - Column 1 specifies chromosomes (following naming convention used in the index) to keep.
      - The order of chromosomes provided here is maintained in the SAM/BAM file
        header, and consequently specifies the coordinate sorting order at the
@@ -360,9 +364,9 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 8. <a name="blacklist-bed">`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`</a>: blacklisted genomic regions for ChIP-seq data
    - Required? No, but highly recommended.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `mask`
-   - Used by: Snakefile `rule merge_mask`, whose output is used by `rule repeat_mask` and `rule generate_bigwigs`
+   - Used by: Snakefile `rule merge_mask`, whose output is used by `rule repeat_mask` and `rule effective_genome_size`
    - For human genome release hg38, we use [ENCFF356LFX](https://www.encodeproject.org/files/ENCFF356LFX/) from ENCODE. For mouse genome release mm10, we use [mm10-blacklist.v2.bed.gz](https://github.com/Boyle-Lab/Blacklist/blob/master/lists/mm10-blacklist.v2.bed.gz). These BED files use UCSC chromosome names (e.g., `chr1`, `chr2`, ...). The pipeline performs chromosome name remapping (if specified) before this step.
-     - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. *Sci Rep*. 2019;9(1):9354. doi:10.1038/s41598-019-45839-z
+     - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. *Sci Rep*. 2019;9(1):9354. doi:[10.1038/s41598-019-45839-z](https://doi.org/10.1038/s41598-019-45839-z)
      - Example code used to download them into the `assets/` directory:
 
        ```{bash}
@@ -378,6 +382,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 9. <a name="index-bt2">`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`</a>: Bowtie 2 genome index
    - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to the index: `bowtie2_index`
+   - Used by: Snakefile `rule bowtie2_align` and `rule effective_genome_size`
    - If you do not have an existing Bowtie 2 index, you can download [pre-built indices](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) from the Bowtie 2 developers:
 
      ```{bash}
@@ -414,34 +419,36 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      4. The proportion of reads remaining relative to the starting number of reads.
    - A tabular version is saved to `workup/qc/pipeline_counts.csv`
 
-3. <a name="cluster-file">Cluster file</a> (`workup/clusters/<sample>.clusters`): Tab-delimited file, where each line represents a single cluster.
+3. <a name="effective-genome-size-file">Effective genome size file</a> (`workup/effective_genome_size.txt`): Text file with a single value of the computed effective genome size. Only generated if bigWig generation is requested with normalization strategy `RPGC`.
+
+4. <a name="cluster-file">Cluster file</a> (`workup/clusters/<sample>.clusters`): Tab-delimited file, where each line represents a single cluster.
    - The first column is the cluster barcode.
    - The remainder of the line is a list of reads. DNA reads are formated as `DPM[strand]_chr:start-end`, and antibody oligo reads are formated as `BPM[]_<AntibodyID>:<UMI>-0`.
 
-4. <a name="cluster-stats">Cluster statistics</a> (`workup/clusters/cluster_statistics.txt`): The number of clusters and antibody oligo (BPM) or genomic DNA (DPM) reads per library.
+5. <a name="cluster-stats">Cluster statistics</a> (`workup/clusters/cluster_statistics.txt`): The number of clusters and antibody oligo (BPM) or genomic DNA (DPM) reads per library.
 
-5. <a name="cluster-sizes">Cluster size distribtion</a> (`workup/clusters/[BPM,DPM]_cluster_distribution.pdf`): The proportion of clusters that belong to each size category.
+6. <a name="cluster-sizes">Cluster size distribtion</a> (`workup/clusters/[BPM,DPM]_cluster_distribution.pdf`): The proportion of clusters that belong to each size category.
 
-6. <a name="cluster-read-dist">Cluster size read distribution</a> (`workup/clusters/[BPM,DPM]_read_distribution.pdf`): The proportion of reads that belong to clusters of each size category.
+7. <a name="cluster-read-dist">Cluster size read distribution</a> (`workup/clusters/[BPM,DPM]_read_distribution.pdf`): The proportion of reads that belong to clusters of each size category.
    - This can be more useful than the number of clusters since relatively few large clusters can contain many sequencing reads (i.e., a large fraction of the library) while many small clusters will contain few sequencing reads (i.e., a much smaller fraction of the library).
    
-7. <a name="cluster-oligo-prop-ecdf">Maximum representation oligo eCDF</a> (`workup/clusters/Max_representation_ecdf.pdf`): A plot showing the distribution of proportion of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
+8. <a name="cluster-oligo-prop-ecdf">Maximum representation oligo eCDF</a> (`workup/clusters/Max_representation_ecdf.pdf`): A plot showing the distribution of proportion of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
    - A successful experiment should have an ECDF close to a right angle. Deviations from this indicate that beads contain mixtures of Antibody IDs. Understanding the uniqueness of Antibody ID reads per cluster is important for choosing the thresholding parameter `proportion` for cluster assignment.
 
-8. <a name="cluster-oligo-counts-ecdf">Maximum representation oligo counts ECDF</a> (`workup/clusters/Max_representation_counts.pdf`): A plot showing the distribution of number of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
+9. <a name="cluster-oligo-counts-ecdf">Maximum representation oligo counts ECDF</a> (`workup/clusters/Max_representation_counts.pdf`): A plot showing the distribution of number of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
    - If clusters are nearly unique in Antibody ID composition, then this plot is a surrogate for BPM size distribtuion. Understanding the number of Antibody ID reads per cluster is important for choosing the thresholding parameters `min_oligo` for cluster assignment.
 
-9. <a name="splitbams">BAM files for individual antibodies</a> (`workup/splitbams/*.bam`)
+10. <a name="splitbams">BAM files for individual antibodies</a> (`workup/splitbams/*.bam`)
    - Thresholding criteria (`min_oligos`, `proportion`, `max_size`) for assigning individual clusters to individual antibodies are set in [`config.yaml`](#config-yaml).
    - The "none" BAM file (`<sample>.DNA.merged.labeled_none.bam`) contains DNA reads from clusters without antibody oligo reads.
    - THe "ambigious" BAM file (`<sample>.DNA.merged.labeled_ambiguous.bam`) contains DNA reads from clusters that failed the `proportion` thresholding criteria.
    - The "uncertain" BAM file (`<sample>.DNA.merged.labeled_uncertain.bam`) contains DNA reads from clusters that failed the `min_oligo` thresholding criteria.
    - The "filtered" BAM file (`<sample>.DNA.merged.labeled_filtered.bam`) contains DNA reads from clusters that failed the `max_size` thresholding criteria.
 
-10. <a name="splitbam-stats">Read count summary for individual antibodies</a> (`workup/splitbams/splitbam_statistics.txt`)
+11. <a name="splitbam-stats">Read count summary for individual antibodies</a> (`workup/splitbams/splitbam_statistics.txt`)
     - The number of read counts contained within each individual BAM file assigned to individual antibodies.
 
-11. <a name="bigwigs">BigWig files for individual antibodies</a> (`workup/bigwigs/*.bw`)
+12. <a name="bigwigs">BigWig files for individual antibodies</a> (`workup/bigwigs/*.bw`)
     - BigWigs are generated using [`deeptools bamCoverage`](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) with binsize set in [`config.yaml`](#config-yaml). Normalization is performed using effective genome size (`--normalizeUsing RPGC`), which is calculated as the size of chromosomes selected via [`chrom_map.txt`](#chrom-map) minus the size of regions in the [mask](#blacklist-bed) for those chromosomes.
 
 # Additional Resources
