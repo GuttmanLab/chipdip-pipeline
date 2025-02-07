@@ -45,16 +45,25 @@ mask: "assets/blacklist_mm10.bed"
 # e.g., "assets/index_hg38/GRCh38_noalt_as" or "assets/index_mm10/mm10"
 bowtie2_index: "assets/index_mm10/mm10"
 
+# Merge cluster files, BAM files, and bigWigs for individual targets across samples
+merge_samples: true
+
 # Generate BAM files for individual targets
 generate_splitbams: true
 min_oligos: 2
 proportion: 0.8
 max_size: 10000
 
-# Merge cluster files and BAM files for individual targets across samples
-merge_samples: true
-
-# Binsize for generating bigWigs for individual targets merged across samples
-# - only relevant if generate_splitbams and merge_samples are both true
-# - Set to false to skip bigWig generation
+# bigWig generation parameters
+# - only relevant if generate_splitbams is True and merge_samples is true
+# - binsize: bin size in bp
+#   - Set to false to skip bigWig generation
+# - bigwig_normalization: "RPKM", "CPM", "BPM", "RPGC", or "None"
+#   - Passed to the --normalizeUsing argument for bamCoverage from the deepTools suite
+# - effective_genome_size: effective genome size in bp
+#   - only relevant if bigwig_normalization is "RPGC"
+#   - Supply as an integer, or set to null for the pipeline to compute the effective genome size
+#     based on the Bowtie2 index, mask, and chromosome name map
 binsize: 1000
+bigwig_normalization: "None"
+effective_genome_size: null

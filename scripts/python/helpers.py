@@ -40,8 +40,13 @@ def file_open(filename, mode="rb", encoding="utf-8"):
     """
     assert mode in ("rb", "rt"), 'file_open() only supports "rb" and "rt" modes'
     f = open(filename, "rb")
-    first_two_bytes = f.read(2)
-    f.seek(0)
+    first_two_bytes = f.peek(2)[:2]
+
+    # peek is not guaranteed to return the number of bytes requested -->
+    # try reading and seeking back to 0 as a fallback
+    if len(first_two_bytes) != 2:
+        first_two_bytes = f.read(2)
+        f.seek(0)
     if first_two_bytes == GZIP_MAGIC_NUMBER:
         f = AutoCloseGzipFile(fileobj=f, mode="rb")
     if mode == "rt":

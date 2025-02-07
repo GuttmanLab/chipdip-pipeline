@@ -186,6 +186,21 @@ if path_chrom_map in (None, ""):
     print("Chromosome names not specified, will use all chromosomes in the Bowtie 2 index.",
           file=sys.stderr)
 
+bigwig_normalization = config.get("bigwig_normalization", "None")
+if binsize:
+    assert bigwig_normalization in ("RPKM", "CPM", "BPM", "RPGC", "None"), (
+        'bigwig_normalization config parameter must be one of '
+        '"RPKM", "CPM", "BPM", "RPGC", or "None".'
+    )
+
+effective_genome_size = config.get("effective_genome_size", None)
+compute_effective_genome_size = False
+if binsize and bigwig_normalization == "RPGC":
+    assert type(effective_genome_size) in (int, type(None)), \
+        "effective_genome_size config parameter must be an integer or null."
+    if effective_genome_size is None:
+        compute_effective_genome_size = True
+
 ##############################################################################
 # Location of scripts
 ##############################################################################
@@ -200,7 +215,7 @@ make_clusters = os.path.join(DIR_SCRIPTS, "python/make_clusters.py")
 merge_clusters = os.path.join(DIR_SCRIPTS, "python/merge_clusters.py")
 fastq_to_bam = os.path.join(DIR_SCRIPTS, "python/fastq_to_bam.py")
 threshold_tag_and_split = os.path.join(DIR_SCRIPTS, "python/threshold_tag_and_split.py")
-effective_genome_size = os.path.join(DIR_SCRIPTS, "python/effective_genome_size.py")
+count_unmasked_bases = os.path.join(DIR_SCRIPTS, "python/count_unmasked_bases.py")
 
 cluster_statistics = os.path.join(DIR_SCRIPTS, "python/generate_cluster_statistics.py")
 cluster_sizes = os.path.join(DIR_SCRIPTS, "python/get_bead_size_distribution.py")
@@ -1090,17 +1105,41 @@ rule splitbams_all:
         }} &> "{log}"
         '''
 
+# Calculate effective genome size as defined by deepTools: the number of unmasked bases in the genome.
+# See https://deeptools.readthedocs.io/en/develop/content/feature/effectiveGenomeSize.html
+rule effective_genome_size:
+    input:
+        mask = os.path.join(DIR_WORKUP, "mask_merge.bed")
+    output:
+        os.path.join(DIR_WORKUP, "effective_genome_size.txt")
+    log:
+        os.path.join(DIR_LOGS, "effective_genome_size.log")
+    params:
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else "",
+    conda:
+        conda_env
+    shell:
+        '''
+        {{
+            bedtools maskfasta \
+                -fi <(bowtie2-inspect "{bowtie2_index}" |
+                      python "{rename_and_filter_chr}" -f {params.chrom_map} -) \
+                -bed "{input.mask}" \
+                -fo >(python "{count_unmasked_bases}" - > "{output}")
+        }} &> "{log}"
+        '''
+
 rule generate_bigwigs:
     input:
         SPLITBAMS_ALL_LOG,
-        sorted_merged_mask = os.path.join(DIR_WORKUP, "mask_merge.bed")
+        sorted_merged_mask = os.path.join(DIR_WORKUP, "mask_merge.bed"),
+        effective_genome_size = os.path.join(DIR_WORKUP, "effective_genome_size.txt") if compute_effective_genome_size else []
     log:
         BIGWIGS_LOG
     params:
         chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else "",
         dir_bam = os.path.join(DIR_WORKUP, "splitbams"),
-        dir_bigwig = os.path.join(DIR_WORKUP, "bigwigs"),
-        binsize = binsize
+        dir_bigwig = os.path.join(DIR_WORKUP, "bigwigs")
     conda:
         conda_env
     threads:
@@ -1109,6 +1148,14 @@ rule generate_bigwigs:
         '''
         {{
             mkdir -p "{params.dir_bigwig}"
+
+            if [ "{compute_effective_genome_size}" = "True" ]; then
+                effective_genome_size="$(echo --effectiveGenomeSize $(cat "{input.effective_genome_size}"))"
+            elif [ "{bigwig_normalization}" = "RPGC" ]; then
+                effective_genome_size="--effectiveGenomeSize {effective_genome_size}"
+            else
+                effective_genome_size=""
+            fi
 
             targets=$(
                 ls "{params.dir_bam}"/*.DNA.merged.labeled_*.bam |
@@ -1135,20 +1182,10 @@ rule generate_bigwigs:
                     continue
                 fi
 
-                # calculate genome size from header of BAM file
-                # subtract regions (from selected chromosomes) in the mask
-                effective_genome_size=$(
-                    python {effective_genome_size} "$path_bam" \
-                      -m {input.sorted_merged_mask} \
-                      {params.chrom_map} \
-                      -t {threads}
-                )
-                echo "- Effective genome size: $effective_genome_size"
-
                 bamCoverage \
-                  --binSize {params.binsize} \
-                  --normalizeUsing RPGC \
-                  --effectiveGenomeSize $effective_genome_size \
+                  --binSize "{binsize}" \
+                  --normalizeUsing "{bigwig_normalization}" \
+                  $effective_genome_size \
                   -p {threads} \
                   --bam "$path_bam" \
                   --outFileName "$path_bigwig"
