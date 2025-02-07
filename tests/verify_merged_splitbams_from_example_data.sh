@@ -39,9 +39,9 @@ fi
 BED_REF_AB1="$DIR_TEST_ASSETS/AB1-A1.bed"
 BED_REF_AB2="$DIR_TEST_ASSETS/AB2-A2.bed"
 
-# hashes for merged splitbam output, converted to 3-column BED files, sorted lexicographically
-HASH_REF_AB1="ed3ec0eb6c1bdb954921dd5c34efc3a8"
-HASH_REF_AB2="d89dbda765c35bdde188dbdde1a1e161"
+# hashes for merged splitbam output, converted to 3-column BED files, sorted by position
+HASH_REF_AB1="ec857d153c89e12127f6d4b4438053c8"
+HASH_REF_AB2="7a7adffb428fda686e0269395347093c"
 
 # hash for expected cluster statistics file
 HASH_REF_CLUSTERS="b2efa9824814cca021e287ba36ebb20f"
@@ -52,24 +52,27 @@ hash_ab1=$(md5sum "$BED_REF_AB1" | cut -f 1 -d ' ')
 hash_ab2=$(md5sum "$BED_REF_AB2" | cut -f 1 -d ' ')
 [ "$hash_ab2" != "$HASH_REF_AB2" ] && echo "Corrupt reference BED file $BED_REF_AB2" && exit 1
 
+# set locale to C for consistent sorting
+export LC_ALL=C
+
 # generate BED files from pipeline merged splitbam output
 tmpbed1=$(mktemp ./bed1.XXXXX)
 tmpbed2=$(mktemp ./bed2.XXXXX)
 bedtools bamtobed -i "$DIR_OUTPUT"/workup/splitbams/AB1-A1.bam |
     cut -f 1,2,3 |
-    sort > "$tmpbed1"
+    sort -k1,1V -k2,2n -k3,3n > "$tmpbed1"
 bedtools bamtobed -i "$DIR_OUTPUT"/workup/splitbams/AB2-A2.bam |
     cut -f 1,2,3 |
-    sort > "$tmpbed2"
+    sort -k1,1V -k2,2n -k3,3n > "$tmpbed2"
 
-diff "$tmpbed1" "$BED_REF_AB1"
+diff "$tmpbed1" <(sort -k1,1V -k2,2n -k3,3n "$BED_REF_AB1")
 # delete BED files if they match reference
 [ "$?" = 0 ] && echo "AB1-A1 matches reference." && rm "$tmpbed1"
 
-diff "$tmpbed2" "$BED_REF_AB2"
+diff "$tmpbed2" <(sort -k1,1V -k2,2n -k3,3n "$BED_REF_AB2")
 # delete BED files if they match reference
 [ "$?" = 0 ] && echo "AB2-A2 matches reference." && rm "$tmpbed2"
 
 # validate cluster file
-hash_cluster=$(export LC_ALL=C; sort "$DIR_OUTPUT"/workup/clusters/cluster_statistics.txt | md5sum | cut -f 1 -d ' ')
+hash_cluster=$(sort "$DIR_OUTPUT"/workup/clusters/cluster_statistics.txt | md5sum | cut -f 1 -d ' ')
 [ "$hash_cluster" = "$HASH_REF_CLUSTERS" ] && echo "MD5 checksum of cluster_statistics.txt matches reference."

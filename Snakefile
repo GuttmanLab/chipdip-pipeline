@@ -4,6 +4,7 @@ Aim: A Snakemake workflow to process CHIP-DIP data
 
 import json
 import os
+import re
 import sys
 import datetime
 import pandas as pd
@@ -470,7 +471,8 @@ onerror:
         shell('mail -s "an error occurred" ' + email + ' < {log}')
 
 wildcard_constraints:
-    sample = "[^\.]+"
+    sample = "[^\.]+",
+    target = "|".join([re.escape(x) for x in TARGETS])
 
 # remove all output, leaving just the following in the workup folder:
 # - bigwigs/

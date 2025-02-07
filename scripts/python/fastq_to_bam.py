@@ -69,7 +69,7 @@ def convert_reads(path_in, path_out, header, UMI_length):
             counter += 1
             if counter % 100000 == 0:
                 print(counter, file=sys.stderr)
-            match = PATTERN.search(qname)
+            match = PATTERN.search(qname.split('::')[1])
             target_name = list(match.groups())[0]
             aligned_segment = initialize_alignment(header, qname, target_name, seq, UMI_length)
             output_bam.write(aligned_segment)

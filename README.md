@@ -263,11 +263,14 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      }
      ```
 
+   - Data assumptions:
+     - FASTQ files are gzip-compressed.
+     - Read names do not contain two consecutive colons (`::`). This is required because the pipeline adds `::` to the end of read names before adding barcode information; the string `::` is used as a delimiter in the pipeline to separate the original read name from the identified barcode.
    - The pipeline (in particular, the script `scripts/bash/split_fastq.sh`) currently only supports one read 1 (R1) and one read 2 (R2) FASTQ file per sample.
      - If there are multiple FASTQ files per read orientation per sample (for example, if the same sample was sequenced multiple times, or it was split across multiple lanes during sequencing), the FASTQ files will first need to be concatenated together, and the paths to the concatenated FASTQ files should be supplied in the JSON file.
    - Each sample is processed independently, generating independent cluster and BAM files. Statistics used for quality assessment (barcode identification efficiency, cluster statistics, MultiQC report, cluster size distributions, splitbam statistics) are computed independently for each sample but reported together in aggregate files to enable quick quality comparison across samples.
    - The provided sample read files under the `data/` folder were simulated via a [Google Colab notebook](https://colab.research.google.com/drive/1CyjY0fJSiBl4vCz6FGFuT3IZEQR5XYlI). The genomic DNA reads correspond to ChIP-seq peaks on chromosome 19 (mm10) for transcription factors MYC (simulated as corresponding to Antibody ID `BEAD_AB1-A1`) and TCF12 (simulated as corresponding to Antibody ID `BEAD_AB2-A2`).
-   - Sample names (the keys of the samples JSON file) must be unique prior to any periods in the name, due to a current implementation quirk of `scripts/python/threshold_tag_and_split.py:label_bam_file()`
+   - Sample names (the keys of the samples JSON file) cannot contain any periods (`.`). This is enforced to simplify wildcard pattern matching in the Snakefile and to simplify implementation of `scripts/python/threshold_tag_and_split.py:label_bam_file()`.
 
 3. <a name="bpm-fasta">`assets/bpm.fasta`</a>: FASTA file containing the sequences of Antibody IDs
    - Required? Yes.

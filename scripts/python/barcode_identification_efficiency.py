@@ -82,14 +82,16 @@ class BarcodeIdentificationEfficiency:
                 self._total += 1
 
     def count_tags_in_name(self, name):
-        tags = self._pattern.findall(name)
+        name_split = name.split('::', 1)
+        if len(name_split) == 1:
+            tags = self._pattern.findall(name)
+        else:
+            tags = self._pattern.findall(name_split[1])
         num_found = 0
-        pos = 0
-        for tag in tags:
+        for pos, tag in enumerate(tags):
             if tag != "NOT_FOUND":
                 num_found += 1
                 self._position_count[pos] += 1
-            pos += 1
         self._aggregate_count[num_found] += 1
 
     def print_to_stdout(self):
