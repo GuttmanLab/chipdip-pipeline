@@ -599,13 +599,13 @@ rule adaptor_trimming:
             cores=1
         fi
 
-        trim_galore \
-          --paired \
-          --gzip \
-          --cores $cores \
-          --quality 20 \
-          --fastqc \
-          -o "{params.dir}" \
+        trim_galore \\
+          --paired \\
+          --gzip \\
+          --cores $cores \\
+          --quality 20 \\
+          --fastqc \\
+          -o "{params.dir}" \\
           {input:q} &> "{log}"
         '''
 
@@ -623,9 +623,9 @@ rule barcode_id:
         conda_env
     shell:
         '''
-        java -jar "{barcode_id_jar}" \
-          --input1 "{input.r1}" --input2 "{input.r2}" \
-          --output1 "{output.r1_barcoded}" --output2 "{output.r2_barcoded}" \
+        java -jar "{barcode_id_jar}" \\
+          --input1 "{input.r1}" --input2 "{input.r2}" \\
+          --output1 "{output.r1_barcoded}" --output2 "{output.r2_barcoded}" \\
           --config "{barcode_config}" &> "{log}"
         '''
 
@@ -698,11 +698,11 @@ rule cutadapt_dpm:
     shell:
         '''
         {{
-            cutadapt \
-              {params.adapters_r1} \
-              {params.others} \
-              -o "{output.fastq}" \
-              -j {threads} \
+            cutadapt \\
+              {params.adapters_r1} \\
+              {params.others} \\
+              -o "{output.fastq}" \\
+              -j {threads} \\
               "{input}" > "{output.qc}"
 
             fastqc "{output.fastq}"
@@ -726,10 +726,10 @@ rule cutadapt_oligo:
         conda_env
     shell:
         '''
-        cutadapt \
-          {params.adapters_r1} \
-          -o "{output.fastq}" \
-          -j {threads} \
+        cutadapt \\
+          {params.adapters_r1} \\
+          -o "{output.fastq}" \\
+          -j {threads} \\
           "{input}" > "{output.qc}" 2> "{log}"
         '''
 
@@ -755,12 +755,12 @@ rule bowtie2_align:
     shell:
         '''
         {{
-            bowtie2 \
-              -p {threads} \
-              -t \
-              --phred33 \
-              -x "{bowtie2_index}" \
-              -U "{input}" | \
+            bowtie2 \\
+              -p {threads} \\
+              -t \\
+              --phred33 \\
+              -x "{bowtie2_index}" \\
+              -U "{input}" |
             samtools view -bq 20 -F 4 -F 256 - |
             samtools sort -@ {threads} -o "{output}"
         }} &> "{log}"
@@ -782,7 +782,7 @@ rule rename_and_filter_chr:
         4
     shell:
         '''
-        python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} --try-symlink \
+        python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} --try-symlink \\
             -o "{output}" "{input}" &> "{log}"
         '''
 
@@ -798,41 +798,45 @@ rule merge_mask:
     output:
         bed = temp(os.path.join(DIR_WORKUP, "mask_merge.bed")),
         genome = temp(os.path.join(DIR_WORKUP, "mask_merge.genome"))
+    log:
+        os.path.join(DIR_LOGS, "merge_mask.log")
     conda:
         conda_env
     shell:
         '''
-        if [ -n "{mask}" ]; then
-            if [ -n "{path_chrom_map}" ]; then
-                # chromosome name map is provided --> sort chromosomes by the new chromosome names
-                sort -k1,1 -k2,2n "{mask}" |
-                bedtools merge |
-                python "{rename_and_filter_chr}" --bed --chrom_map "{path_chrom_map}" - > "{output.bed}"
+        {{
+            if [ -n "{mask}" ]; then
+                if [ -n "{path_chrom_map}" ]; then
+                    # chromosome name map is provided --> sort chromosomes by the new chromosome names
+                    sort -k1,1 -k2,2n "{mask}" |
+                    bedtools merge |
+                    python "{rename_and_filter_chr}" --bed --chrom_map "{path_chrom_map}" - > "{output.bed}"
 
-                # create genome file for bedtools intersect
-                join -t $'\t' \
-                    <(grep -E -e '^[^"]\s*\S+\s*' "{path_chrom_map}" ) \
-                    <(bowtie2-inspect -s "{bowtie2_index}" |
-                      grep -E -e '^Sequence-[0-9]+' |
-                      cut -f 2,3) |
-                cut -f 2,3 > "{output.genome}"
+                    # create genome file for bedtools intersect
+                    join -t $'\\t' \\
+                        <(grep -E -e '^[^"]\\s*\\S+\\s*' "{path_chrom_map}" ) \\
+                        <(bowtie2-inspect -s "{bowtie2_index}" |
+                        grep -E -e '^Sequence-[0-9]+' |
+                        cut -f 2,3) |
+                    cut -f 2,3 > "{output.genome}"
+                else
+                    # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
+                    sort -k1,1 -k2,2n "{mask}" |
+                    bedtools merge |
+                    python "{rename_and_filter_chr}" \\
+                        --bed \\
+                        --chrom_map <(bowtie2-inspect -n "{bowtie2_index}" | sed -E 's/(\\S+)/\\1\\t\\1/') \\
+                        - > "{output.bed}"
+
+                    # create genome file for bedtools intersect
+                    bowtie2-inspect -s "{bowtie2_index}" |
+                    grep -E -e '^Sequence-[0-9]+' |
+                    cut -f 2,3 > "{output.genome}"
+                fi
             else
-                # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
-                sort -k1,1 -k2,2n "{mask}" |
-                bedtools merge |
-                python "{rename_and_filter_chr}" \
-                    --bed \
-                    --chrom_map <(bowtie2-inspect -n "{bowtie2_index}" | sed -E 's/(\S+)/\1\t\1/') \
-                    - > "{output.bed}"
-
-                # create genome file for bedtools intersect
-                bowtie2-inspect -s "{bowtie2_index}" |
-                grep -E -e '^Sequence-[0-9]+' |
-                cut -f 2,3 > "{output.genome}"
+                touch "{output.bed}" "{output.genome}"
             fi
-        else
-            touch "{output.bed}" "{output.genome}"
-        fi
+        }} &> "{log}"
         '''
 
 # Repeat mask aligned DNA reads
@@ -852,11 +856,11 @@ rule repeat_mask:
         {{
             if [ -n "{mask}" ]; then
                 # -v: only report entries in A that have no overlap in B
-                bedtools intersect \
-                    -v \
-                    -a "{input.bam}" \
-                    -b "{input.mask}" \
-                    -sorted \
+                bedtools intersect \\
+                    -v \\
+                    -a "{input.bam}" \\
+                    -b "{input.mask}" \\
+                    -sorted \\
                     -g "{input.genome}" > "{output}"
             else
                 echo "No mask file specified, skipping masking."
@@ -949,9 +953,9 @@ rule make_clusters:
     shell:
         '''
         {{
-            python "{make_clusters}" \
-              -i "{input.bpm}" "{input.dpm}" \
-              -o "{output.unsorted}" \
+            python "{make_clusters}" \\
+              -i "{input.bpm}" "{input.dpm}" \\
+              -o "{output.unsorted}" \\
               -n {num_tags}
 
             sort -k 1 -T "{temp_dir}" --parallel={threads} "{output.unsorted}" > "{output.sorted}"
@@ -1013,7 +1017,7 @@ rule generate_cluster_statistics:
         conda_env
     shell:
         '''
-        python "{cluster_statistics}" --directory "{params.dir}" --pattern .clusters \
+        python "{cluster_statistics}" --directory "{params.dir}" --pattern .clusters \\
             > "{output}" 2> "{log}"
         '''
 
@@ -1032,7 +1036,7 @@ rule generate_cluster_ecdfs:
         conda_env
     shell:
         '''
-        python "{cluster_ecdfs}" --directory "{params.dir}" --pattern .clusters \
+        python "{cluster_ecdfs}" --directory "{params.dir}" --pattern .clusters \\
             --xlim 30 &> "{log}"
         '''
 
@@ -1054,9 +1058,9 @@ rule get_size_distribution:
     shell:
         '''
         {{
-            python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \
+            python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \\
               --readtype BPM
-            python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \
+            python "{cluster_sizes}" --directory "{params.dir}" --pattern .clusters \\
               --readtype DPM
         }} &> "{log}"
         '''
@@ -1100,12 +1104,12 @@ rule pipeline_counts:
     shell:
         '''
         {{
-            python "{pipeline_counts}" \
-              --samples "{samples}" \
-              -w "{DIR_WORKUP}" \
-              -o "{output.csv}" \
-              -n {threads} | \
-            column -t -s $'\t' > "{output.pretty}"
+            python "{pipeline_counts}" \\
+              --samples "{samples}" \\
+              -w "{DIR_WORKUP}" \\
+              -o "{output.csv}" \\
+              -n {threads} |
+            column -t -s $'\\t' > "{output.pretty}"
         }} &> "{log}"
         '''
 
@@ -1133,21 +1137,21 @@ rule threshold_tag_and_split:
     shell:
         '''
         {{
-            python "{threshold_tag_and_split}" \
-                "{input.bam}" \
-                "{params.labeled_bam}" \
-                "{input.clusters}" \
-                "{params.dir_splitbams}" \
-                --min_oligos {min_oligos} \
-                --proportion {proportion} \
-                --max_size {max_size} \
+            python "{threshold_tag_and_split}" \\
+                "{input.bam}" \\
+                "{params.labeled_bam}" \\
+                "{input.clusters}" \\
+                "{params.dir_splitbams}" \\
+                --min_oligos {min_oligos} \\
+                --proportion {proportion} \\
+                --max_size {max_size} \\
                 --num_tags {num_tags}
 
             # touch BAM files for targets that did not get any reads passing our filters
             paths=({output:q})
             for path in "${{paths[@]}}"; do
                 if [ ! -f "$path" ]; then
-                    target="$(echo "$path" | sed -E -e 's/.*\.DNA\.merged.\labeled_(.*)\.bam/\1/')"
+                    target="$(echo "$path" | sed -E -e 's/.*\\.DNA\\.merged.\\labeled_(.*)\\.bam/\\1/')"
                     echo "No split BAM file generated for target ${{target}} at ${{path}}. Touching ${{path}}."
                     touch "$path"
                 fi
@@ -1236,7 +1240,7 @@ rule generate_splitbam_statistics:
                     # file is empty
                     count=0
                 fi
-                echo -e "${{path}}\t${{count}}" >> "{output}"
+                echo -e "${{path}}\\t${{count}}" >> "{output}"
             done
         }} &> "{log}"
         '''
@@ -1260,10 +1264,10 @@ rule effective_genome_size:
         '''
         {{
             if [ "{compute_effective_genome_size}" = "True" ]; then
-                bedtools maskfasta \
+                bedtools maskfasta \\
                     -fi <(bowtie2-inspect "{bowtie2_index}" |
-                          python "{rename_and_filter_chr}" -f {params.chrom_map} -) \
-                    -bed "{input.mask}" \
+                          python "{rename_and_filter_chr}" -f {params.chrom_map} -) \\
+                    -bed "{input.mask}" \\
                     -fo >(python "{count_unmasked_bases}" - > "{output}")
             else
                 echo {effective_genome_size} > "{output}"
@@ -1313,12 +1317,12 @@ rule generate_bigwigs:
                         effective_genome_size=""
                     fi
 
-                    bamCoverage \
-                    --binSize "{binsize}" \
-                    --normalizeUsing "{bigwig_normalization}" \
-                    $effective_genome_size \
-                    -p {threads} \
-                    --bam "{input.bam}" \
+                    bamCoverage \\
+                    --binSize "{binsize}" \\
+                    --normalizeUsing "{bigwig_normalization}" \\
+                    $effective_genome_size \\
+                    -p {threads} \\
+                    --bam "{input.bam}" \\
                     --outFileName "{output}"
                 fi
             fi
