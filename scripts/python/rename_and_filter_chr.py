@@ -1,5 +1,5 @@
 """
-Rename and select chromosomes in a FASTA or BAM file.
+Rename chromosomes in a FASTA, BED, or BAM file.
 """
 
 import argparse
@@ -12,6 +12,7 @@ import subprocess
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import helpers
+import pandas as pd
 import pysam
 
 
@@ -68,6 +69,13 @@ def main():
                 args.output,
                 chrom_map
             )
+        elif args.bed:
+            filter_bed(
+                args.input,
+                args.output,
+                chrom_map,
+                sort=args.sort
+            )
         else:
             filter_reads(
                 args.input,
@@ -81,27 +89,31 @@ def main():
             )
 
 
-
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description=(
-            "Rename and select chromosomes in a FASTA or BAM file. "
-            "For BAM files, keep only reads aligned to selected chromosomes, and "
-            "reorder the chromosomes in the BAM file header."
+            "Rename chromosomes. For BAM/BED inputs, keep only reads/regions on those chromosomes. Additionally for "
+            "BAM files, reorder the chromosomes in the BAM file header."
         )
     )
     parser.add_argument(
         "input",
         metavar="in.bam|in.fasta(.gz)|-",
         help=(
-            "Input file. Assumed to be BAM format unless the -f/--fasta flag is used. "
+            "Input file. Assumed to be BAM format unless the -f/--fasta or -b/--bed flags are used. "
             "Use '-' for standard input."
         )
     )
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "-f", "--fasta",
         action="store_true",
         help="Input file is FASTA format."
+    )
+    group.add_argument(
+        "-b", "--bed",
+        action="store_true",
+        help="Input file is BED format. (Current implementation is not memory efficient.)"
     )
     parser.add_argument(
         "-o", "--output",
@@ -134,10 +146,10 @@ def parse_arguments():
         choices=("auto", "true", "false"),
         default="auto",
         help=(
-            "(Only relevant if -c/--chrom_map is specified and the input is a BAM file) "
-            "Whether to sort the processed BAM file. "
-            "If 'auto', will only re-sort if the order of chromosomes given in the chromosome name map "
-            "is different than the existing chromosome order."
+            "Only relevant if -c/--chrom_map is specified and input type is not FASTA. "
+            "(For BAM input) If 'auto', will only re-sort if the order of chromosomes given in the chromosome name map "
+            "is different than the existing chromosome order. "
+            "(For BED input) If 'auto' or 'true', sort based on the order of chromosomes in the chromosome name map."
         )
     )
     parser.add_argument(
@@ -177,9 +189,6 @@ def reheader(old_header, chrom_map):
     - retains_sorting: bool
         Whether the order of entries in chrom_map is consistent with existing order
         of chromosomes in the old header.
-
-    Note: The current implementation of this function takes advantage of dict features
-    defined/introduced in Python versions >= 3.9.
     """
     # copy existing BAM header to a new header dict without reference sequences
     new_header = copy.deepcopy(old_header)
@@ -311,6 +320,9 @@ def filter_fasta(path_in, path_out, chrom_map) -> None:
     # convert path_in to a text IO stream if necessary
     if isinstance(path_in, io.IOBase) and not isinstance(path_in, io.TextIOBase):
         first_two_bytes = path_in.peek(2)[:2]
+        if len(first_two_bytes) != 2:
+            first_two_bytes = path_in.read(2)
+            path_in.seek(0)
         if first_two_bytes == helpers.GZIP_MAGIC_NUMBER:
             f = gzip.GzipFile(fileobj=path_in, mode="rb")
         else:
@@ -342,6 +354,67 @@ def filter_fasta(path_in, path_out, chrom_map) -> None:
                 include = False
         elif include:
             path_out.write(line)
+
+
+def filter_bed(path_in, path_out, chrom_map, sort="auto"):
+    """
+    Rename chromosomes in a BED file according to a chromosome name map, and and output only regions on chromosomes in
+    the chromosome name map.
+
+    Args
+    - path_in: str or file object
+        Path to input BED file or file object.
+        Supports normal text or gzip-compressed text.
+    - path_out: str, file object, or None
+        Path to output BED file (supports .gz extension for gzip compression) or file object.
+        If None, writes to standard out.
+    - chrom_map: dict (str -> str)
+        Map from old reference sequence names to new reference sequence names.
+    - sort: ('auto', 'true', or 'false'). default='auto'
+        Whether to coordinate sort the reads before writing to path_out.
+    """
+    if path_out is None:
+        path_out = sys.stdout
+
+    if isinstance(path_in, io.IOBase) and not isinstance(path_in, io.TextIOBase):
+        first_two_bytes = path_in.peek(2)[:2]
+        if len(first_two_bytes) != 2:
+            first_two_bytes = path_in.read(2)
+            path_in.seek(0)
+        if first_two_bytes == helpers.GZIP_MAGIC_NUMBER:
+            path_in = gzip.GzipFile(fileobj=path_in, mode="rb")
+
+    DTYPE_CHROM_NEW = pd.CategoricalDtype(categories=chrom_map.values(), ordered=True)
+    df = pd.read_csv(
+        path_in,
+        sep='\t',
+        header=None,
+        index_col=False
+    )
+    df.columns = ['chrom', 'start', 'end'] + list(df.columns[3:])
+    df = (
+        # filter chromosomes
+        df.loc[df['chrom'].isin(chrom_map.keys())]
+
+        # rename chromosomes
+        .pipe(lambda tb: (
+            tb.assign(chrom=tb['chrom'].map(chrom_map))
+            .astype({
+                'chrom': DTYPE_CHROM_NEW,
+                'start': int,
+                'end': int
+            })
+        ))
+    )
+    if sort in ("true", "auto"):
+        df.sort_values(by=['chrom', 'start', 'end'], inplace=True)
+    df.to_csv(
+        path_out,
+        sep='\t',
+        header=False,
+        index=False
+    )
+
 
 if __name__ == "__main__":
     main()

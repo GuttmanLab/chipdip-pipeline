@@ -92,8 +92,7 @@ Code intepreters and runtimes: The pipeline relies on scripts written in Java, B
 - Python: 3.9+ (the `envs/chipdip.yaml` conda environment file currently uses version 3.10)
 
 Packages: Additional required third-party programs and packages are specified in conda environments described in `envs/`.
-- Note: Other versions of the same software programs will likely work, but we have not tested all of them. Some specific requirements are discussed below.
-  - Some of the scripts (such as `rename_and_filter_chr.py`) take advantage of features introduced in Python 3.9.
+- Note: Other recent versions of the same software programs will likely work, but we have not tested all of them. Some specific requirements are discussed below.
   - The version of `deeptools` used (3.5.2) requires a `matplotlib` version between 3.1.0 and 3.7.5, since later versions of matplotlib deprecate some functions used by `deeptools` version 3.5.2. Newer versions of `deeptools` have been updated to support the newer `matplotlib` APIs.
   - NumPy version 2.x is not currently supported.
 
@@ -356,7 +355,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 7. <a name="chrom-map">`chrom_map.txt`</a>: Chromosome names map - tab-delimited text file specifying which chromosomes from the Bowtie 2 index to keep and how to rename them (if at all).
    - Required? No, but necessary if using a [blacklist mask](#blacklist-bed) that uses different chromosome names than used in the Bowtie 2 index.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `path_chrom_map`
-   - Used by: `scripts/python/rename_and_filter_chr.py` (Snakefile `rule rename_and_filter_chr` and `rule effective_genome_size`)
+   - Used by: `scripts/python/rename_and_filter_chr.py` (Snakefile `rule rename_and_filter_chr`, `rule merge_mask`, and `rule effective_genome_size`)
    - Column 1 specifies chromosomes (following naming convention used in the index) to keep.
      - The order of chromosomes provided here is maintained in the SAM/BAM file
        header, and consequently specifies the coordinate sorting order at the

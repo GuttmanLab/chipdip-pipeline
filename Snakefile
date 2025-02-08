@@ -166,6 +166,7 @@ else:
 
 path_chrom_map = config.get("path_chrom_map")
 if path_chrom_map in (None, ""):
+    path_chrom_map = ""
     print("Chromosome names not specified, will use all chromosomes in the Bowtie 2 index.",
           file=sys.stderr)
 
@@ -774,7 +775,7 @@ rule rename_and_filter_chr:
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.rename_and_filter_chr.log")
     params:
-        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else ""
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map != "" else ""
     conda:
         conda_env
     threads:
@@ -786,19 +787,51 @@ rule rename_and_filter_chr:
         '''
 
 # Merge mask
-# - This should increase the speed of the repeat_mask rule compared to a bed file with many overlapping regions.
-# - The merged mask is also used in the generate_bigwigs rule, if that is enabled.
+# - Merging overlapping regions should increase the speed of running bedtools intersect in the repeat_mask rule.
+# - The merged mask is also used in the generate_bigwigs rule.
+# - The merged mask is sorted as follows:
+#   - If a chromosome name map is provided, then it is sorted by the new chromosome names (i.e., according to names in
+#     the second column of the chromosome name map file). Entries with chromosome names not in the chromosome name map
+#     are discarded.
+#   - If a chromosome name map is not provided, then it is sorted by the order of chromosomes in the Bowtie 2 index.
 rule merge_mask:
     output:
-        temp(os.path.join(DIR_WORKUP, "mask_merge.bed"))
+        bed = temp(os.path.join(DIR_WORKUP, "mask_merge.bed")),
+        genome = temp(os.path.join(DIR_WORKUP, "mask_merge.genome"))
     conda:
         conda_env
     shell:
         '''
         if [ -n "{mask}" ]; then
-            sort -k1,1 -k2,2n "{mask}" | bedtools merge > "{output}"
+            if [ -n "{path_chrom_map}" ]; then
+                # chromosome name map is provided --> sort chromosomes by the new chromosome names
+                sort -k1,1 -k2,2n "{mask}" |
+                bedtools merge |
+                python "{rename_and_filter_chr}" --bed --chrom_map "{path_chrom_map}" - > "{output.bed}"
+
+                # create genome file for bedtools intersect
+                join -t $'\t' \
+                    <(grep -E -e '^[^"]\s*\S+\s*' "{path_chrom_map}" ) \
+                    <(bowtie2-inspect -s "{bowtie2_index}" |
+                      grep -E -e '^Sequence-[0-9]+' |
+                      cut -f 2,3) |
+                cut -f 2,3 > "{output.genome}"
+            else
+                # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
+                sort -k1,1 -k2,2n "{mask}" |
+                bedtools merge |
+                python "{rename_and_filter_chr}" \
+                    --bed \
+                    --chrom_map <(bowtie2-inspect -n "{bowtie2_index}" | sed -E 's/(\S+)/\1\t\1/') \
+                    - > "{output.bed}"
+
+                # create genome file for bedtools intersect
+                bowtie2-inspect -s "{bowtie2_index}" |
+                grep -E -e '^Sequence-[0-9]+' |
+                cut -f 2,3 > "{output.genome}"
+            fi
         else
-            touch "{output}"
+            touch "{output.bed}" "{output.genome}"
         fi
         '''
 
@@ -806,7 +839,8 @@ rule merge_mask:
 rule repeat_mask:
     input:
         bam = os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
-        mask = os.path.join(DIR_WORKUP, "mask_merge.bed")
+        mask = os.path.join(DIR_WORKUP, "mask_merge.bed"),
+        genome = os.path.join(DIR_WORKUP, "mask_merge.genome")
     output:
         os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
     log:
@@ -817,7 +851,13 @@ rule repeat_mask:
         '''
         {{
             if [ -n "{mask}" ]; then
-                bedtools intersect -v -a "{input.bam}" -b "{input.mask}" -sorted > "{output}"
+                # -v: only report entries in A that have no overlap in B
+                bedtools intersect \
+                    -v \
+                    -a "{input.bam}" \
+                    -b "{input.mask}" \
+                    -sorted \
+                    -g "{input.genome}" > "{output}"
             else
                 echo "No mask file specified, skipping masking."
                 ln -s "{input.bam}" "{output}"
@@ -1211,7 +1251,7 @@ rule effective_genome_size:
     log:
         os.path.join(DIR_LOGS, "effective_genome_size.log")
     params:
-        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map not in (None, "") else "",
+        chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map != "" else ""
     conda:
         conda_env
     threads:

@@ -108,7 +108,7 @@ def parse_chrom_map(path):
     Parse a chromosome name map file to a dict mapping old chromosome names to new names.
     """
     chrom_map = dict()
-    with open(path, 'rt') as f:
+    with file_open(path, mode='rt') as f:
         for line in f:
             if line.strip() == '' or line.strip().startswith('"'):
                 continue
