@@ -125,12 +125,8 @@ else:
         file=sys.stderr
     )
 
-output_dir = config.get("output_dir")
-if output_dir is not None:
-    print("Using output directory:", output_dir, file=sys.stderr)
-else:
-    output_dir = os.getcwd()
-    print("Defaulting to working directory as output directory:", output_dir, file=sys.stderr)
+DIR_OUT = config.get("output_dir", "workup")
+print("Using output directory:", DIR_OUT, file=sys.stderr)
 
 temp_dir = config.get("temp_dir")
 if temp_dir is not None:
@@ -241,13 +237,9 @@ pipeline_counts = os.path.join(DIR_SCRIPTS, "python", "pipeline_counts.py")
 # Make output directories
 ##############################################################################
 
-DIR_WORKUP = os.path.join(output_dir, "workup")
-DIR_LOGS = os.path.join(DIR_WORKUP, "logs")
-
+DIR_LOGS = os.path.join(DIR_OUT, "logs")
 DIR_LOGS_CLUSTER = os.path.join(DIR_LOGS, "cluster")
 os.makedirs(DIR_LOGS_CLUSTER, exist_ok=True)
-out_created = os.path.exists(DIR_LOGS_CLUSTER)
-print("Output logs path created:", out_created, file=sys.stderr)
 
 ##############################################################################
 # Get sample files and targets
@@ -292,9 +284,9 @@ if generate_splitbams:
 
 CONFIG = [os.path.join(DIR_LOGS, "config_" + run_date + ".json")]
 
-BID_EFFICIENCY_ALL = [os.path.join(DIR_WORKUP, "barcode_identification_efficiency.txt")]
+BID_EFFICIENCY_ALL = [os.path.join(DIR_OUT, "barcode_identification_efficiency.txt")]
 
-MULTI_QC = [os.path.join(DIR_WORKUP, "qc", "multiqc_report.html")]
+MULTI_QC = [os.path.join(DIR_OUT, "qc", "multiqc_report.html")]
 
 LOG_VALIDATE = [os.path.join(DIR_LOGS, "validate.txt")]
 
@@ -303,26 +295,26 @@ LOG_VALIDATE = [os.path.join(DIR_LOGS, "validate.txt")]
 ##############################################################################
 
 SPLIT_FASTQ = expand(
-    os.path.join(DIR_WORKUP, "split_fastq", "{sample}_{read}.part_{splitid}.fastq.gz"),
+    os.path.join(DIR_OUT, "split_fastq", "{sample}_{read}.part_{splitid}.fastq.gz"),
     sample=ALL_SAMPLES,
     read=["R1", "R2"],
     splitid=NUM_CHUNKS)
 
 TRIM = expand(
-    [os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-     os.path.join(DIR_WORKUP, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")],
+    [os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
+     os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")],
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
 TRIM_LOG = expand(
-    os.path.join(DIR_WORKUP, "trimmed", "{sample}_{read}.part_{splitid}.fastq.gz_trimming_report.txt"),
+    os.path.join(DIR_OUT, "trimmed", "{sample}_{read}.part_{splitid}.fastq.gz_trimming_report.txt"),
     sample=ALL_SAMPLES,
     read=["R1", "R2"],
     splitid=NUM_CHUNKS)
 
 TRIM_RD = expand(
-    [os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
-     os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")],
+    [os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
+     os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")],
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
@@ -331,14 +323,14 @@ TRIM_RD = expand(
 ##############################################################################
 
 BARCODEID = expand(
-    os.path.join(DIR_WORKUP, "fastqs", "{sample}_{read}.part_{splitid}.barcoded.fastq.gz"),
+    os.path.join(DIR_OUT, "fastqs", "{sample}_{read}.part_{splitid}.barcoded.fastq.gz"),
     sample=ALL_SAMPLES,
     read=["R1", "R2"],
     splitid=NUM_CHUNKS)
 
 SPLIT_BPM_DPM = expand(
-    [os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
-     os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")],
+    [os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
+     os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")],
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
@@ -347,22 +339,22 @@ SPLIT_BPM_DPM = expand(
 ##############################################################################
 
 Bt2_DNA_ALIGN = expand(
-    os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
+    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
 CHR_DNA = expand(
-    os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
+    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
 MASKED = expand(
-    os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"),
+    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
 MERGE_DNA = expand(
-    os.path.join(DIR_WORKUP, "alignments", "{sample}.DNA.merged.bam"),
+    os.path.join(DIR_OUT, "alignments", "{sample}.DNA.merged.bam"),
     sample=ALL_SAMPLES)
 
 ##############################################################################
@@ -370,12 +362,12 @@ MERGE_DNA = expand(
 ##############################################################################
 
 FASTQ_TO_BAM = expand(
-    os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
+    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
 MERGE_BEAD = expand(
-    os.path.join(DIR_WORKUP, "alignments", "{sample}.merged.BPM.bam"),
+    os.path.join(DIR_OUT, "alignments", "{sample}.merged.BPM.bam"),
     sample=ALL_SAMPLES)
 
 ##############################################################################
@@ -383,55 +375,55 @@ MERGE_BEAD = expand(
 ##############################################################################
 
 CLUSTERS = expand(
-    os.path.join(DIR_WORKUP, "clusters_parts", "{sample}.part_{splitid}.clusters"),
+    os.path.join(DIR_OUT, "clusters_parts", "{sample}.part_{splitid}.clusters"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS)
 
 CLUSTERS_MERGED = expand(
-    os.path.join(DIR_WORKUP, "clusters", "{sample}.clusters"),
+    os.path.join(DIR_OUT, "clusters", "{sample}.clusters"),
     sample=ALL_SAMPLES)
 
 ##############################################################################
 # Post Clustering
 ##############################################################################
 
-CLUSTER_STATISTICS = [os.path.join(DIR_WORKUP, "clusters", "cluster_statistics.txt")]
+CLUSTER_STATISTICS = [os.path.join(DIR_OUT, "clusters", "cluster_statistics.txt")]
 
-CLUSTER_SIZES = [os.path.join(DIR_WORKUP, "clusters", "DPM_read_distribution.pdf"),
-         os.path.join(DIR_WORKUP, "clusters", "DPM_cluster_distribution.pdf"),
-         os.path.join(DIR_WORKUP, "clusters", "BPM_cluster_distribution.pdf"),
-         os.path.join(DIR_WORKUP, "clusters", "BPM_read_distribution.pdf")]
+CLUSTER_SIZES = [os.path.join(DIR_OUT, "clusters", "DPM_read_distribution.pdf"),
+         os.path.join(DIR_OUT, "clusters", "DPM_cluster_distribution.pdf"),
+         os.path.join(DIR_OUT, "clusters", "BPM_cluster_distribution.pdf"),
+         os.path.join(DIR_OUT, "clusters", "BPM_read_distribution.pdf")]
 
-ECDFS = [os.path.join(DIR_WORKUP, "clusters", "Max_representation_ecdf.pdf"),
-         os.path.join(DIR_WORKUP, "clusters", "Max_representation_counts.pdf")]
+ECDFS = [os.path.join(DIR_OUT, "clusters", "Max_representation_ecdf.pdf"),
+         os.path.join(DIR_OUT, "clusters", "Max_representation_counts.pdf")]
 
 LABELED_BAMS = expand(
-    os.path.join(DIR_WORKUP, "alignments", "{sample}.DNA.merged.labeled.bam"),
+    os.path.join(DIR_OUT, "alignments", "{sample}.DNA.merged.labeled.bam"),
     sample=ALL_SAMPLES)
 
 SPLITBAMS = expand(
-    os.path.join(DIR_WORKUP, "splitbams", "{sample}.DNA.merged.labeled_{target}.bam"),
+    os.path.join(DIR_OUT, "splitbams", "{sample}.DNA.merged.labeled_{target}.bam"),
     sample=ALL_SAMPLES,
     target=TARGETS)
 
-SPLITBAMS_STATISTICS = [os.path.join(DIR_WORKUP, "splitbams", "splitbam_statistics.txt")]
+SPLITBAMS_STATISTICS = [os.path.join(DIR_OUT, "splitbams", "splitbam_statistics.txt")]
 
 SPLITBAMS_MERGED = expand(
-    os.path.join(DIR_WORKUP, "splitbams", "{target}.bam"),
+    os.path.join(DIR_OUT, "splitbams", "{target}.bam"),
     target=TARGETS)
 
 BIGWIGS = expand(
-    os.path.join(DIR_WORKUP, "bigwigs", "{sample}.DNA.merged.labeled_{target}.bw"),
+    os.path.join(DIR_OUT, "bigwigs", "{sample}.DNA.merged.labeled_{target}.bw"),
     sample=ALL_SAMPLES,
     target=TARGETS)
 
 BIGWIGS_MERGED = expand(
-    os.path.join(DIR_WORKUP, "bigwigs", "{target}.bw"),
+    os.path.join(DIR_OUT, "bigwigs", "{target}.bw"),
     target=TARGETS)
 
-CLUSTERS_ALL = [os.path.join(DIR_WORKUP, "clusters", "all.clusters")]
+CLUSTERS_ALL = [os.path.join(DIR_OUT, "clusters", "all.clusters")]
 
-PIPELINE_COUNTS = [os.path.join(DIR_WORKUP, "pipeline_counts.txt")]
+PIPELINE_COUNTS = [os.path.join(DIR_OUT, "pipeline_counts.txt")]
 
 FINAL = \
     MERGE_BEAD + MERGE_DNA + CLUSTER_SIZES + ECDFS + CLUSTER_STATISTICS + MULTI_QC + \
@@ -477,7 +469,7 @@ wildcard_constraints:
     sample = "[^\.]+",
     target = "|".join([re.escape(x) for x in TARGETS])
 
-# remove all output, leaving just the following in the workup folder:
+# remove all output, leaving just the following in the output folder:
 # - bigwigs/
 # - clusters/
 # - qc/
@@ -488,14 +480,14 @@ wildcard_constraints:
 rule clean:
     shell:
         '''
-        for path in {DIR_WORKUP}/*; do
-            if [[ "$path" != "{DIR_WORKUP}/bigwigs" ]] &&
-               [[ "$path" != "{DIR_WORKUP}/clusters" ]] &&
-               [[ "$path" != "{DIR_WORKUP}/qc" ]] &&
-               [[ "$path" != "{DIR_WORKUP}/splitbams" ]] &&
-               [[ "$path" != "{DIR_WORKUP}/barcode_identification_efficiency.txt" ]] &&
-               [[ "$path" != "{DIR_WORKUP}/effective_genome_size.txt" ]] &&
-               [[ "$path" != "{DIR_WORKUP}/pipeline_counts.txt" ]]; then
+        for path in {DIR_OUT}/*; do
+            if [[ "$path" != "{DIR_OUT}/bigwigs" ]] &&
+               [[ "$path" != "{DIR_OUT}/clusters" ]] &&
+               [[ "$path" != "{DIR_OUT}/qc" ]] &&
+               [[ "$path" != "{DIR_OUT}/splitbams" ]] &&
+               [[ "$path" != "{DIR_OUT}/barcode_identification_efficiency.txt" ]] &&
+               [[ "$path" != "{DIR_OUT}/effective_genome_size.txt" ]] &&
+               [[ "$path" != "{DIR_OUT}/pipeline_counts.txt" ]]; then
                 echo "Removing $path" && rm -rf "$path"
             fi
         done
@@ -537,13 +529,13 @@ rule split_fastq:
         r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output:
         temp(expand(
-            [os.path.join(DIR_WORKUP, "split_fastq", "{{sample}}_R1.part_{splitid}.fastq"),
-             os.path.join(DIR_WORKUP, "split_fastq", "{{sample}}_R2.part_{splitid}.fastq")],
+            [os.path.join(DIR_OUT, "split_fastq", "{{sample}}_R1.part_{splitid}.fastq"),
+             os.path.join(DIR_OUT, "split_fastq", "{{sample}}_R2.part_{splitid}.fastq")],
              splitid=NUM_CHUNKS))
     log:
         os.path.join(DIR_LOGS, "{sample}.split_fastq.log")
     params:
-        dir = os.path.join(DIR_WORKUP, "split_fastq"),
+        dir = os.path.join(DIR_OUT, "split_fastq"),
         prefix_r1 = "{sample}_R1.part_0",
         prefix_r2 = "{sample}_R2.part_0"
     conda:
@@ -561,11 +553,11 @@ rule split_fastq:
 # Compress the split fastq files
 rule compress_fastq:
     input:
-        r1 = os.path.join(DIR_WORKUP, "split_fastq", "{sample}_R1.part_{splitid}.fastq"),
-        r2 = os.path.join(DIR_WORKUP, "split_fastq", "{sample}_R2.part_{splitid}.fastq")
+        r1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq"),
+        r2 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq")
     output:
-        r1 = os.path.join(DIR_WORKUP, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
-        r2 = os.path.join(DIR_WORKUP, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")
+        r1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
+        r2 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")
     conda:
         conda_env
     threads:
@@ -578,17 +570,17 @@ rule compress_fastq:
 # Trim adaptors
 rule adaptor_trimming:
     input:
-        [os.path.join(DIR_WORKUP, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
-         os.path.join(DIR_WORKUP, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")]
+        [os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
+         os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")]
     output:
-         os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-         os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.fastq.gz_trimming_report.txt"),
-         os.path.join(DIR_WORKUP, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz"),
-         os.path.join(DIR_WORKUP, "trimmed", "{sample}_R2.part_{splitid}.fastq.gz_trimming_report.txt")
+         os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
+         os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.fastq.gz_trimming_report.txt"),
+         os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz"),
+         os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}.fastq.gz_trimming_report.txt")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.adaptor_trimming.log")
     params:
-        dir = os.path.join(DIR_WORKUP, "trimmed")
+        dir = os.path.join(DIR_OUT, "trimmed")
     threads:
         10
     conda:
@@ -614,11 +606,11 @@ rule adaptor_trimming:
 # Identify barcodes using BarcodeIdentification_v1.2.0.jar
 rule barcode_id:
     input:
-        r1 = os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-        r2 = os.path.join(DIR_WORKUP, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")
+        r1 = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
+        r2 = os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")
     output:
-        r1_barcoded = os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz"),
-        r2_barcoded = os.path.join(DIR_WORKUP, "fastqs", "{sample}_R2.part_{splitid}.barcoded.fastq.gz")
+        r1_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz"),
+        r2_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R2.part_{splitid}.barcoded.fastq.gz")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.barcode_id.log")
     conda:
@@ -634,9 +626,9 @@ rule barcode_id:
 # Calculate barcode identification efficiency
 rule barcode_identification_efficiency:
     input:
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
     output:
-        temp(os.path.join(DIR_WORKUP, "{sample}.part_{splitid}.bid_efficiency.txt"))
+        temp(os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"))
     conda:
         conda_env
     shell:
@@ -647,7 +639,7 @@ rule barcode_identification_efficiency:
 rule cat_barcode_identification_efficiency:
     input:
         expand(
-            os.path.join(DIR_WORKUP, "{sample}.part_{splitid}.bid_efficiency.txt"),
+            os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"),
             sample=ALL_SAMPLES,
             splitid=NUM_CHUNKS)
     output:
@@ -660,12 +652,12 @@ rule cat_barcode_identification_efficiency:
 # Split barcoded reads into BPM and DPM, remove incomplete barcodes
 rule split_bpm_dpm:
     input:
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
     output:
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz"),
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_other.fastq.gz"),
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_short.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_other.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_short.fastq.gz")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.split_bpm_dpm.log")
     params:
@@ -684,10 +676,10 @@ rule split_bpm_dpm:
 # Trim DPM from read1 of DPM reads, remove DPM dimer reads
 rule cutadapt_dpm:
     input:
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
     output:
-        fastq = os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
-        qc = os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt")
+        fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
+        qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.DPM.cutadapt.log")
     params:
@@ -714,10 +706,10 @@ rule cutadapt_dpm:
 # Trim 9mer oligo sequence from read1 of BPM reads
 rule cutadapt_oligo:
     input:
-        os.path.join(DIR_WORKUP, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz")
     output:
-        fastq = os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
-        qc = os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.qc.txt")
+        fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
+        qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.qc.txt")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.BPM.cutadapt.log")
     params:
@@ -745,9 +737,9 @@ rule bowtie2_align:
     MapQ filter 20, -F 4 only mapped reads, -F 256 remove not primary alignment reads
     '''
     input:
-        os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz")
+        os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz")
     output:
-        os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.bowtie2.log")
     threads:
@@ -771,9 +763,9 @@ rule bowtie2_align:
 # Rename chromosome names and filter for chromosomes of interest
 rule rename_and_filter_chr:
     input:
-        os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     output:
-        os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.rename_and_filter_chr.log")
     params:
@@ -798,8 +790,8 @@ rule rename_and_filter_chr:
 #   - If a chromosome name map is not provided, then it is sorted by the order of chromosomes in the Bowtie 2 index.
 rule merge_mask:
     output:
-        bed = temp(os.path.join(DIR_WORKUP, "mask_merge.bed")),
-        genome = temp(os.path.join(DIR_WORKUP, "mask_merge.genome"))
+        bed = temp(os.path.join(DIR_OUT, "mask_merge.bed")),
+        genome = temp(os.path.join(DIR_OUT, "mask_merge.genome"))
     log:
         os.path.join(DIR_LOGS, "merge_mask.log")
     conda:
@@ -844,11 +836,11 @@ rule merge_mask:
 # Repeat mask aligned DNA reads
 rule repeat_mask:
     input:
-        bam = os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
-        mask = os.path.join(DIR_WORKUP, "mask_merge.bed"),
-        genome = os.path.join(DIR_WORKUP, "mask_merge.genome")
+        bam = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
+        mask = os.path.join(DIR_OUT, "mask_merge.bed"),
+        genome = os.path.join(DIR_OUT, "mask_merge.genome")
     output:
-        os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.repeat_mask.log")
     conda:
@@ -875,10 +867,10 @@ rule repeat_mask:
 rule merge_dna:
     input:
         expand(
-            os.path.join(DIR_WORKUP, "alignments_parts", "{{sample}}.part_{splitid}.DNA.chr.masked.bam"),
+            os.path.join(DIR_OUT, "alignments_parts", "{{sample}}.part_{splitid}.DNA.chr.masked.bam"),
             splitid=NUM_CHUNKS)
     output:
-        os.path.join(DIR_WORKUP, "alignments", "{sample}.DNA.merged.bam")
+        os.path.join(DIR_OUT, "alignments", "{sample}.DNA.merged.bam")
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_DNA.log")
     conda:
@@ -897,10 +889,10 @@ rule merge_dna:
 # Convert the BPM FASTQ reads into a BAM file, keeping the UMI
 rule fastq_to_bam:
     input:
-        os.path.join(DIR_WORKUP, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")
+        os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")
     output:
-        sorted = os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
-        bam = temp(os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.BPM.unsorted.bam"))
+        sorted = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
+        bam = temp(os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.unsorted.bam"))
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.fastq_to_bam.log")
     conda:
@@ -919,10 +911,10 @@ rule fastq_to_bam:
 rule merge_beads:
     input:
         expand(
-            os.path.join(DIR_WORKUP, "alignments_parts", "{{sample}}.part_{splitid}.BPM.bam"),
+            os.path.join(DIR_OUT, "alignments_parts", "{{sample}}.part_{splitid}.BPM.bam"),
             splitid=NUM_CHUNKS)
     output:
-        os.path.join(DIR_WORKUP, "alignments", "{sample}.merged.BPM.bam")
+        os.path.join(DIR_OUT, "alignments", "{sample}.merged.BPM.bam")
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_beads.log")
     conda:
@@ -941,11 +933,11 @@ rule merge_beads:
 # Make clusters from aligned DNA reads and oligo reads
 rule make_clusters:
     input:
-        dpm = os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"),
-        bpm = os.path.join(DIR_WORKUP, "alignments_parts", "{sample}.part_{splitid}.BPM.bam")
+        dpm = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"),
+        bpm = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam")
     output:
-        unsorted = temp(os.path.join(DIR_WORKUP, "clusters_parts", "{sample}.part_{splitid}.unsorted.clusters")),
-        sorted = os.path.join(DIR_WORKUP, "clusters_parts", "{sample}.part_{splitid}.clusters")
+        unsorted = temp(os.path.join(DIR_OUT, "clusters_parts", "{sample}.part_{splitid}.unsorted.clusters")),
+        sorted = os.path.join(DIR_OUT, "clusters_parts", "{sample}.part_{splitid}.clusters")
     log:
         os.path.join(DIR_LOGS, "{sample}.{splitid}.make_clusters.log")
     threads:
@@ -968,11 +960,11 @@ rule make_clusters:
 rule merge_clusters:
     input:
         expand(
-            os.path.join(DIR_WORKUP, "clusters_parts", "{{sample}}.part_{splitid}.clusters"),
+            os.path.join(DIR_OUT, "clusters_parts", "{{sample}}.part_{splitid}.clusters"),
             splitid=NUM_CHUNKS)
     output:
-        mega = temp(os.path.join(DIR_WORKUP, "clusters", "{sample}.duplicated.clusters")),
-        final = os.path.join(DIR_WORKUP, "clusters", "{sample}.clusters")
+        mega = temp(os.path.join(DIR_OUT, "clusters", "{sample}.duplicated.clusters")),
+        final = os.path.join(DIR_OUT, "clusters", "{sample}.clusters")
     log:
         os.path.join(DIR_LOGS, "{sample}.merge_clusters.log")
     conda:
@@ -1014,7 +1006,7 @@ rule generate_cluster_statistics:
     log:
         os.path.join(DIR_LOGS, "cluster_statistics.log")
     params:
-        dir = os.path.join(DIR_WORKUP, "clusters")
+        dir = os.path.join(DIR_OUT, "clusters")
     conda:
         conda_env
     shell:
@@ -1028,12 +1020,12 @@ rule generate_cluster_ecdfs:
     input:
         (CLUSTERS_ALL + CLUSTERS_MERGED) if merge_samples else CLUSTERS_MERGED
     output:
-        ecdf = os.path.join(DIR_WORKUP, "clusters", "Max_representation_ecdf.pdf"),
-        counts = os.path.join(DIR_WORKUP, "clusters", "Max_representation_counts.pdf")
+        ecdf = os.path.join(DIR_OUT, "clusters", "Max_representation_ecdf.pdf"),
+        counts = os.path.join(DIR_OUT, "clusters", "Max_representation_counts.pdf")
     log:
         os.path.join(DIR_LOGS, "cluster_ecdfs.log")
     params:
-        dir = os.path.join(DIR_WORKUP, "clusters")
+        dir = os.path.join(DIR_OUT, "clusters")
     conda:
         conda_env
     shell:
@@ -1047,14 +1039,14 @@ rule get_size_distribution:
     input:
         (CLUSTERS_ALL + CLUSTERS_MERGED) if merge_samples else CLUSTERS_MERGED
     output:
-        dpm = os.path.join(DIR_WORKUP, "clusters", "DPM_read_distribution.pdf"),
-        dpm2 = os.path.join(DIR_WORKUP, "clusters", "DPM_cluster_distribution.pdf"),
-        bpm = os.path.join(DIR_WORKUP, "clusters", "BPM_read_distribution.pdf"),
-        bpm2 = os.path.join(DIR_WORKUP, "clusters", "BPM_cluster_distribution.pdf")
+        dpm = os.path.join(DIR_OUT, "clusters", "DPM_read_distribution.pdf"),
+        dpm2 = os.path.join(DIR_OUT, "clusters", "DPM_cluster_distribution.pdf"),
+        bpm = os.path.join(DIR_OUT, "clusters", "BPM_read_distribution.pdf"),
+        bpm2 = os.path.join(DIR_OUT, "clusters", "BPM_cluster_distribution.pdf")
     log:
         os.path.join(DIR_LOGS, "size_distribution.log")
     params:
-        dir = os.path.join(DIR_WORKUP, "clusters")
+        dir = os.path.join(DIR_OUT, "clusters")
     conda:
         conda_env
     shell:
@@ -1076,16 +1068,16 @@ rule multiqc:
     input:
         CLUSTERS_MERGED
     output:
-        os.path.join(DIR_WORKUP, "qc", "multiqc_report.html")
+        os.path.join(DIR_OUT, "qc", "multiqc_report.html")
     log:
         os.path.join(DIR_LOGS, "multiqc.log")
     params:
-        dir_qc = os.path.join(DIR_WORKUP, "qc")
+        dir_qc = os.path.join(DIR_OUT, "qc")
     conda:
         conda_env
     shell:
         '''
-        multiqc -f -o "{params.dir_qc}" "{DIR_WORKUP}" &> "{log}"
+        multiqc -f -o "{params.dir_qc}" "{DIR_OUT}" &> "{log}"
         '''
 
 rule pipeline_counts:
@@ -1095,8 +1087,8 @@ rule pipeline_counts:
         Bt2_DNA_ALIGN + CHR_DNA + MASKED + MERGE_DNA + CLUSTERS + \
         CLUSTERS_MERGED + (SPLITBAMS if generate_splitbams else [])
     output:
-        csv = os.path.join(DIR_WORKUP, "qc", "pipeline_counts.csv"),
-        pretty = os.path.join(DIR_WORKUP, "pipeline_counts.txt")
+        csv = os.path.join(DIR_OUT, "qc", "pipeline_counts.csv"),
+        pretty = os.path.join(DIR_OUT, "pipeline_counts.txt")
     log:
         os.path.join(DIR_LOGS, "pipeline_counts.log")
     conda:
@@ -1108,7 +1100,7 @@ rule pipeline_counts:
         {{
             python "{pipeline_counts}" \\
               --samples "{samples}" \\
-              -w "{DIR_WORKUP}" \\
+              -w "{DIR_OUT}" \\
               -o "{output.csv}" \\
               -n {threads} |
             column -t -s $'\\t' > "{output.pretty}"
@@ -1122,18 +1114,18 @@ rule pipeline_counts:
 # Generate bam files for individual targets based on assignments from clusterfile
 rule threshold_tag_and_split:
     input:
-        bam = os.path.join(DIR_WORKUP, "alignments", "{sample}.DNA.merged.bam"),
-        clusters = os.path.join(DIR_WORKUP, "clusters", "{sample}.clusters")
+        bam = os.path.join(DIR_OUT, "alignments", "{sample}.DNA.merged.bam"),
+        clusters = os.path.join(DIR_OUT, "clusters", "{sample}.clusters")
     output:
         expand(
-            os.path.join(DIR_WORKUP, "splitbams", "{{sample}}.DNA.merged.labeled_{target}.bam"),
+            os.path.join(DIR_OUT, "splitbams", "{{sample}}.DNA.merged.labeled_{target}.bam"),
             target=TARGETS
         )
     log:
         os.path.join(DIR_LOGS, "{sample}.splitbams.log")
     params:
-        dir_splitbams = os.path.join(DIR_WORKUP, "splitbams"),
-        labeled_bam = os.path.join(DIR_WORKUP, "alignments", "{sample}.DNA.merged.labeled.bam")
+        dir_splitbams = os.path.join(DIR_OUT, "splitbams"),
+        labeled_bam = os.path.join(DIR_OUT, "alignments", "{sample}.DNA.merged.labeled.bam")
     conda:
         conda_env
     shell:
@@ -1165,10 +1157,10 @@ rule threshold_tag_and_split:
 rule splitbams_merged:
     input:
         expand(
-            os.path.join(DIR_WORKUP, "splitbams", "{sample}.DNA.merged.labeled_{{target}}.bam"),
+            os.path.join(DIR_OUT, "splitbams", "{sample}.DNA.merged.labeled_{{target}}.bam"),
             sample=ALL_SAMPLES)
     output:
-        os.path.join(DIR_WORKUP, "splitbams", "{target}.bam")
+        os.path.join(DIR_OUT, "splitbams", "{target}.bam")
     log:
         os.path.join(DIR_LOGS, "splitbam_{target}.log")
     conda:
@@ -1198,9 +1190,9 @@ rule splitbams_merged:
 
 rule index_splitbams:
     input:
-        os.path.join(DIR_WORKUP, "splitbams", "{file}.bam")
+        os.path.join(DIR_OUT, "splitbams", "{file}.bam")
     output:
-        os.path.join(DIR_WORKUP, "splitbams", "{file}.bam.bai")
+        os.path.join(DIR_OUT, "splitbams", "{file}.bam.bai")
     log:
         os.path.join(DIR_LOGS, "splitbam-index_{file}.log")
     conda:
@@ -1251,9 +1243,9 @@ rule generate_splitbam_statistics:
 # See https://deeptools.readthedocs.io/en/develop/content/feature/effectiveGenomeSize.html
 rule effective_genome_size:
     input:
-        mask = os.path.join(DIR_WORKUP, "mask_merge.bed")
+        mask = os.path.join(DIR_OUT, "mask_merge.bed")
     output:
-        os.path.join(DIR_WORKUP, "effective_genome_size.txt")
+        os.path.join(DIR_OUT, "effective_genome_size.txt")
     log:
         os.path.join(DIR_LOGS, "effective_genome_size.log")
     params:
@@ -1279,11 +1271,11 @@ rule effective_genome_size:
 
 rule generate_bigwigs:
     input:
-        bam = os.path.join(DIR_WORKUP, "splitbams", "{file}.bam"),
-        index = os.path.join(DIR_WORKUP, "splitbams", "{file}.bam.bai"),
-        effective_genome_size = os.path.join(DIR_WORKUP, "effective_genome_size.txt")
+        bam = os.path.join(DIR_OUT, "splitbams", "{file}.bam"),
+        index = os.path.join(DIR_OUT, "splitbams", "{file}.bam.bai"),
+        effective_genome_size = os.path.join(DIR_OUT, "effective_genome_size.txt")
     output:
-        os.path.join(DIR_WORKUP, "bigwigs", "{file}.bw")
+        os.path.join(DIR_OUT, "bigwigs", "{file}.bw")
     log:
         os.path.join(DIR_LOGS, "bigwig_{file}.log")
     conda:

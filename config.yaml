@@ -14,7 +14,7 @@ samples: "example_samples.json"
 scripts_dir: "scripts/"
 
 # Output directory
-output_dir: ""
+output_dir: "workup"
 
 # Temporary directory
 temp_dir: "/central/scratch/"

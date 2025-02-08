@@ -172,14 +172,14 @@ We will refer to 4 directories:
 3. <a name="input-directory">Input directory</a>: where configuration and data files reside
    - `assets/`
    - `data/`
-   - `cluster.yaml`
+   - [`cluster.yaml`](#cluster-config): paths are specified relative to the [working directory](#working-directory)
    - [`config.yaml`](#config-yaml): paths are specified relative to the [working directory](#working-directory)
    - [`config.txt` / `example_config.txt`](#config-txt)
    - [`format.txt` / `example_format.txt`](#format-txt)
    - [`samples.json` / `example_samples.json`](#samples-json): paths are specified relative to the [working directory](#working-directory)
    - `run_pipeline.sh`: the paths in the arguments `--snakefile <path to Snakefile>`, `--cluster-config <path to cluster.yaml>`, and `--configfile <path to config.yaml>` are relative to where you run `run_pipeline.sh`
 
-4. <a name="output-directory">Output or workup directory</a> (`workup/`): where to place this `workup` directory can be changed in [`config.yaml`](#config-yaml)
+4. <a name="output-directory">Output directory</a>: where to place this directory can be changed in [`config.yaml`](#config-yaml)
    - `alignments/`
    - `alignments_parts/`
    - [`bigwigs/`](#bigwigs)
@@ -201,7 +201,7 @@ We will refer to 4 directories:
    - [`barcode_identification_efficiency.txt`](#bid-efficiency)
    - [`pipeline_counts.txt`](#pipeline-counts)
 
-For reproducibility, we recommend keeping the pipeline, input, and output directories together. In other words, the complete directory should look like this GitHub repository with an extra `workup` subdirectory created upon running this pipeline.
+For reproducibility, we recommend keeping the pipeline, input, and output directories together. In other words, the complete directory should look like this GitHub repository with an extra output subdirectory (by default, `workup/`) created upon running this pipeline.
 
 However, the pipeline directory can also be kept separate and used repeatedly on different datasets.
 - The [working directory](#working-directory) should stay with the [input directory](#input-directory), so that the `.snakemake` folder containing the Snakemake pipeline metadata (that keeps track of which steps of the pipeline have completed) is paired with the configuration files.
@@ -223,7 +223,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
      - `bead_umi_length`: integer length of bead oligo UMIs
    - Optional keys: If these keys are omitted from `config.yaml` or set to `null`, then they will take on the default values indicated. For keys whose default values are `null`, setting them to `null` will produce behaviors as described below.
-     - `output_dir` (default = [working directory](#working-directory)): path to create the [output directory](#output-directory) `<output_dir>/workup` within which all intermediate and output files are placed.
+     - `output_dir` (default = `"workup"`): path to create the [output directory](#output-directory) within which all intermediate and output files are placed.
      - `temp_dir` (default = `"/central/scratch"`): path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
      - `barcode_format` (default = `null`): path to [barcode format file](#format-txt) (e.g., `format.txt`). If `null`, no barcode validation is performed.
      - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("\*.yml" or "\*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory)
@@ -403,54 +403,62 @@ However, the pipeline directory can also be kept separate and used repeatedly on
 
      Note that the pre-built indices linked above use [UCSC chromosome names](https://genome.ucsc.edu/FAQ/FAQgenes.html) (`chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`). If your alignment indices use different chromosome names (e.g., Ensembl chromosome names are `1`, `2`, ..., `X`, `Y`, `MT`), update [`chrom-map.txt`](#chrom-map) such that chromosome names in BAM files are converted to UCSC chromosome names. You can check the names of the reference sequences used to build the index by using the command `bowtie2-inspect -n <bt2-idx>`.
 
+10. <a name="cluster-config">`cluster.yaml`</a>: Cluster config file
+    - Required? Yes if running on a compute cluster, such as a [SLURM](https://slurm.schedmd.com/) environment.
+    - The path to this file is specified using the `--cluster-config` argument to the `snakemake` program -- i.e., in the `run_pipeline.sh` script.
+    - This file specifies the resources available to each rule. All variables/directives available to shell commands in the Snakefile are also availble here (see [Snakemake's documentation](https://snakemake.readthedocs.io/en/v7.32.3/snakefiles/configuration.html#cluster-configuration-deprecated)).
+    - Note: for a SLURM system, the directories for the standard output and standard error files specified by the `output:` and `error:` directives must exist prior to execution of the corresponding rule/job (see [issue #3](https://github.com/GuttmanLab/chipdip-pipeline/issues/3#issuecomment-2125982531)).
+
 # Output Files
 
-1. <a name="bid-efficiency">Barcode identification efficiency</a> (`workup/barcode_identification_efficiency.txt`): A statistical summary of how many tags were found per read and the proportion of reads with a matching tag at each position.
+These files are generated in the [output directory](#output-directory), which is specified by the `output_dir` key in the [pipeline configuration file](#config-yaml).
+
+1. <a name="bid-efficiency">Barcode identification efficiency</a> (`barcode_identification_efficiency.txt`): A statistical summary of how many tags were found per read and the proportion of reads with a matching tag at each position.
    - The first type of statistic describes how many tags were identified per read. For example, consider a dataset of 10000 adapter-trimmed reads with the expected tag structure as specified in the [`example_config.txt`](https://github.com/GuttmanLab/chipdip-pipeline/blob/main/example_config.txt) file: 1 DPM tag on Read 1, 6 tags (Odd, Even, or Terminal) on Read 2.
-     - `170 (1.7%) reads found with 1 tag.` For a small fraction reads, only 1 tag was identified; this is to be expected, whether due to ligation errors, PCR artifacts, or sequencing errors. These reads are output to `workup/fastqs/<sample_name>.part<###>.barcoded_short.fastq.gz` and are not used for analysis.
-     - `7500 (75.0%) reads found with 7 tags.` This is the expected result, where all 7 tags are identified in the majority of reads. In the `split_bpm_dpm` rule, these reads are split into `workup/fastqs/<sample_name>.part<###>.barcoded_dpm.fastq.gz` or `workup/fastqs/<sample_name>.part<###>.barcoded_bpm.fastq.gz`, depending on whether a read corresponds to genomic DNA or an antibody oligo.
+     - `170 (1.7%) reads found with 1 tag.` For a small fraction reads, only 1 tag was identified; this is to be expected, whether due to ligation errors, PCR artifacts, or sequencing errors. These reads are output to `fastqs/<sample_name>.part<###>.barcoded_short.fastq.gz` and are not used for analysis.
+     - `7500 (75.0%) reads found with 7 tags.` This is the expected result, where all 7 tags are identified in the majority of reads. In the `split_bpm_dpm` rule, these reads are split into `fastqs/<sample_name>.part<###>.barcoded_dpm.fastq.gz` or `fastqs/<sample_name>.part<###>.barcoded_bpm.fastq.gz`, depending on whether a read corresponds to genomic DNA or an antibody oligo.
    - The second type of statistic describes at which positions tags were identified in the reads.
      - `9800 (98.0%) reads found with tag in position 1 (read 1, DPM).` As expected, a DPM-category tag is identified at the start of read 1.
      - `9700 (97.0%) reads found with tag in position 2 (read 2, Y).` As expected, a terminal tag is identified at the start of read 2.
 
-2. <a name="pipeline-counts">Pipeline counts</a> (`workup/pipeline_counts.txt`): A tree-like summary of how many reads remained at each step of the pipeline, produced per aliquot and in aggregate. This can be used to quickly view the proportion of reads corresponding to antibody oligos versus genomic DNA reads; the proportion of properly barcoded reads; etc.
+2. <a name="pipeline-counts">Pipeline counts</a> (`pipeline_counts.txt`): A tree-like summary of how many reads remained at each step of the pipeline, produced per aliquot and in aggregate. This can be used to quickly view the proportion of reads corresponding to antibody oligos versus genomic DNA reads; the proportion of properly barcoded reads; etc.
    - The 4 columns of numbers are as follows:
      1. The number of reads remaining after that step
      2. The proportion of reads remaining relative to the immediately previous step of the pipeline
      3. The proportion of reads remaining relative to the read type - antibody oligo (`bpm`) or genomic DNA (`dpm`)
      4. The proportion of reads remaining relative to the starting number of reads.
-   - A tabular version is saved to `workup/qc/pipeline_counts.csv`
+   - A tabular version is saved to `qc/pipeline_counts.csv`
 
-3. <a name="effective-genome-size-file">Effective genome size file</a> (`workup/effective_genome_size.txt`): Text file with a single value of the computed effective genome size. Only generated if bigWig generation is requested with normalization strategy `RPGC`.
+3. <a name="effective-genome-size-file">Effective genome size file</a> (`effective_genome_size.txt`): Text file with a single value of the computed effective genome size. Only generated if bigWig generation is requested with normalization strategy `RPGC`.
 
-4. <a name="cluster-file">Cluster file</a> (`workup/clusters/<sample>.clusters`): Tab-delimited file, where each line represents a single cluster.
+4. <a name="cluster-file">Cluster file</a> (`clusters/<sample>.clusters`): Tab-delimited file, where each line represents a single cluster.
    - The first column is the cluster barcode.
    - The remainder of the line is a list of reads. DNA reads are formated as `DPM[strand]_chr:start-end`, and antibody oligo reads are formated as `BPM[]_<AntibodyID>:<UMI>-0`.
 
-5. <a name="cluster-stats">Cluster statistics</a> (`workup/clusters/cluster_statistics.txt`): The number of clusters and antibody oligo (BPM) or genomic DNA (DPM) reads per library.
+5. <a name="cluster-stats">Cluster statistics</a> (`clusters/cluster_statistics.txt`): The number of clusters and antibody oligo (BPM) or genomic DNA (DPM) reads per library.
 
-6. <a name="cluster-sizes">Cluster size distribtion</a> (`workup/clusters/[BPM,DPM]_cluster_distribution.pdf`): The proportion of clusters that belong to each size category.
+6. <a name="cluster-sizes">Cluster size distribtion</a> (`clusters/[BPM,DPM]_cluster_distribution.pdf`): The proportion of clusters that belong to each size category.
 
-7. <a name="cluster-read-dist">Cluster size read distribution</a> (`workup/clusters/[BPM,DPM]_read_distribution.pdf`): The proportion of reads that belong to clusters of each size category.
+7. <a name="cluster-read-dist">Cluster size read distribution</a> (`clusters/[BPM,DPM]_read_distribution.pdf`): The proportion of reads that belong to clusters of each size category.
    - This can be more useful than the number of clusters since relatively few large clusters can contain many sequencing reads (i.e., a large fraction of the library) while many small clusters will contain few sequencing reads (i.e., a much smaller fraction of the library).
    
-8. <a name="cluster-oligo-prop-ecdf">Maximum representation oligo eCDF</a> (`workup/clusters/Max_representation_ecdf.pdf`): A plot showing the distribution of proportion of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
+8. <a name="cluster-oligo-prop-ecdf">Maximum representation oligo eCDF</a> (`clusters/Max_representation_ecdf.pdf`): A plot showing the distribution of proportion of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
    - A successful experiment should have an ECDF close to a right angle. Deviations from this indicate that beads contain mixtures of Antibody IDs. Understanding the uniqueness of Antibody ID reads per cluster is important for choosing the thresholding parameter `proportion` for cluster assignment.
 
-9. <a name="cluster-oligo-counts-ecdf">Maximum representation oligo counts ECDF</a> (`workup/clusters/Max_representation_counts.pdf`): A plot showing the distribution of number of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
+9. <a name="cluster-oligo-counts-ecdf">Maximum representation oligo counts ECDF</a> (`clusters/Max_representation_counts.pdf`): A plot showing the distribution of number of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
    - If clusters are nearly unique in Antibody ID composition, then this plot is a surrogate for BPM size distribtuion. Understanding the number of Antibody ID reads per cluster is important for choosing the thresholding parameters `min_oligo` for cluster assignment.
 
-10. <a name="splitbams">BAM files for individual antibodies</a> (`workup/splitbams/*.bam`)
+10. <a name="splitbams">BAM files for individual antibodies</a> (`splitbams/*.bam`)
    - Thresholding criteria (`min_oligos`, `proportion`, `max_size`) for assigning individual clusters to individual antibodies are set in [`config.yaml`](#config-yaml).
    - The "none" BAM file (`<sample>.DNA.merged.labeled_none.bam`) contains DNA reads from clusters without antibody oligo reads.
    - THe "ambigious" BAM file (`<sample>.DNA.merged.labeled_ambiguous.bam`) contains DNA reads from clusters that failed the `proportion` thresholding criteria.
    - The "uncertain" BAM file (`<sample>.DNA.merged.labeled_uncertain.bam`) contains DNA reads from clusters that failed the `min_oligo` thresholding criteria.
    - The "filtered" BAM file (`<sample>.DNA.merged.labeled_filtered.bam`) contains DNA reads from clusters that failed the `max_size` thresholding criteria.
 
-11. <a name="splitbam-stats">Read count summary for individual antibodies</a> (`workup/splitbams/splitbam_statistics.txt`)
+11. <a name="splitbam-stats">Read count summary for individual antibodies</a> (`splitbams/splitbam_statistics.txt`)
     - The number of read counts contained within each individual BAM file assigned to individual antibodies.
 
-12. <a name="bigwigs">BigWig files for individual antibodies</a> (`workup/bigwigs/*.bw`)
+12. <a name="bigwigs">BigWig files for individual antibodies</a> (`bigwigs/*.bw`)
     - BigWigs are generated using [`deeptools bamCoverage`](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) with binsize set in [`config.yaml`](#config-yaml). Normalization is performed using effective genome size (`--normalizeUsing RPGC`), which is calculated as the size of chromosomes selected via [`chrom_map.txt`](#chrom-map) minus the size of regions in the [mask](#blacklist-bed) for those chromosomes.
 
 # Additional Resources
