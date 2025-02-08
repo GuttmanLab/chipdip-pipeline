@@ -271,7 +271,7 @@ def get_targets(barcode_config_file):
     targets = [x.replace("BEAD_", "") for x in df["Name"] if "BEAD_" in x]
     return list(set(targets))
 TARGETS = get_targets(barcode_config)
-if generate_splitbamas:
+if generate_splitbams:
     TARGETS += ['ambiguous', 'none', 'uncertain', 'filtered']
 
 print("Detected the following targets in the barcode config file:", TARGETS, file=sys.stderr)
