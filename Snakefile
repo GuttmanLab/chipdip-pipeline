@@ -271,6 +271,8 @@ def get_targets(barcode_config_file):
     targets = [x.replace("BEAD_", "") for x in df["Name"] if "BEAD_" in x]
     return list(set(targets))
 TARGETS = get_targets(barcode_config)
+if generate_splitbamas:
+    TARGETS += ['ambiguous', 'none', 'uncertain', 'filtered']
 
 print("Detected the following targets in the barcode config file:", TARGETS, file=sys.stderr)
 
@@ -438,7 +440,7 @@ FINAL = \
 if merge_samples:
     FINAL.extend(CLUSTERS_ALL)
 if generate_splitbams:
-    FINAL.extend(SPLITBAMS)
+    FINAL.extend(SPLITBAMS + SPLITBAMS_STATISTICS)
     if merge_samples:
         FINAL.extend(SPLITBAMS_MERGED)
     if binsize:
@@ -1219,7 +1221,7 @@ rule index_splitbams:
 # Generate summary statistics of individiual bam files
 rule generate_splitbam_statistics:
     input:
-        SPLITBAMS + SPLITBAMS_MERGED
+        SPLITBAMS + (SPLITBAMS_MERGED if merge_samples else [])
     output:
         SPLITBAMS_STATISTICS
     log:
