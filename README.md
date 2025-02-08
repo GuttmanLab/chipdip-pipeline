@@ -460,7 +460,8 @@ Calculator for uniqueness of bead barcodes: [Google Colab notebook](https://cola
 - Given the number of beads and a desired proportion of beads to be uniquely barcoded, calculate the number of barcodes required.
 
 Publications
-- Preprint (bioRxiv): https://doi.org/10.1101/2023.12.14.571730
+- Perez AA, Goronzy IN, Blanco MR, Yeh BT, Guo JK, Lopes CS, Ettlin O, Burr A, Guttman M. ChIP-DIP maps binding of hundreds of proteins to DNA simultaneously and identifies diverse gene regulatory elements. *Nat Genet.* 2024 Dec;56(12):2827–2841. doi:[10.1038/s41588-024-02000-5](https://doi.org/10.1038/s41588-024-02000-5). PMID: [39587360](https://pubmed.ncbi.nlm.nih.gov/39587360/).
+- Perez AA, Goronzy IN, Blanco MR, Guo JK, Guttman M. ChIP-DIP: A multiplexed method for mapping hundreds of proteins to DNA uncovers diverse regulatory elements controlling gene expression. *bioRxiv*; 2023. doi:[10.1101/2023.12.14.571730](https://doi.org/10.1101/2023.12.14.571730). PMID: [38187704](https://pubmed.ncbi.nlm.nih.gov/38187704); PMCID: [PMC10769186](https://pmc.ncbi.nlm.nih.gov/articles/PMC10769186/).
 
 # Credits
 
