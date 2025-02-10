@@ -263,10 +263,11 @@ def get_targets(barcode_config_file):
     targets = [x.replace("BEAD_", "") for x in df["Name"] if "BEAD_" in x]
     return list(set(targets))
 TARGETS = get_targets(barcode_config)
-if generate_splitbams:
-    TARGETS += ['ambiguous', 'none', 'uncertain', 'filtered']
 
 print("Detected the following targets in the barcode config file:", TARGETS, file=sys.stderr)
+if generate_splitbams:
+    TARGETS += ['ambiguous', 'none', 'uncertain', 'filtered']
+    print("  Adding 'ambiguous', 'none', 'uncertain', and 'filtered' to the list of targets.", file=sys.stderr)
 
 # check that longest file name generated will not exceed 255 characters
 # - longest file name template is {sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz
@@ -545,8 +546,8 @@ rule split_fastq:
     shell:
         '''
         {{
-            bash "{split_fastq}" "{input.r1}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads}
-            bash "{split_fastq}" "{input.r2}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads}
+            bash "{split_fastq}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads} {input.r1:q}
+            bash "{split_fastq}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads} {input.r2:q}
         }} &> "{log}"
         '''
 
@@ -1257,7 +1258,7 @@ rule effective_genome_size:
     shell:
         '''
         {{
-            if [ "{compute_effective_genome_size}" = "True" ]; then
+            if [[ "{compute_effective_genome_size}" = "True" ]]; then
                 bedtools maskfasta \\
                     -fi <(bowtie2-inspect "{bowtie2_index}" |
                           python "{rename_and_filter_chr}" -f {params.chrom_map} -) \\
@@ -1299,12 +1300,12 @@ rule generate_bigwigs:
                 #
                 # In such cases, create an empty bigWig file.
                 n_reads=$(samtools view -c "{input.bam}")
-                if [ $n_reads -eq "0" ]; then
+                if [ $n_reads -eq 0 ]; then
                     echo "- No reads in BAM file for target. Creating empty bigWig file."
                     touch "{output}"
                 else
 
-                    if [ "{bigwig_normalization}" = "RPGC" ]; then
+                    if [[ "{bigwig_normalization}" = "RPGC" ]]; then
                         value="$(cat "{input.effective_genome_size}")"
                         effective_genome_size="--effectiveGenomeSize $value"
                     else
