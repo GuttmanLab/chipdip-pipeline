@@ -57,13 +57,56 @@ done
 # make output directory if it doesn't exist
 mkdir -p "$OUT_DIR"
 
-echo "Splitting the following FASTQ files:" "${INPUT_FASTQS[@]}"
+echo "Splitting the following FASTQ files into ${NUM_SPLIT} total chunks:" "${INPUT_FASTQS[@]}"
 
 LINES=$(unpigz -c -p "$NUM_PROCESSES" "${INPUT_FASTQS[@]}" | wc -l)
+
+# check that the total number of lines in the input FASTQ files is a multiple of 4
+if ((LINES % 4 > 0)); then
+    echo "Error: The total number of lines in the input FASTQ files is not a multiple of 4."
+    echo "This may indicate that the input FASTQ files are corrupt."
+    exit 1
+fi
+
 NUM_READS=$((LINES / 4))
 echo "Number of reads:" $NUM_READS
-READS_PER_CHUNK=$((NUM_READS / NUM_SPLIT + 1)) # +1 because the division floors the value
-LINES_PER_CHUNK=$((READS_PER_CHUNK * 4))
+
+# check that the total number of lines in the input FASTQ files is at least as large as the number of chunks requested
+if [ "$NUM_READS" -lt "$NUM_SPLIT" ]; then
+    echo "Error: The number of reads is less than the number of chunks requested."
+    exit 1
+fi
+
+READS_PER_CHUNK=$((NUM_READS / NUM_SPLIT)) # +1 because the division floors the value
+if ((NUM_READS % NUM_SPLIT > 0)); then
+    READS_PER_CHUNK=$((READS_PER_CHUNK + 1))
+    EFFECTIVE_NUM_SPLIT=$((NUM_READS / READS_PER_CHUNK))
+    if ((NUM_READS % READS_PER_CHUNK > 0)); then
+        EFFECTIVE_NUM_SPLIT=$((EFFECTIVE_NUM_SPLIT + 1))
+    fi
+    if [ $EFFECTIVE_NUM_SPLIT -ne $NUM_SPLIT ]; then
+        # split --lines cannot create the exact number of chunks requested --> use csplit (which is slower)
+        # This can happen when the requesting a large number of chunks for a small number of reads.
+        # - Example: 3 chunks requested for 4 reads (16 lines)
+        #   - split --lines=4 --> 4 chunks of 1 read
+        #   - split --lines=8 --> 2 chunks of 2 reads
+        #   - split --lines=12 --> 1 chunk of 3 reads, 1 chunk of 1 read
+        echo "Cannot use GNU split to create the exact number of chunks requested. Using slower GNU csplit..."
+        READS_PER_CHUNK=$((READS_PER_CHUNK - 1))
+        echo "Number of reads per chunk:" $READS_PER_CHUNK
+        split_points=""
+        for ((i = 1; i < NUM_SPLIT; i++)); do
+            split_points+=" $((i * READS_PER_CHUNK * 4 + 1))"
+        done
+
+        echo "Split points:" $split_points
+        unpigz -c -p "$NUM_PROCESSES" "${INPUT_FASTQS[@]}" |
+            csplit -f "$OUT_DIR/$OUT_PREFIX" -b "%02d.fastq" - $split_points
+        exit 0
+    fi
+fi
+
 echo "Number of reads per chunk:" $READS_PER_CHUNK
+LINES_PER_CHUNK=$((READS_PER_CHUNK * 4))
 unpigz -c -p "$NUM_PROCESSES" "${INPUT_FASTQS[@]}" |
     split --suffix-length=2 -d --additional-suffix='.fastq' -l $LINES_PER_CHUNK - "$OUT_DIR/$OUT_PREFIX"

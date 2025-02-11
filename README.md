@@ -17,6 +17,7 @@ Contents
   7. [`chrom_map.txt`](#chrom-map)
   8. [`assets/blacklist_hg38.bed`, `assets/blacklist_mm10.bed`](#blacklist-bed)
   9. [`assets/index_mm10/*.bt2`, `assets/index_hg38/*.bt2`](#index-bt2)
+  10. [`cluster.yaml`](#cluster-config)
 - [Output Files](#output-files)
 - [Additional Resources](#additional-resources)
 - [Credits](#credits)
@@ -88,7 +89,7 @@ Operating system: Linux, macOS
 
 Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
 - Java: 8.0.322 through 11.0.22 (the `envs/chipdip.yaml` conda environment file currently uses version 8.0.412)
-- Bash: 4.2 through 5.1
+- Bash: 4.2 through 5.2
 - Python: 3.9+ (the `envs/chipdip.yaml` conda environment file currently uses version 3.10)
 
 Packages: Additional required third-party programs and packages are specified in conda environments described in `envs/`.
