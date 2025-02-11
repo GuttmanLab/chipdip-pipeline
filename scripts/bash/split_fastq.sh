@@ -66,4 +66,4 @@ READS_PER_CHUNK=$((NUM_READS / NUM_SPLIT + 1)) # +1 because the division floors 
 LINES_PER_CHUNK=$((READS_PER_CHUNK * 4))
 echo "Number of reads per chunk:" $READS_PER_CHUNK
 unpigz -c -p "$NUM_PROCESSES" "${INPUT_FASTQS[@]}" |
-    split -d --additional-suffix='.fastq' -l $LINES_PER_CHUNK - "$OUT_DIR/$OUT_PREFIX"
+    split --suffix-length=2 -d --additional-suffix='.fastq' -l $LINES_PER_CHUNK - "$OUT_DIR/$OUT_PREFIX"

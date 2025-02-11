@@ -9,14 +9,12 @@ __default__:
     error: "{DIR_LOGS_CLUSTER}/{rule}.err"
 split_fastq:
     time: "48:00:00"
-    mem: 20g
-    output: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample}.out"
-    error: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample}.err"
+    output: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample}.{wildcards.read}.out"
+    error: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample}.{wildcards.read}.err"
 compress_fastq:
     time: "48:00:00"
-    mem: 20g
-    output: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample}.{wildcards.splitid}.out"
-    error: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample}.{wildcards.splitid}.err"
+    output: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample_read}.{wildcards.splitid}.out"
+    error: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample_read}.{wildcards.splitid}.err"
 adaptor_trimming:
     mem: 50g
     output: "{DIR_LOGS_CLUSTER}/{rule}.{wildcards.sample}.{wildcards.splitid}.out"

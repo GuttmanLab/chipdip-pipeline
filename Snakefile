@@ -138,6 +138,7 @@ else:
 num_chunks = config.get("num_chunks")
 if num_chunks is not None:
     num_chunks = int(num_chunks)
+    assert num_chunks > 0 and num_chunks < 100, "num_chunks must be an integer between 1 and 99."
     print("Splitting FASTQ files into {} chunks for parallel processing".format(num_chunks),
           file=sys.stderr)
 else:
@@ -249,7 +250,7 @@ with open(samples) as f:
     FILES = json.load(f)
 ALL_SAMPLES = sorted(FILES.keys())
 
-NUM_CHUNKS = [f"{i:03}" for i in range(num_chunks)]
+NUM_CHUNKS = [f"{i:02}" for i in range(num_chunks)]
 
 def get_targets(barcode_config_file):
     df = pd.read_csv(
@@ -526,46 +527,39 @@ rule validate:
 # Split fastq files into chunks to processes in parallel
 rule split_fastq:
     input:
-        r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
-        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
+        lambda wildcards: FILES[wildcards.sample][wildcards.read],
     output:
-        temp(expand(
-            [os.path.join(DIR_OUT, "split_fastq", "{{sample}}_R1.part_{splitid}.fastq"),
-             os.path.join(DIR_OUT, "split_fastq", "{{sample}}_R2.part_{splitid}.fastq")],
+        temp(expand(os.path.join(DIR_OUT, "split_fastq", "{{sample}}_{{read}}.part_{splitid}.fastq"),
              splitid=NUM_CHUNKS))
     log:
-        os.path.join(DIR_LOGS, "{sample}.split_fastq.log")
+        os.path.join(DIR_LOGS, "{sample}_{read}.split_fastq.log")
     params:
         dir = os.path.join(DIR_OUT, "split_fastq"),
-        prefix_r1 = "{sample}_R1.part_0",
-        prefix_r2 = "{sample}_R2.part_0"
+        prefix = "{sample}_{read}.part_"
+    wildcard_constraints:
+        read="R1|R2"
     conda:
         conda_env
     threads:
         4
     shell:
         '''
-        {{
-            bash "{split_fastq}" {num_chunks} "{params.dir}" "{params.prefix_r1}" {threads} {input.r1:q}
-            bash "{split_fastq}" {num_chunks} "{params.dir}" "{params.prefix_r2}" {threads} {input.r2:q}
-        }} &> "{log}"
+        bash "{split_fastq}" {num_chunks} "{params.dir}" "{params.prefix}" {threads} {input:q} &> "{log}"
         '''
 
 # Compress the split fastq files
 rule compress_fastq:
     input:
-        r1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq"),
-        r2 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq")
+        os.path.join(DIR_OUT, "split_fastq", "{sample_read}.part_{splitid}.fastq"),
     output:
-        r1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
-        r2 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")
+        os.path.join(DIR_OUT, "split_fastq", "{sample_read}.part_{splitid}.fastq.gz"),
     conda:
         conda_env
     threads:
         8
     shell:
         '''
-        pigz -p {threads} "{input.r1}" "{input.r2}"
+        pigz -p {threads} "{input}"
         '''
 
 # Trim adaptors
