@@ -1,0 +1,2 @@
+ref1	chr1
+ref2	chr2
