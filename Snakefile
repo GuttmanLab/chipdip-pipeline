@@ -134,6 +134,7 @@ if temp_dir is not None:
 else:
     temp_dir = "/central/scratch/"
     print("Defaulting to temporary directory:", temp_dir, file=sys.stderr)
+assert os.path.exists(temp_dir), f"Temporary directory {temp_dir} does not exist."
 
 num_chunks = config.get("num_chunks")
 if num_chunks is not None:
@@ -751,7 +752,7 @@ rule bowtie2_align:
               -x "{bowtie2_index}" \\
               -U "{input}" |
             samtools view -bq 20 -F 4 -F 256 - |
-            samtools sort -@ {threads} -o "{output}"
+            samtools sort -@ {threads} -T "{temp_dir}" -o "{output}"
         }} &> "{log}"
         '''
 
@@ -797,7 +798,7 @@ rule merge_mask:
             if [ -n "{mask}" ]; then
                 if [ -n "{path_chrom_map}" ]; then
                     # chromosome name map is provided --> sort chromosomes by the new chromosome names
-                    sort -k1,1 -k2,2n "{mask}" |
+                    sort -k1,1 -k2,2n -T "{temp_dir}" "{mask}" |
                     bedtools merge |
                     python "{rename_and_filter_chr}" --bed --chrom_map "{path_chrom_map}" - > "{output.bed}"
 
@@ -810,7 +811,7 @@ rule merge_mask:
                     cut -f 2,3 > "{output.genome}"
                 else
                     # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
-                    sort -k1,1 -k2,2n "{mask}" |
+                    sort -k1,1 -k2,2n -T "{temp_dir}" "{mask}" |
                     bedtools merge |
                     python "{rename_and_filter_chr}" \\
                         --bed \\
@@ -898,7 +899,7 @@ rule fastq_to_bam:
         '''
         {{
             python "{fastq_to_bam}" "{input}" "{output.bam}" "{barcode_config}" "{bead_umi_length}"
-            samtools sort -@ {threads} -o "{output.sorted}" "{output.bam}"
+            samtools sort -@ {threads} -T "{temp_dir}" -o "{output.sorted}" "{output.bam}"
         }} &> "{log}"
         '''
 
