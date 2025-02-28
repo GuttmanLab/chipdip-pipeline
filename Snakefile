@@ -533,7 +533,7 @@ rule split_fastq:
         temp(expand(os.path.join(DIR_OUT, "split_fastq", "{{sample}}_{{read}}.part_{splitid}.fastq"),
              splitid=NUM_CHUNKS))
     log:
-        os.path.join(DIR_LOGS, "{sample}_{read}.split_fastq.log")
+        os.path.join(DIR_LOGS, "split_fastq.{sample}.{read}.log")
     params:
         dir = os.path.join(DIR_OUT, "split_fastq"),
         prefix = "{sample}_{read}.part_"
@@ -574,7 +574,7 @@ rule adaptor_trimming:
          os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz"),
          os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}.fastq.gz_trimming_report.txt")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.adaptor_trimming.log")
+        os.path.join(DIR_LOGS, "adaptor_trimming.{sample}.{splitid}.log")
     params:
         dir = os.path.join(DIR_OUT, "trimmed")
     threads:
@@ -608,7 +608,7 @@ rule barcode_id:
         r1_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz"),
         r2_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R2.part_{splitid}.barcoded.fastq.gz")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.barcode_id.log")
+        os.path.join(DIR_LOGS, "barcode_id.{sample}.{splitid}.log")
     conda:
         conda_env
     shell:
@@ -625,11 +625,13 @@ rule barcode_identification_efficiency:
         os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
     output:
         temp(os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"))
+    log:
+        os.path.join(DIR_LOGS, "barcode_identification_efficiency.{sample}.{splitid}.log")
     conda:
         conda_env
     shell:
         '''
-        python "{barcode_identification_efficiency}" "{input}" "{barcode_config}" > "{output}"
+        python "{barcode_identification_efficiency}" "{input}" "{barcode_config}" > "{output}" 2> "{log}"
         '''
 
 rule cat_barcode_identification_efficiency:
@@ -655,7 +657,7 @@ rule split_bpm_dpm:
         os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_other.fastq.gz"),
         os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_short.fastq.gz")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.split_bpm_dpm.log")
+        os.path.join(DIR_LOGS, "split_bpm_dpm.{sample}.{splitid}.log")
     params:
         format = f"--format '{barcode_format}'" if barcode_format not in (None, "") else ""
     conda:
@@ -677,7 +679,7 @@ rule cutadapt_dpm:
         fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
         qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.DPM.cutadapt.log")
+        os.path.join(DIR_LOGS, "cutadapt_dpm.{sample}.{splitid}.log")
     params:
         adapters_r1 = "-a GATCGGAAGAG -a ATCAGCACTTA " + adapters,
         others = "--minimum-length 20"
@@ -707,7 +709,7 @@ rule cutadapt_oligo:
         fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
         qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.qc.txt")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.BPM.cutadapt.log")
+        os.path.join(DIR_LOGS, "cutadapt_oligo.{sample}.{splitid}.log")
     params:
         adapters_r1 = oligos
     threads:
@@ -737,7 +739,7 @@ rule bowtie2_align:
     output:
         os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.bowtie2.log")
+        os.path.join(DIR_LOGS, "bowtie2_align.{sample}.{splitid}.log")
     threads:
         10
     conda:
@@ -763,7 +765,7 @@ rule rename_and_filter_chr:
     output:
         os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.rename_and_filter_chr.log")
+        os.path.join(DIR_LOGS, "rename_and_filter_chr.{sample}.{splitid}.log")
     params:
         chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map != "" else ""
     conda:
@@ -838,7 +840,7 @@ rule repeat_mask:
     output:
         os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.repeat_mask.log")
+        os.path.join(DIR_LOGS, "repeat_mask.{sample}.{splitid}.log")
     conda:
         conda_env
     shell:
@@ -868,7 +870,7 @@ rule merge_dna:
     output:
         os.path.join(DIR_OUT, "alignments", "{sample}.DNA.merged.bam")
     log:
-        os.path.join(DIR_LOGS, "{sample}.merge_DNA.log")
+        os.path.join(DIR_LOGS, "merge_dna.{sample}.log")
     conda:
         conda_env
     threads:
@@ -890,7 +892,7 @@ rule fastq_to_bam:
         sorted = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
         bam = temp(os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.unsorted.bam"))
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.fastq_to_bam.log")
+        os.path.join(DIR_LOGS, "fastq_to_bam.{sample}.{splitid}.log")
     conda:
         conda_env
     threads:
@@ -912,7 +914,7 @@ rule merge_beads:
     output:
         os.path.join(DIR_OUT, "alignments", "{sample}.merged.BPM.bam")
     log:
-        os.path.join(DIR_LOGS, "{sample}.merge_beads.log")
+        os.path.join(DIR_LOGS, "merge_beads.{sample}.log")
     conda:
         conda_env
     threads:
@@ -935,7 +937,7 @@ rule make_clusters:
         unsorted = temp(os.path.join(DIR_OUT, "clusters_parts", "{sample}.part_{splitid}.unsorted.clusters")),
         sorted = os.path.join(DIR_OUT, "clusters_parts", "{sample}.part_{splitid}.clusters")
     log:
-        os.path.join(DIR_LOGS, "{sample}.{splitid}.make_clusters.log")
+        os.path.join(DIR_LOGS, "make_clusters.{sample}.{splitid}.log")
     threads:
         4
     conda:
@@ -962,7 +964,7 @@ rule merge_clusters:
         mega = temp(os.path.join(DIR_OUT, "clusters", "{sample}.duplicated.clusters")),
         final = os.path.join(DIR_OUT, "clusters", "{sample}.clusters")
     log:
-        os.path.join(DIR_LOGS, "{sample}.merge_clusters.log")
+        os.path.join(DIR_LOGS, "merge_clusters.{sample}.log")
     conda:
        conda_env
     threads:
@@ -986,7 +988,7 @@ rule clusters_all:
         10
     shell:
         '''
-        sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input:q} > "{output}"
+        sort -k 1 -T "{temp_dir}" --parallel={threads} -m {input:q} > "{output}" 2> "{log}"
         '''
 
 ##############################################################################
@@ -1000,7 +1002,7 @@ rule generate_cluster_statistics:
     output:
         CLUSTER_STATISTICS
     log:
-        os.path.join(DIR_LOGS, "cluster_statistics.log")
+        os.path.join(DIR_LOGS, "generate_cluster_statistics.log")
     params:
         dir = os.path.join(DIR_OUT, "clusters")
     conda:
@@ -1019,7 +1021,7 @@ rule generate_cluster_ecdfs:
         ecdf = os.path.join(DIR_OUT, "clusters", "Max_representation_ecdf.pdf"),
         counts = os.path.join(DIR_OUT, "clusters", "Max_representation_counts.pdf")
     log:
-        os.path.join(DIR_LOGS, "cluster_ecdfs.log")
+        os.path.join(DIR_LOGS, "generate_cluster_ecdfs.log")
     params:
         dir = os.path.join(DIR_OUT, "clusters")
     conda:
@@ -1040,7 +1042,7 @@ rule get_size_distribution:
         bpm = os.path.join(DIR_OUT, "clusters", "BPM_read_distribution.pdf"),
         bpm2 = os.path.join(DIR_OUT, "clusters", "BPM_cluster_distribution.pdf")
     log:
-        os.path.join(DIR_LOGS, "size_distribution.log")
+        os.path.join(DIR_LOGS, "get_size_distribution.log")
     params:
         dir = os.path.join(DIR_OUT, "clusters")
     conda:
@@ -1118,7 +1120,7 @@ rule threshold_tag_and_split:
             target=TARGETS
         )
     log:
-        os.path.join(DIR_LOGS, "{sample}.splitbams.log")
+        os.path.join(DIR_LOGS, "threshold_tag_and_split.{sample}.log")
     params:
         dir_splitbams = os.path.join(DIR_OUT, "splitbams"),
         labeled_bam = os.path.join(DIR_OUT, "alignments", "{sample}.DNA.merged.labeled.bam")
@@ -1158,7 +1160,7 @@ rule splitbams_merged:
     output:
         os.path.join(DIR_OUT, "splitbams", "{target}.bam")
     log:
-        os.path.join(DIR_LOGS, "splitbam_{target}.log")
+        os.path.join(DIR_LOGS, "splitbams_merged.{target}.log")
     conda:
         conda_env
     threads:
@@ -1190,20 +1192,22 @@ rule index_splitbams:
     output:
         os.path.join(DIR_OUT, "splitbams", "{file}.bam.bai")
     log:
-        os.path.join(DIR_LOGS, "splitbam-index_{file}.log")
+        os.path.join(DIR_LOGS, "index_splitbams.{file}.log")
     conda:
         conda_env
     threads:
         4
     shell:
         '''
-        if [ -s "{input}" ]; then
-            # file is non-empty; assume to be valid SAM/BAM file
-            samtools index -@ {threads} "{input}"
-        else
-            # BAM file is empty
-            touch "{output}"
-        fi
+        {{
+            if [ -s "{input}" ]; then
+                # file is non-empty; assume to be valid SAM/BAM file
+                samtools index -@ {threads} "{input}"
+            else
+                # BAM file is empty
+                touch "{output}"
+            fi
+        }} &> "{log}"
         '''
 
 # Generate summary statistics of individiual bam files
@@ -1213,7 +1217,7 @@ rule generate_splitbam_statistics:
     output:
         SPLITBAMS_STATISTICS
     log:
-        os.path.join(DIR_LOGS, "splitbam_statistics.log")
+        os.path.join(DIR_LOGS, "generate_splitbam_statistics.log")
     conda:
         conda_env
     threads:
@@ -1273,7 +1277,7 @@ rule generate_bigwigs:
     output:
         os.path.join(DIR_OUT, "bigwigs", "{file}.bw")
     log:
-        os.path.join(DIR_LOGS, "bigwig_{file}.log")
+        os.path.join(DIR_LOGS, "generate_bigwigs.{file}.log")
     conda:
         conda_env
     threads:
