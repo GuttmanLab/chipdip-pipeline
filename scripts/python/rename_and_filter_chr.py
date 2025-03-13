@@ -273,12 +273,9 @@ def filter_reads(
             sort_cmd = ["samtools", "sort"]
             if path_bam_out is not None:
                 sort_cmd.extend(["-o", path_bam_out])
-                stdout = None
-            else:
-                stdout = sys.stdout.buffer
             if no_PG:
                 sort_cmd.append("--no-PG")
-            with subprocess.Popen(sort_cmd, stdin=subprocess.PIPE, stdout=stdout) as popen_samtools:
+            with subprocess.Popen(sort_cmd, stdin=subprocess.PIPE, stdout=None) as popen_samtools:
                 with pysam.AlignmentFile(
                     popen_samtools.stdin,
                     "wb",
