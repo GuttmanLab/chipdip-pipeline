@@ -250,8 +250,8 @@ def label_cluster_reads(reads, min_oligos, threshold, max_size):
     Args:
         reads(list): list of cluster formated reads
         threshold(float): fraction of oligo reads that are of one type needed to assign the cluster
-        min_oligos(int): number of oligos of one type that need to be exceeded to assign the cluster (ie. strictly greater than)
-        max_size(int): maximum dna reads allowed per cluster
+        min_oligos(int): minimum number of oligos of one type in a cluster in order to assign the cluster (i.e., greater than or equal to)
+        max_size(int): maximum DNA (DPM) reads allowed per cluster
     """
     bead_reads = [read for read in reads if read.startswith("BPM")]
     if len(bead_reads) == 0:
