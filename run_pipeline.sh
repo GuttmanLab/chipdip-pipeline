@@ -14,7 +14,7 @@ snakemake \
 --rerun-incomplete \
 -j 50 \
 --cluster-config cluster.yaml \
---cluster "sbatch -c {cluster.cpus} \
+--cluster "sbatch --parsable -c {cluster.cpus} \
 -t {cluster.time} -N {cluster.nodes} \
 --mem {cluster.mem} \
 --output {cluster.output} \
