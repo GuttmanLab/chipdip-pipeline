@@ -808,9 +808,9 @@ rule merge_mask:
                     # - A bedtools genome file is supposed to be a 2-column tab-delimited file with the first column
                     #   containing the chromosome names and the second column containing the length of the chromosome.
                     #   However, bedtools intersect -g <genome_file> does not use the length of the chromosome, only
-                    #   requiring that the length is nonzero. (see https://github.com/arq5x/bedtools2/issues/1117)
+                    #   requiring that the length is positive. (see https://github.com/arq5x/bedtools2/issues/1117)
                     grep -E -e '^[^"]\\s*\\S+\\s*' "{path_chrom_map}" |
-                    sed -E 's/^\\S+\\t(\\S+)/\\1\\t0/' > "{output.genome}"
+                    sed -E 's/^\\S+\\t(\\S+)/\\1\\t1/' > "{output.genome}"
                 else
                     # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
                     sort -k1,1 -k2,2n -T "{temp_dir}" "{mask}" |
@@ -822,7 +822,7 @@ rule merge_mask:
 
                     # create genome file for bedtools intersect
                     bowtie2-inspect -n "{bowtie2_index}" |
-                    sed -E 's/(\\S+).*/\\1\\t0/' > "{output.genome}"
+                    sed -E 's/(\\S+).*/\\1\\t1/' > "{output.genome}"
                 fi
             else
                 touch "{output.bed}" "{output.genome}"
