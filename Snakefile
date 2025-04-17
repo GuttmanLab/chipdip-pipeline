@@ -805,25 +805,24 @@ rule merge_mask:
                     python "{rename_and_filter_chr}" --bed --chrom_map "{path_chrom_map}" - > "{output.bed}"
 
                     # create genome file for bedtools intersect
-                    join -t $'\\t' \\
-                        <(grep -E -e '^[^"]\\s*\\S+\\s*' "{path_chrom_map}" ) \\
-                        <(bowtie2-inspect -s "{bowtie2_index}" |
-                        grep -E -e '^Sequence-[0-9]+' |
-                        cut -f 2,3) |
-                    cut -f 2,3 > "{output.genome}"
+                    # - A bedtools genome file is supposed to be a 2-column tab-delimited file with the first column
+                    #   containing the chromosome names and the second column containing the length of the chromosome.
+                    #   However, bedtools intersect -g <genome_file> does not use the length of the chromosome, only
+                    #   requiring that the length is nonzero. (see https://github.com/arq5x/bedtools2/issues/1117)
+                    grep -E -e '^[^"]\\s*\\S+\\s*' "{path_chrom_map}" |
+                    sed -E 's/^\\S+\\t(\\S+)/\\1\\t0/' > "{output.genome}"
                 else
                     # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
                     sort -k1,1 -k2,2n -T "{temp_dir}" "{mask}" |
                     bedtools merge |
                     python "{rename_and_filter_chr}" \\
                         --bed \\
-                        --chrom_map <(bowtie2-inspect -n "{bowtie2_index}" | sed -E 's/(\\S+)/\\1\\t\\1/') \\
+                        --chrom_map <(bowtie2-inspect -n "{bowtie2_index}" | sed -E 's/(\\S+).*/\\1\\t\\1/') \\
                         - > "{output.bed}"
 
                     # create genome file for bedtools intersect
-                    bowtie2-inspect -s "{bowtie2_index}" |
-                    grep -E -e '^Sequence-[0-9]+' |
-                    cut -f 2,3 > "{output.genome}"
+                    bowtie2-inspect -n "{bowtie2_index}" |
+                    sed -E 's/(\\S+).*/\\1\\t0/' > "{output.genome}"
                 fi
             else
                 touch "{output.bed}" "{output.genome}"
