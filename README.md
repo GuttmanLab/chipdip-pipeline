@@ -87,7 +87,7 @@ Operating system: Linux, macOS
     - Create a reusable environment using `conda env create -f envs/chipdip.yaml --platform osx-64`, and modify the `conda_env` key in [`config.yaml`](#config-yaml) to `"chipdip"`.
     - While [macOS should automatically prompt to install Rosetta if needed](https://support.apple.com/en-us/102527), it can also be [manually installed](https://techcommunity.microsoft.com/blog/intunecustomersuccess/support-tip-install-rosetta-2-on-new-apple-silicon-m1-macs-to-run-apps-built-for/2087631) using the terminal command `/usr/sbin/softwareupdate --install-rosetta`.
 
-Code intepreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
+Code interpreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
 - Java: 8.0.322 through 11.0.22 (the `envs/chipdip.yaml` conda environment file currently uses version 8.0.412)
 - Bash: 4.2 through 5.2
 - Python: 3.9+ (the `envs/chipdip.yaml` conda environment file currently uses version 3.10)
@@ -121,19 +121,19 @@ Workflow
 0. Define samples and paths to FASTQ files (`fastq2json.py` or manually generate `samples.json`)
 1. Split FASTQ files into chunks for parallel processing
 2. Adaptor trimming (Trim Galore!)
-3. Barcode identification 
+3. Barcode identification
 4. Split genomic DNA (DPM) and antibody oligo (BPM) reads into separate files
 5. Genomic DNA read workflow:
-   1. DPM trimming (cutadapt)
-   2. Alignment (bowtie2)
+   1. DPM trimming (Cutadapt)
+   2. Alignment (Bowtie 2)
    3. Chromosome renaming (e.g., to UCSC chromosome names) and filtering (e.g., removing non-canonical chromosomes)
-   4. Masking (based on ENCODE blacklists)
+   4. Masking (bedtools; use ENCODE blacklists)
 6. Antibody oligo read workflow:
-   1. BPM trimming (cutadapt)
+   1. BPM trimming (Cutadapt)
    2. FASTQ to BAM conversion
 7. Cluster generation
 8. Cluster assignment and antibody specific BAM file creation
-9. Antibody-specific bigWig file creation
+9. Antibody-specific bigWig file creation (deepTools bamCoverage)
 10. Summary plots
     1. Genomic DNA and antibody oligo cluster size distributions
     2. Maximum representation oligo ECDFs
@@ -237,7 +237,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
      - `max_size` (default = `10000`): integer giving the maximum count of deduplicated genomic DNA reads in a cluster for that cluster to be to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
      - `merge_samples` (default = `false`): [boolean](https://yaml.org/type/bool.html) indicating whether to merge cluster files and target-specific BAM and bigWig files across samples
      - `binsize` (default = `false`): integer specifying bigWig binsize; set to `false` to skip bigWig generation. Only relevant if generate_splitbams is `true`.
-     - `bigwig_normalization` (default = `"None"`): normalization strategy for calculating coverage from reads; passed to the `--normalizeUsing` argument for the `bamCoverage` command from the deepTools suite. As of version 3.5.2, deepTools `bamCoverage` curently supports `RPKM`, `CPM`, `BPM`, `RPGC`, or `None`. Only relevant if bigWig generation is requested (i.e., `generate_splitbams` is `true` and `binsize` is not `false`).
+     - `bigwig_normalization` (default = `"None"`): normalization strategy for calculating coverage from reads; passed to the `--normalizeUsing` argument for the `bamCoverage` command from the deepTools suite. As of version 3.5.2, deepTools `bamCoverage` currently supports `RPKM`, `CPM`, `BPM`, `RPGC`, or `None`. Only relevant if bigWig generation is requested (i.e., `generate_splitbams` is `true` and `binsize` is not `false`).
      - `effective_genome_size` (default = `null`): integer specifying effective genome size (see [deepTools documentation](https://deeptools.readthedocs.io/en/latest/content/feature/effectiveGenomeSize.html) for a definition). If `null`, effective genome size is computed as the number of unmasked sequences in the Bowtie 2 index, after selecting for chromosomes specified in the [chromosome name map file](#chrom-map) and excluding regions specified by the mask file. Only relevant if bigWig generation is requested using normalization strategy `RPGC` (i.e., `generate_splitbams` is `true`, `binsize` is not `false`, and `bigwig_normalization` is `RPGC`).
      - `email` (default = `null`): email to send error notifications to if errors are encountered during the pipeline. If `null`, no emails are sent.
    - Additional notes
@@ -285,7 +285,7 @@ However, the pipeline directory can also be kept separate and used repeatedly on
    - Required? Yes.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `cutadapt_oligos`
    - Used by: `cutadapt` (Snakefile `rule cutadapt_oligo`)
-   - Each sequence should be preceeded by `^` to anchor the sequence during cutadapt trimming (see Snakefile `rule cutadapt_oligo`).
+   - Each sequence should be preceded by `^` to anchor the sequence during cutadapt trimming (see Snakefile `rule cutadapt_oligo`).
 
 4. <a name="dpm-fasta">`assets/dpm96.fasta`</a>: FASTA file containing the sequences of DPM tags
    - Required? Yes.
@@ -443,25 +443,25 @@ These files are generated in the [output directory](#output-directory), which is
 
 4. <a name="cluster-file">Cluster file</a> (`clusters/<sample>.clusters`): Tab-delimited file, where each line represents a single cluster.
    - The first column is the cluster barcode.
-   - The remainder of the line is a list of reads. DNA reads are formated as `DPM[strand]_chr:start-end`, and antibody oligo reads are formated as `BPM[]_<AntibodyID>:<UMI>-0`.
+   - The remainder of the line is a list of reads. DNA reads are formatted as `DPM[strand]_chr:start-end`, and antibody oligo reads are formatted as `BPM[]_<AntibodyID>:<UMI>-0`.
 
 5. <a name="cluster-stats">Cluster statistics</a> (`clusters/cluster_statistics.txt`): The number of clusters and antibody oligo (BPM) or genomic DNA (DPM) reads per library.
 
-6. <a name="cluster-sizes">Cluster size distribtion</a> (`clusters/[BPM,DPM]_cluster_distribution.pdf`): The proportion of clusters that belong to each size category.
+6. <a name="cluster-sizes">Cluster size distribution</a> (`clusters/[BPM,DPM]_cluster_distribution.pdf`): The proportion of clusters that belong to each size category.
 
 7. <a name="cluster-read-dist">Cluster size read distribution</a> (`clusters/[BPM,DPM]_read_distribution.pdf`): The proportion of reads that belong to clusters of each size category.
    - This can be more useful than the number of clusters since relatively few large clusters can contain many sequencing reads (i.e., a large fraction of the library) while many small clusters will contain few sequencing reads (i.e., a much smaller fraction of the library).
-   
+
 8. <a name="cluster-oligo-prop-ecdf">Maximum representation oligo eCDF</a> (`clusters/Max_representation_ecdf.pdf`): A plot showing the distribution of proportion of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
    - A successful experiment should have an ECDF close to a right angle. Deviations from this indicate that beads contain mixtures of Antibody IDs. Understanding the uniqueness of Antibody ID reads per cluster is important for choosing the thresholding parameter `proportion` for cluster assignment.
 
 9. <a name="cluster-oligo-counts-ecdf">Maximum representation oligo counts ECDF</a> (`clusters/Max_representation_counts.pdf`): A plot showing the distribution of number of antibody oligo (BPM) reads in each cluster that belong to the maximum represented Antibody ID in that cluster.
-   - If clusters are nearly unique in Antibody ID composition, then this plot is a surrogate for BPM size distribtuion. Understanding the number of Antibody ID reads per cluster is important for choosing the thresholding parameters `min_oligo` for cluster assignment.
+   - If clusters are nearly unique in Antibody ID composition, then this plot is a surrogate for BPM size distribution. Understanding the number of Antibody ID reads per cluster is important for choosing the thresholding parameters `min_oligo` for cluster assignment.
 
 10. <a name="splitbams">BAM files for individual antibodies</a> (`splitbams/*.bam`)
    - Thresholding criteria (`min_oligos`, `proportion`, `max_size`) for assigning individual clusters to individual antibodies are set in [`config.yaml`](#config-yaml).
    - The "none" BAM file (`<sample>.DNA.merged.labeled_none.bam`) contains DNA reads from clusters without antibody oligo reads.
-   - THe "ambigious" BAM file (`<sample>.DNA.merged.labeled_ambiguous.bam`) contains DNA reads from clusters that failed the `proportion` thresholding criteria.
+   - The "ambiguous" BAM file (`<sample>.DNA.merged.labeled_ambiguous.bam`) contains DNA reads from clusters that failed the `proportion` thresholding criteria.
    - The "uncertain" BAM file (`<sample>.DNA.merged.labeled_uncertain.bam`) contains DNA reads from clusters that failed the `min_oligo` thresholding criteria.
    - The "filtered" BAM file (`<sample>.DNA.merged.labeled_filtered.bam`) contains DNA reads from clusters that failed the `max_size` thresholding criteria.
 
