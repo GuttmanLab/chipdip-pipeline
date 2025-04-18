@@ -511,13 +511,15 @@ rule validate:
     log:
         log = LOG_VALIDATE,
         bt2_sum = os.path.join(DIR_LOGS, "bowtie2_index_summary.txt"),
+    params:
+        mask = "" if mask == "" else f"--mask '{mask}'",
     conda:
         conda_env
     shell:
         '''
         {{
             bowtie2-inspect --summary "{bowtie2_index}" > "{log.bt2_sum}"
-            python "{validate}" -c "{input.config}" --bt2_index_summary "{log.bt2_sum}"
+            python "{validate}" -c "{input.config}" --bt2_index_summary "{log.bt2_sum}" {params.mask}
         }} &> "{log.log}"
         '''
 
