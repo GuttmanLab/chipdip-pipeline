@@ -31,7 +31,7 @@ run_date = v.strftime("%Y.%m.%d")
 # long as a config file is provided via the command line.
 #
 # See https://snakemake.readthedocs.io/en/stable/snakefiles/configuration.html.
-configfile: "config.yaml"
+configfile: "config/config.yaml"
 
 ##############################################################################
 # Load required settings
@@ -240,8 +240,6 @@ pipeline_counts = os.path.join(DIR_SCRIPTS, "python", "pipeline_counts.py")
 ##############################################################################
 
 DIR_LOGS = os.path.join(DIR_OUT, "logs")
-DIR_LOGS_CLUSTER = os.path.join(DIR_LOGS, "cluster")
-os.makedirs(DIR_LOGS_CLUSTER, exist_ok=True)
 
 ##############################################################################
 # Get sample files and targets
@@ -469,7 +467,7 @@ onerror:
         shell('mail -s "an error occurred" ' + email + ' < {log}')
 
 wildcard_constraints:
-    sample = "[^\.]+",
+    sample = r"[^\.]+",
     target = "|".join([re.escape(x) for x in TARGETS])
 
 # remove all output, leaving just the following in the output folder:

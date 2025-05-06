@@ -1,0 +1,61 @@
+software-deployment-method: conda
+conda-frontend: conda
+executor: slurm
+jobs: 100
+latency-wait: 60
+printshellcmds: True
+rerun-incomplete: True
+default-resources:
+    runtime: "12h"
+    mem_mb: 10000
+    cpus_per_task: int(f"{threads}")
+    tmpdir: "/central/scratch/$USER"
+set-resources:
+    split_fastq:
+        runtime: "48h"
+    compress_fastq:
+        runtime: "48h"
+    adaptor_trimming:
+        mem_mb: 50000
+    barcode_id:
+        mem_mb: 20000
+    barcode_identification_efficiency:
+        mem_mb: 20000
+    cutadapt_dpm:
+        mem_mb: 50000
+    cutadapt_oligo:
+        mem_mb: 50000
+    bowtie2_align:
+        mem_mb: 20000
+    merge_dna:
+        runtime: "24h"
+        mem_mb: 20000
+    fastq_to_bam:
+        mem_mb: 20000
+    merge_beads:
+        runtime: "24h"
+        mem_mb: 20000
+    make_clusters:
+        mem_mb: 50000
+    merge_clusters:
+        runtime: "24h"
+        mem_mb: 100000
+    clusters_all:
+        runtime: "24h"
+    pipeline_counts:
+        mem_mb: 50000
+    threshold_tag_and_split:
+        runtime: "24h"
+        mem_mb: 20000
+    index_splitbams:
+        runtime: "4h"
+        mem_mb: 4000
+    generate_splitbam_statistics:
+        runtime: "24h"
+    splitbams_merged:
+        mem_mb: 20000
+    generate_bigwigs:
+        mem_mb: 20000
+slurm-logdir: "results/logs/slurm"
+slurm-delete-logfiles-older-than: -1
+slurm-keep-successful-logs: True

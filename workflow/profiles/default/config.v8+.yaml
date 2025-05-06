@@ -1,0 +1,6 @@
+software-deployment-method: conda
+conda-frontend: conda
+executor: local
+cores: 8
+printshellcmds: True
+rerun-incomplete: True
