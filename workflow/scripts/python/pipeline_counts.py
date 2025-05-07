@@ -390,6 +390,8 @@ class Graph:
 
 def count_lines(paths, n_processes=1, cmd_unzip=None, cmd_count=None, env=None, return_raw=False):
     """
+    Count the number of lines in each file.
+
     Args
     - paths: list-like
         Paths to read files. All read files must be of the same file type.
@@ -408,6 +410,10 @@ def count_lines(paths, n_processes=1, cmd_unzip=None, cmd_count=None, env=None, 
         Environment variables for shell commands.
     - return_raw: bool. default=False
         Return unprocessed output as split lines from underlying counting subprocesses.
+
+    Returns
+    - If return_raw is True: list of str, where each element is '<path><tab><count>'
+    - If return_raw is False: dict[str, int], where keys are paths and values are counts
     """
     if cmd_unzip is None:
         cmd_unzip = "cat"
@@ -416,6 +422,24 @@ def count_lines(paths, n_processes=1, cmd_unzip=None, cmd_count=None, env=None, 
     cmd_xargs = f"xargs -n 1 -P {n_processes} sh -c"
     cmd_shell = f'{cmd_unzip} "$0" | {cmd_count} | awk -v pre="$0" ' + "'$0=pre\"\t\"$0'"
     cmd = shlex.split(cmd_xargs) + [cmd_shell]
+
+    # The equivalent terminal command looks something like
+    #
+    # ls path1 path2 | xargs -n 1 -P n_processes sh -c $'cat "$0" | wc -l | awk -v pre="$0" \'$0=pre"\t"$0\''
+    #
+    # where the construction sh -c $'... \' ...' is used to escape the internal single quote while maintaining
+    # the entire command as a single string.
+    #
+    # The idea is to pass each path to the following shell command:
+    #
+    # cat "$0" | wc -l | awk -v pre="$0" '$0=pre"\t"$0'
+    #
+    # where the shell variable "$0" is the path of the input file.
+    # The purpose of the awk command is to output the string <path><tab><count>
+    # - The shell variable "$0" is passed into awk as a variable of name "pre".
+    # - The awk variable "$0" is the input line piped in from from wc -l, which is just the count.
+    # - The awk script therefore appends <pre><tab> before the count.
+
     with subprocess.Popen(["ls"] + paths, stdout=subprocess.PIPE, env=env) as p1:
         with subprocess.Popen(cmd, stdin=p1.stdout, stdout=subprocess.PIPE, env=env) as p2:
             p1.stdout.close()

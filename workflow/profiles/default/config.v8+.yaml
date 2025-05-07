@@ -4,3 +4,5 @@ executor: local
 cores: 8
 printshellcmds: True
 rerun-incomplete: True
+default-resources:
+    tmpdir: "/central/scratch/$USER"

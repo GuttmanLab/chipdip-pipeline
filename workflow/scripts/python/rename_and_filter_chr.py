@@ -215,7 +215,15 @@ def reheader(old_header, chrom_map):
 
 
 def filter_reads(
-    path_bam_in, path_bam_out, chrom_map, try_symlink=False, sort="auto", no_PG=False, threads=1, verbose=True
+    path_bam_in,
+    path_bam_out,
+    chrom_map,
+    try_symlink=False,
+    sort="auto",
+    no_PG=False,
+    threads=1,
+    verbose=True,
+    tmpdir=None,
 ):
     """
     Discard reads that do not map to the specified chromosomes, and generate a new header for only the specified
@@ -240,6 +248,11 @@ def filter_reads(
         Number of threads to use for compressing/decompressing BAM files
     - verbose: bool. default=True
         Print the number of discarded reads and the number of output reads.
+    - tmpdir: str or None. default=None
+        Prefix to use for temporary files - passed to samtools sort -T <tmpdir>
+        If None, use the environment variable TMPDIR. If TMPDIR is not set,
+        then no -T argument is passed to samtools sort, and the prefix for temporary files
+        depends on the implementation of the samtools sort command.
     """
     count_discard = 0
     count_out = 0
@@ -270,7 +283,12 @@ def filter_reads(
                     count_discard += 1
 
         if sort == "true" or ((sort == "auto") and retains_sorting is False):
-            sort_cmd = ["samtools", "sort"]
+            if tmpdir is None:
+                tmpdir = os.environ.get("TMPDIR", None)
+            if tmpdir is not None:
+                sort_cmd = ["samtools", "sort", "-T", tmpdir]
+            else:
+                sort_cmd = ["samtools", "sort"]
             if path_bam_out is not None:
                 sort_cmd.extend(["-o", path_bam_out])
             if no_PG:

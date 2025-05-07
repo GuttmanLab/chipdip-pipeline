@@ -256,7 +256,6 @@ These files are located under `<input_directory>/config/`.
      - `bead_umi_length`: integer length of bead oligo UMIs
    - Optional keys: If these keys are omitted from `config.yaml` or set to `null`, then they will take on the default values indicated.
      - `output_dir` (default = `"workup"`): path to create the [output directory](#output-directory) within which all intermediate and output files are placed.
-     - `temp_dir` (default = `"/central/scratch"`): path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
      - `barcode_format` (default = `null`): path to [barcode format file](#format-txt) (e.g., `format.txt`). If `null`, no barcode validation is performed.
      - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("\*.yml" or "\*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory). [*If a relative path is used, the path is interpreted as relative to the Snakefile.*](https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html#integrated-package-management)
      - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded. If `null`, no masking is performed.
@@ -465,7 +464,7 @@ These files are located under `<workflow_directory>/profiles/`.
     - `slurm`: for execution on a SLURM server
       - `jobs`: maximum number of jobs to submit at a time
       - `default-resources`
-        - `tmpdir`: used by Snakemake to set the `TMPDIR` environment variable for jobs; specifies the temporary file directory used by `sort` and `samtools sort` commands. The value `/central/scratch/$USER` in the provided profile is appropriate for use on the Caltech HPC but may not be appropriate for all servers. Set to a location with sufficient free disk space.
+        - `tmpdir`: used by Snakemake to set the `TMPDIR` environment variable for each job. This is relevant for rules in the pipeline that sort files using GNU `sort` or `samtools sort`, which may require a large amount of available temporary disk space. The value `/central/scratch/$USER` in the provided profile is appropriate for use on the Caltech HPC but may not be appropriate for all servers. Set to a location with sufficient free disk space.
           - Other potentially useful SLURM options that are not currently specified in the profile config (see [SLURM exectuor plugin documentation](https://github.com/snakemake/snakemake-executor-plugin-slurm/blob/main/docs/further.md)):
             - `slurm_partition: <string>`
             - `slurm_account: <string>`

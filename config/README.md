@@ -6,7 +6,7 @@ The pipeline is configured relative to the following directories:
 - <a name="input-directory">input directory</a>: directory containing the `config/` and `resources/` folders
 - <a name="output-directory">output-directory</a>: directory containing the pipeline output
 
-For a complete description of the directory structures, see the [main repository README](https://github.com/GuttmanLab/chipdip-pipeline).
+For a complete description of the directory structures, and for relevant workflow profile configuration settings, see the [main repository README](../README.md).
 
 ## Configuration Files
 
@@ -24,7 +24,6 @@ These files are located under `<input_directory>/config/`.
      - `bead_umi_length`: integer length of bead oligo UMIs
    - Optional keys: If these keys are omitted from `config.yaml` or set to `null`, then they will take on the default values indicated.
      - `output_dir` (default = `"workup"`): path to create the [output directory](#output-directory) within which all intermediate and output files are placed.
-     - `temp_dir` (default = `"/central/scratch"`): path to a temporary directory, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
      - `barcode_format` (default = `null`): path to [barcode format file](#format-txt) (e.g., `format.txt`). If `null`, no barcode validation is performed.
      - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("\*.yml" or "\*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory). [*If a relative path is used, the path is interpreted as relative to the Snakefile.*](https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html#integrated-package-management)
      - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded. If `null`, no masking is performed.
