@@ -849,7 +849,17 @@ rule repeat_mask:
                     -g "{input.genome}" > "{output}"
             else
                 echo "No mask file specified, skipping masking."
-                ln -s "{input.bam}" "{output}"
+
+                # Create a symbolic link between the output path and the input path,
+                # effectively skipping the masking step.
+                # - The input path needs to be provided either as a relative path
+                #   relative to the output path, or as an absolute path.
+                # - Here, we use an absolute path to the input file.
+                case "{input.bam}" in
+                    /*) path_input="{input.bam}";;
+                    *) path_input="$(pwd -P)"/"{input.bam}";;
+                esac
+                ln -s "$path_input" "{output}"
             fi
         }} &> "{log}"
         '''
