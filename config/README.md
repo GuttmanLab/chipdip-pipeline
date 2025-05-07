@@ -48,7 +48,7 @@ These files are located under `<input_directory>/config/`.
    - [`config.yaml`](#config-yaml) key to specify the path to this file: `samples`
    - This can be prepared using `fastq2json.py --fastq_dir <path_to_directory_of_FASTQs>` or manually formatted as follows:
 
-     ```{json}
+     ```json
      {
         "sample1": {
           "R1": [
@@ -184,7 +184,7 @@ These files are located under `<input_directory>/resources/`.
      - Reference paper: Amemiya HM, Kundaje A, Boyle AP. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. *Sci Rep*. 2019;9(1):9354. doi:[10.1038/s41598-019-45839-z](https://doi.org/10.1038/s41598-019-45839-z)
      - Example code used to download them into the `resources/` directory:
 
-       ```{bash}
+       ```bash
        wget -O - https://www.encodeproject.org/files/ENCFF356LFX/@@download/ENCFF356LFX.bed.gz |
            zcat |
            sort -V -k1,3 > "resources/blacklist_hg38.bed"
@@ -200,7 +200,7 @@ These files are located under `<input_directory>/resources/`.
    - Used by: Snakefile `rule bowtie2_align` and `rule effective_genome_size`
    - If you do not have an existing Bowtie 2 index, you can download [pre-built indices](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) from the Bowtie 2 developers:
 
-     ```{bash}
+     ```bash
      # for human primary assembly hg38
      mkdir -p resources/index_hg38
      wget https://genome-idx.s3.amazonaws.com/bt/GRCh38_noalt_as.zip

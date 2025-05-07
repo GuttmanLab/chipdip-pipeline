@@ -8,7 +8,6 @@ rerun-incomplete: True
 default-resources:
     runtime: "12h"
     mem_mb: 10000
-    cpus_per_task: int(f"{threads}")
     tmpdir: "/central/scratch/$USER"
 set-resources:
     split_fastq:
