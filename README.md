@@ -9,8 +9,8 @@ Contents
 - [Directory Structures](#directory-structures)
 - [Input Files](#input-files)
   - [Configuration Files](#configuration-files)
-  - [Resource files](#resource-files)
-- [Workflow profile configuration](#workflow-profile-configuration)
+  - [Resource Files](#resource-files)
+- [Workflow Profile Configuration](#workflow-profile-configuration)
 - [Output Files](#output-files)
 - [Additional Resources](#additional-resources)
 - [Credits](#credits)
@@ -72,7 +72,7 @@ MD5 checksum of cluster_statistics.txt matches reference.
 
 ## System Requirements
 
-Hardware: This pipeline was developed to be run on an [HPC](https://en.wikipedia.org/wiki/High-performance_computing) cluster, but it can also be run locally on a personal computer.
+Hardware: This pipeline was developed to be run on a [high performance computing (HPC)](https://en.wikipedia.org/wiki/High-performance_computing) cluster, but it can also be run locally on a personal computer.
 - See benchmarks below for a sense of how hardware requirements scale with dataset size.
 - Note: the `chipdip` conda environment itself takes ~2.2 GB disk space, and the unzipped mm10 and hg38 Bowtie 2 indices occupy 3.6 GB and 3.9 GB, respectively. The disk space numbers in the benchmark table below do not account for the size of the conda environment, Bowtie 2 indices, or temporary disk usage during the pipeline run.
 - Recommended hardware: 4+ CPU cores, 24+ GB memory, 60 GB free disk space
@@ -101,8 +101,8 @@ Packages: Additional required third-party programs and packages are specified in
 | example dataset provided in `data/`: 4,532 paired reads (≤ 130 bp read 1, ≤ 150 bp read 2) | 2 cores of AMD EPYC 7763 | Ubuntu 20.04.6 LTS | 00:13:01 | 00:20:28 | 2.91 GB | 20 MB | No | run "locally" on a single node on [GitHub Codespaces](https://github.com/features/codespaces) |
 | example dataset provided in `data/` | Intel Core i5-4300U | Ubuntu 22.04.4 LTS via WSL | 00:12:23 | 00:41:31 | 2.76 GB | 14 MB | No | Hyperthreading enabled; `snakemake` run with `--jobs 4` |
 | example dataset provided in `data/` | Apple M2 (4 performance + 4 efficiency cores) | macOS Sequoia 15.1.1 | 00:04:45 | 00:14:06 | 2.33 GB | 16 MB | No | conda environment targeting `osx-64` platform; `snakemake` run with `--jobs 4` |
-| example dataset provided in `data/` | 2 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | Yes | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/) |
-| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | 8 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | Yes | run "locally" on a single node on [Caltech's HPC](https://www.hpc.caltech.edu/) |
+| example dataset provided in `data/` | 2 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | Yes | run "locally" on a single node on [Caltech's HPC cluster](https://www.hpc.caltech.edu/) |
+| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | 8 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | Yes | run "locally" on a single node on [Caltech's HPC cluster](https://www.hpc.caltech.edu/) |
 
 ## Pipeline
 
@@ -388,7 +388,7 @@ These files are located under `<input_directory>/config/`.
    - Column 2 specifies new chromosome names for the corresponding chromosomes in column 1.
    - The provided `chrom-map.txt` in this repository contains examples for retaining only canonical human or mouse chromosomes (i.e., excluding alternate loci, unlocalized sequences, and unplaced sequences) and renaming them to UCSC chromosome names (i.e., `chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`) as needed. The header of provided file also includes more detailed documentation about the specific format requirements, such as allowed characters.
 
-## Resource files
+## Resource Files
 
 These files are located under `<input_directory>/resources/`.
 
@@ -445,7 +445,7 @@ These files are located under `<input_directory>/resources/`.
 
      Note that the pre-built indices linked above use [UCSC chromosome names](https://genome.ucsc.edu/FAQ/FAQgenes.html) (`chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`). If your alignment indices use different chromosome names (e.g., Ensembl chromosome names are `1`, `2`, ..., `X`, `Y`, `MT`), update [`chrom-map.txt`](#chrom-map) such that chromosome names in BAM files are converted to UCSC chromosome names. You can check the names of the reference sequences used to build the index by using the command `bowtie2-inspect -n <bt2-idx>`.
 
-# Workflow profile configuration
+# Workflow Profile Configuration
 
 These files are located under `<workflow_directory>/profiles/`.
 
@@ -461,9 +461,9 @@ These files are located under `<workflow_directory>/profiles/`.
       - `cores`: maximum number of CPU cores to use in parallel
     - `slurm`: for execution on a SLURM server
       - `jobs`: maximum number of jobs to submit at a time
-      - `latency-wait`: number of seconds to wait for output files of a job to be visible on the file system after the job finished to account for file system latency. This is particularly relevant for distributed computing environments (e.g., on a high performance computing (HPC) cluster) with shared/networked file systems.
+      - `latency-wait`: number of seconds to wait for output files of a job to be visible on the file system after the job finished to account for file system latency. This is particularly relevant for distributed computing environments (e.g., on an HPC cluster) with shared/networked file systems.
       - `default-resources`
-        - `tmpdir`: used by Snakemake to set the `TMPDIR` environment variable for each job. This is relevant for rules in the pipeline that sort files using GNU `sort` or `samtools sort`, which may require a large amount of available temporary disk space. The value `/central/scratch/$USER` in the provided profile is appropriate for use on the Caltech HPC but may not be appropriate for all servers. Set to a location with sufficient free disk space.
+        - `tmpdir`: used by Snakemake to set the `TMPDIR` environment variable for each job. This is relevant for rules in the pipeline that sort files using GNU `sort` or `samtools sort`, which may require a large amount of available temporary disk space. The value `/central/scratch/$USER` in the provided profile is appropriate for use on Caltech's HPC cluster but may not be appropriate for all servers. Set to a location with sufficient free disk space.
           - Other potentially useful SLURM options that are not currently specified in the profile config (see [SLURM exectuor plugin documentation](https://github.com/snakemake/snakemake-executor-plugin-slurm/blob/main/docs/further.md)):
             - `slurm_partition: <string>`
             - `slurm_account: <string>`
