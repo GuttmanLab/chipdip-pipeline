@@ -3,6 +3,10 @@
 workup/
 assets/*/
 
+### IDE files ###
+*.code-workspace
+pyrightconfig.json
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
