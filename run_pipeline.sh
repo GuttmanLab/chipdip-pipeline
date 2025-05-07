@@ -5,6 +5,5 @@
 # - Reference: https://github.com/conda/conda/issues/448
 export PYTHONNOUSERSITE=True
 
-snakemake \
---snakefile workflow/Snakefile \
-"$@"
+# add --workflow-profile workflow/profiles/slurm for SLURM cluster job submission
+snakemake "$@"

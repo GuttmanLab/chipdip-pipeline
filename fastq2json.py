@@ -56,4 +56,4 @@ print("check the samples.json file for fastqs belong to each sample")
 print()
 
 js = json.dumps(FILES, indent=4, sort_keys=True)
-open("samples.json", "w").writelines(js)
+open("config/samples.json", "w").writelines(js)

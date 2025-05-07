@@ -20,6 +20,8 @@ run_date = v.strftime("%Y.%m.%d")
 # Priority (lowest-to-highest) of defining configuration parameters, where each option adds to the `config` dictionary
 # available in the Snakefile.
 # 1. Configuration file specified by the `configfile` directive in this Snakefile: `configfile: <path_to_configfile>`
+#    <path_to_configfile> is interpreted relative to the working directory (optionally specified by the command line
+#    option --directory <working_directory>; defaults to Snakemake is invoked)
 # 2. Configuration files specified on the command line: `snakemake --configfile <path_to_configfile>`
 # 3. Parameters specified directly on the command line: `snakemake --config key=value`
 #
