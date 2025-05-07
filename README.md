@@ -458,11 +458,16 @@ These files are located under `<workflow_directory>/profiles/`.
   - [The optional `.vX+` part of the filename denotes the minimum supported Snakemake major version `X`.](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles)
   - This file specifies the resources available to each rule.
   - Paths are interpreted relative to the [working directory](#working-directory).
+  - Relevant [Snakemake documentation](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles):
+    - > Values in profiles can make use of globally available environment variables, e.g. the `$USER` variable.
+    - Values for resource specifications can be dynamically set.
   - Two profiles are provided with this workflow. Key options are described below.
     - `default`: for local execution
       - `cores`: maximum number of CPU cores to use in parallel
     - `slurm`: for execution on a SLURM server
       - `jobs`: maximum number of jobs to submit at a time
+      - `default-resources`
+        - `tmpdir`: used by Snakemake to set the `TMPDIR` environment variable for jobs; specifies the temporary file directory used by `sort` and `samtools sort` commands. The value `/central/scratch/$USER` in the provided profile is appropriate for use on the Caltech HPC but may not be appropriate for all servers. Set to a location with sufficient free disk space.
       - `slurm-logdir`: directory to save SLURM log files; used by the [SLURM executor plugin](https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/slurm.html)
         - SLURM standard output and standard error log files are combined into a single log file output to `<slurm-logdir>/<rule>/<wildcards>/<jobid>.log` where `<wildcards>` is an underscore-delimited string of wildcards.
       - `slurm-delete-logfiles-older-than`: SLURM log files will be deleted after this many days; used by the [SLURM executor plugin](https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/slurm.html)
