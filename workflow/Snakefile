@@ -655,7 +655,7 @@ rule split_bpm_dpm:
     params:
         format = f"--format '{barcode_format}'" if barcode_format not in (None, "") else ""
     conda:
-       conda_env
+        conda_env
     shell:
         '''
         python "{split_bpm_dpm}" --r1 "{input}" {params.format} &> "{log}"
@@ -959,7 +959,7 @@ rule merge_clusters:
     log:
         os.path.join(DIR_LOGS, "merge_clusters.{sample}.log")
     conda:
-       conda_env
+        conda_env
     threads:
         10
     shell:
