@@ -2,13 +2,16 @@ software-deployment-method: conda
 conda-frontend: conda
 executor: slurm
 jobs: 100
-latency-wait: 60
+latency-wait: 60 # seconds to wait for the output file(s) of a job after the job finishes
 printshellcmds: True
 rerun-incomplete: True
+
+# Resources for each job/rule
 default-resources:
-    runtime: "12h"
+    runtime: "12h" # integer defining minutes or string defining a time span (number followed by a unit, where
+                   # unit is one of ms, s, m, h, d, w, y for seconds, minutes, hours, days, and years, respectively)
     mem_mb: 10000
-    tmpdir: "/central/scratch/$USER"
+    tmpdir: "/central/scratch/$USER" # value of $TMPDIR variable for shell commands, scripts, wrappers and notebooks
 set-resources:
     split_fastq:
         runtime: "48h"
@@ -55,6 +58,8 @@ set-resources:
         mem_mb: 20000
     generate_bigwigs:
         mem_mb: 20000
+
+# SLURM executor plugin options
 slurm-logdir: "results/logs/slurm"
-slurm-delete-logfiles-older-than: -1
+slurm-delete-logfiles-older-than: -1 # number of days to retain SLURM logs
 slurm-keep-successful-logs: True

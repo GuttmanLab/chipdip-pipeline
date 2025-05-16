@@ -1,3 +1,9 @@
+# Except for conda_env, paths in this file are specified relative to the working directory, which refers to following,
+# in order of precedence:
+# 1. the directory specified by the `--directory` command line option
+# 2. the directory specified by the `workdir:` directive in the Snakefile
+# 3. the directory in which Snakemake is invoked
+
 # Email to which errors will be sent; set to null or "" to skip emails
 email: ""
 
