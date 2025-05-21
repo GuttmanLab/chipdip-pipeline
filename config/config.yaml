@@ -22,6 +22,9 @@ scripts_dir: "workflow/scripts/"
 # Output directory
 output_dir: "results"
 
+# Temporary directory
+temp_dir: "/tmp"
+
 # Conda environment: either a path to a conda environment YAML file ("*.yml" or "*.yaml")
 # or the name of an existing conda environment.
 # - If a relative path is used, the path is interpreted as relative to the Snakefile.

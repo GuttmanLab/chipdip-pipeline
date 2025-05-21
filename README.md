@@ -253,7 +253,8 @@ These files are located under `<input_directory>/config/`.
      - `cutadapt_oligos`: path to [Antibody ID sequences](#bpm-fasta)
      - `bead_umi_length`: integer length of bead oligo UMIs
    - Optional keys: If these keys are omitted from `config.yaml` or set to `null`, then they will take on the default values indicated.
-     - `output_dir` (default = `"workup"`): path to create the [output directory](#output-directory) within which all intermediate and output files are placed.
+     - `output_dir` (default = `"results"`): path to create the [output directory](#output-directory) within which all intermediate and output files are placed.
+     - `temp_dir` (default = `$TMPDIR` (if set) or `"/tmp"`): path to a temporary directory with sufficient free disk space, such as used by the `-T` option of [GNU sort](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)
      - `barcode_format` (default = `null`): path to [barcode format file](#format-txt) (e.g., `format.txt`). If `null`, no barcode validation is performed.
      - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("\*.yml" or "\*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory). [*If a relative path is used, the path is interpreted as relative to the Snakefile.*](https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html#integrated-package-management)
      - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded. If `null`, no masking is performed.
@@ -463,7 +464,6 @@ These files are located under `<workflow_directory>/profiles/`.
       - `jobs`: maximum number of jobs to submit at a time
       - `latency-wait`: number of seconds to wait for output files of a job to be visible on the file system after the job finished to account for file system latency. This is particularly relevant for distributed computing environments (e.g., on an HPC cluster) with shared/networked file systems.
       - `default-resources`
-        - `tmpdir`: used by Snakemake to set the `TMPDIR` environment variable for each job. This is relevant for rules in the pipeline that sort files using GNU `sort` or `samtools sort`, which may require a large amount of available temporary disk space. The value `/central/scratch/$USER` in the provided profile is appropriate for use on Caltech's HPC cluster but may not be appropriate for all servers. Set to a location with sufficient free disk space.
           - Other potentially useful SLURM options that are not currently specified in the profile config (see [SLURM exectuor plugin documentation](https://github.com/snakemake/snakemake-executor-plugin-slurm/blob/main/docs/further.md)):
             - `slurm_partition: <string>`
             - `slurm_account: <string>`

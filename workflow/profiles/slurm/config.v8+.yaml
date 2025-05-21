@@ -11,7 +11,6 @@ default-resources:
     runtime: "12h" # integer defining minutes or string defining a time span (number followed by a unit, where
                    # unit is one of ms, s, m, h, d, w, y for seconds, minutes, hours, days, and years, respectively)
     mem_mb: 10000
-    tmpdir: "/central/scratch/$USER" # value of $TMPDIR variable for shell commands, scripts, wrappers and notebooks
 set-resources:
     split_fastq:
         runtime: "48h"

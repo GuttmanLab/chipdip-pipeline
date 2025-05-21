@@ -127,8 +127,21 @@ else:
         file=sys.stderr
     )
 
-DIR_OUT = config.get("output_dir", "workup")
+DIR_OUT = config.get("output_dir", "results")
 print("Using output directory:", DIR_OUT, file=sys.stderr)
+
+temp_dir = config.get("temp_dir")
+if temp_dir is not None:
+    print("Using temporary directory:", temp_dir, file=sys.stderr)
+else:
+    if "TMPDIR" in os.environ:
+        temp_dir = os.environ["TMPDIR"]
+    else:
+        temp_dir = "/tmp"
+    print("Defaulting to temporary directory:", temp_dir, file=sys.stderr)
+    if not os.path.exists(temp_dir):
+        print(f"Creating temporary directory {temp_dir}.", file=sys.stderr)
+        os.makedirs(temp_dir, exist_ok=True)
 
 num_chunks = config.get("num_chunks")
 if num_chunks is not None:
@@ -736,6 +749,8 @@ rule bowtie2_align:
         os.path.join(DIR_LOGS, "bowtie2_align.{sample}.{splitid}.log")
     threads:
         10
+    resources:
+        tmpdir=temp_dir
     conda:
         conda_env
     shell:
@@ -766,6 +781,8 @@ rule rename_and_filter_chr:
         conda_env
     threads:
         4
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         python "{rename_and_filter_chr}" {params.chrom_map} -t {threads} --try-symlink \\
@@ -788,6 +805,8 @@ rule merge_mask:
         os.path.join(DIR_LOGS, "merge_mask.log")
     conda:
         conda_env
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         {{
@@ -900,6 +919,8 @@ rule fastq_to_bam:
         conda_env
     threads:
         4
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         {{
@@ -943,6 +964,8 @@ rule make_clusters:
         os.path.join(DIR_LOGS, "make_clusters.{sample}.{splitid}.log")
     threads:
         4
+    resources:
+        tmpdir=temp_dir
     conda:
         conda_env
     shell:
@@ -972,6 +995,8 @@ rule merge_clusters:
         conda_env
     threads:
         10
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         {{
@@ -989,6 +1014,8 @@ rule clusters_all:
         os.path.join(DIR_LOGS, "clusters_all.log")
     threads:
         10
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         sort -k 1 --parallel={threads} -m {input:q} > "{output}" 2> "{log}"
@@ -1076,6 +1103,8 @@ rule multiqc:
         dir_qc = os.path.join(DIR_OUT, "qc")
     conda:
         conda_env
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         multiqc -f -o "{params.dir_qc}" "{DIR_OUT}" &> "{log}"
@@ -1096,6 +1125,8 @@ rule pipeline_counts:
         conda_env
     threads:
         10
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         {{
@@ -1257,6 +1288,8 @@ rule effective_genome_size:
         conda_env
     threads:
         4
+    resources:
+        tmpdir=temp_dir
     shell:
         '''
         {{
