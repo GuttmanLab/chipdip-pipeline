@@ -534,6 +534,8 @@ rule validate:
 
 # Split fastq files into chunks to processes in parallel
 rule split_fastq:
+    wildcard_constraints:
+        read="R1|R2"
     input:
         lambda wildcards: FILES[wildcards.sample][wildcards.read],
     output:
@@ -544,8 +546,6 @@ rule split_fastq:
     params:
         dir = os.path.join(DIR_OUT, "split_fastq"),
         prefix = "{sample}_{read}.part_"
-    wildcard_constraints:
-        read="R1|R2"
     conda:
         conda_env
     threads:
@@ -584,10 +584,10 @@ rule adaptor_trimming:
         os.path.join(DIR_LOGS, "adaptor_trimming.{sample}.{splitid}.log")
     params:
         dir = os.path.join(DIR_OUT, "trimmed")
-    threads:
-        10
     conda:
         conda_env
+    threads:
+        10
     shell:
         '''
         if [[ {threads} -gt 8 ]]; then
@@ -690,10 +690,10 @@ rule cutadapt_dpm:
     params:
         adapters_r1 = "-a GATCGGAAGAG -a ATCAGCACTTA " + adapters,
         others = "--minimum-length 20"
-    threads:
-        10
     conda:
         conda_env
+    threads:
+        10
     shell:
         '''
         {{
@@ -719,10 +719,10 @@ rule cutadapt_oligo:
         os.path.join(DIR_LOGS, "cutadapt_oligo.{sample}.{splitid}.log")
     params:
         adapters_r1 = oligos
-    threads:
-        10
     conda:
         conda_env
+    threads:
+        10
     shell:
         '''
         cutadapt \\
@@ -747,12 +747,12 @@ rule bowtie2_align:
         os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     log:
         os.path.join(DIR_LOGS, "bowtie2_align.{sample}.{splitid}.log")
+    conda:
+        conda_env
     threads:
         10
     resources:
         tmpdir=temp_dir
-    conda:
-        conda_env
     shell:
         '''
         {{
@@ -962,12 +962,12 @@ rule make_clusters:
         sorted = os.path.join(DIR_OUT, "clusters_parts", "{sample}.part_{splitid}.clusters")
     log:
         os.path.join(DIR_LOGS, "make_clusters.{sample}.{splitid}.log")
+    conda:
+        conda_env
     threads:
         4
     resources:
         tmpdir=temp_dir
-    conda:
-        conda_env
     shell:
         '''
         {{
