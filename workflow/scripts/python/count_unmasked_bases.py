@@ -1,34 +1,30 @@
 """
 Count the number of non-masked nucleotides in a FASTA file.
 """
-
-from collections import Counter
 import argparse
+from collections import Counter
+import collections.abc
 import os
 import sys
+import typing
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from helpers import file_open
 
 
-def count_unmasked(file, unmasked_alphabet=None) -> int:
+def count_unmasked(file: typing.TextIO, unmasked_alphabet: collections.abc.Iterable[str] = ('A', 'C', 'G', 'T')) -> int:
     """
     Count the number of non-masked nucleotides in a FASTA file.
 
     All characters (except terminal whitespace) in lines not starting with '>' are considered.
 
     Args:
-    - file: file object (io.TextIOBase)
-        FASTA file. Must be opened for reading in text mode.
-    - unmasked_alphabet: Container. default=None
-        Letters to include in the unmasked alphabet. Case-sensitive.
-        If None, default to ['A', 'C', 'G', 'T'].
+    - file: FASTA file
+    - unmasked_alphabet: Letters to include in the unmasked alphabet. Case-sensitive.
     """
     c = Counter()
     for line in file:
         if not line.startswith('>'):
             c.update(Counter(line.rstrip()))
-    if unmasked_alphabet is None:
-        unmasked_alphabet = ['A', 'C', 'G', 'T']
     return sum(c[nt] for nt in unmasked_alphabet)
 
 
@@ -46,7 +42,6 @@ def parse_arguments():
         "-u", "--unmasked_alphabet",
         metavar="A|C|T|G",
         action='append',
-        default=[],
         help=(
             "Letters (case-sensitive) to include in the unmasked alphabet. "
             "Use many times (e.g., -u A -u C -u T -u G) to specify multiple letters. "
@@ -58,13 +53,12 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    if len(args.unmasked_alphabet) == 0:
-        args.unmasked_alphabet = None
+    unmasked_alphabet = ('A', 'C', 'G', 'T') if args.unmasked_alphabet is None else args.unmasked_alphabet
     if args.input == '-':
-        effective_genome_size = count_unmasked(sys.stdin, args.unmasked_alphabet)
+        effective_genome_size = count_unmasked(sys.stdin, unmasked_alphabet)
     else:
         with file_open(args.input, mode="rt") as f:
-            effective_genome_size = count_unmasked(f, args.unmasked_alphabet)
+            effective_genome_size = count_unmasked(f, unmasked_alphabet)
     print(effective_genome_size)
     return effective_genome_size
 

@@ -56,8 +56,8 @@ hash_ab2=$(md5sum "$BED_REF_AB2" | cut -f 1 -d ' ')
 export LC_ALL=C
 
 # generate BED files from pipeline merged splitbam output
-tmpbed1=$(mktemp ./bed1.XXXXX)
-tmpbed2=$(mktemp ./bed2.XXXXX)
+tmpbed1=$(mktemp $DIR_TEMP/bed1.XXXXX)
+tmpbed2=$(mktemp $DIR_TEMP/bed2.XXXXX)
 bedtools bamtobed -i "$DIR_OUTPUT"/splitbams/AB1-A1.bam |
     cut -f 1,2,3 |
     sort -k1,1V -k2,2n -k3,3n > "$tmpbed1"

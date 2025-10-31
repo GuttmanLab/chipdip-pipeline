@@ -7,6 +7,10 @@
 # $3 output prefix
 # $4 number of processes to use for decompression
 # $5+ path to input FASTQ files, assumed to be gzipped
+#
+# Dependencies
+# - GNU coreutils: csplit, echo, mkdir, split, wc
+# - pigz
 ####################
 
 if [[ "$#" -lt 5 ]]; then

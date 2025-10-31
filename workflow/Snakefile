@@ -159,7 +159,7 @@ conda_env = config.get("conda_env")
 if conda_env is None:
     conda_env = "envs/chipdip.yaml"
     print("No conda environment specified. Defaulting to envs/chipdip.yaml", file=sys.stderr)
-if conda_env.strip().lower().endswith(".yaml") or conda_env.strip().lower().endswith(".yml"):
+if conda_env.strip().lower().endswith((".yaml", ".yml")):
     print("Will create new conda environment from", conda_env, file=sys.stderr)
 else:
     print("Using existing conda environment:", conda_env, file=sys.stderr)
@@ -290,7 +290,7 @@ if generate_splitbams:
         'Sample name + target name combined must be <= 227 characters'
 
 ##############################################################################
-# Logging
+# Logging and QC
 ##############################################################################
 
 CONFIG = [os.path.join(DIR_LOGS, "config_" + run_date + ".json")]
@@ -309,13 +309,15 @@ SPLIT_FASTQ = expand(
     os.path.join(DIR_OUT, "split_fastq", "{sample}_{read}.part_{splitid}.fastq.gz"),
     sample=ALL_SAMPLES,
     read=["R1", "R2"],
-    splitid=NUM_CHUNKS)
+    splitid=NUM_CHUNKS
+)
 
 TRIM = expand(
     [os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
      os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")],
     sample=ALL_SAMPLES,
-    splitid=NUM_CHUNKS)
+    splitid=NUM_CHUNKS
+)
 
 TRIM_LOG = expand(
     os.path.join(DIR_OUT, "trimmed", "{sample}_{read}.part_{splitid}.fastq.gz_trimming_report.txt"),
@@ -340,13 +342,16 @@ BARCODEID = expand(
     splitid=NUM_CHUNKS)
 
 SPLIT_BPM_DPM = expand(
-    [os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
-     os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")],
+    [
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
+    ],
     sample=ALL_SAMPLES,
-    splitid=NUM_CHUNKS)
+    splitid=NUM_CHUNKS
+)
 
 ##############################################################################
-# DNA workup
+# Genomic DNA read processing
 ##############################################################################
 
 DPM_TRIMMED = expand(
@@ -380,7 +385,7 @@ DPM_MERGED = expand(
 )
 
 ##############################################################################
-# Bead workup
+# Bead oligo read processing
 ##############################################################################
 
 BPM_TRIMMED = expand(
@@ -403,7 +408,7 @@ BEADS_LABELED_ALL = expand(
 )
 
 ##############################################################################
-# Clustering
+# Demultiplexing and cluster statistics
 ##############################################################################
 
 CLUSTERS_LABELED = expand(
@@ -438,13 +443,14 @@ CLUSTER_BPM_ECDF_PLOTS = [
 ]
 
 ##############################################################################
-# Post Clustering
+# Splitbams
 ##############################################################################
 
 SPLITBAMS = expand(
     os.path.join(DIR_OUT, "splitbams", "{sample}.{target}.bam"),
     sample=ALL_SAMPLES,
-    target=TARGETS)
+    target=TARGETS
+)
 
 SPLITBAM_COUNTS = [os.path.join(DIR_OUT, "splitbams", "splitbam_counts.txt")]
 
@@ -465,7 +471,8 @@ SPLITBAMS_MERGED_INDEXED = expand(
 BIGWIGS = expand(
     os.path.join(DIR_OUT, "bigwigs", "{sample}.{target}.bw"),
     sample=ALL_SAMPLES,
-    target=TARGETS)
+    target=TARGETS
+)
 
 BIGWIGS_MERGED = expand(
     os.path.join(DIR_OUT, "bigwigs", "{target}.bw"),
@@ -712,7 +719,7 @@ rule split_bpm_dpm:
         '''
 
 ##############################################################################
-# Cutadapt
+# Genomic DNA read processing
 ##############################################################################
 
 # Trim DPM from read1 of DPM reads, remove DPM dimer reads
@@ -1300,6 +1307,10 @@ rule splitbam_counts:
             done
         }} &> "{log}"
         '''
+
+##############################################################################
+# BigWigs
+##############################################################################
 
 # Calculate effective genome size as defined by deepTools: the number of unmasked bases in the genome.
 # See https://deeptools.readthedocs.io/en/develop/content/feature/effectiveGenomeSize.html

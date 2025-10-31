@@ -3,9 +3,11 @@ Convenience functions related to parsing arguments and files.
 """
 
 import argparse
+import collections.abc
 import gzip
 import io
 import re
+import typing
 
 # magic number for the gzip file format
 # - https://en.wikipedia.org/wiki/Gzip
@@ -32,7 +34,7 @@ class AutoCloseGzipFile(gzip.GzipFile):
         super().close()
 
 
-def file_open(filename, mode="rb", encoding="utf-8"):
+def file_open(filename: str, mode: str = "rb", encoding: str = "utf-8") -> typing.IO:
     """
     Detect if a file is gzip-compressed and return an appropriate file object for
     reading only (only supports "rb" and "rt" modes). Meant to be a mostly drop-in
@@ -55,7 +57,7 @@ def file_open(filename, mode="rb", encoding="utf-8"):
         return f
 
 
-def fastq_parse(fp):
+def fastq_parse(fp: typing.IO) -> collections.abc.Generator[typing.Tuple[str, str, str, str]]:
     """
     Parse FASTQ file.
     """
@@ -91,7 +93,7 @@ def fastq_parse(fp):
             name, seq, thrd, qual = [None] * 4
 
 
-def positive_int(value):
+def positive_int(value: str) -> int:
     """
     Check that a string represents a positive integer.
     If so, return the integer value. Otherwise, raise an argparse.ArgumentTypeError.
@@ -103,7 +105,7 @@ def positive_int(value):
     return ivalue
 
 
-def parse_chrom_map(path):
+def parse_chrom_map(path: str) -> dict[str, str]:
     """
     Parse a chromosome name map file to a dict mapping old chromosome names to new names.
     """

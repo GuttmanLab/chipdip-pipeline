@@ -1,5 +1,4 @@
 import argparse
-from collections import defaultdict
 import gzip
 import os
 import re
@@ -108,10 +107,11 @@ def main():
     print("Reads with incorrect barcode format:", other_count)
 
 
-def load_format(formatfile):
+def load_format(formatfile: str) -> dict[str, tuple[int]]:
     """
     Load file containing information on which tags can appear at which read positions
-    Returns: dict(str -> tuple) mapping from tag name to expected read positions (rounds)
+
+    Returns: mapping from tag name to expected read positions (rounds)
     """
     df = pd.read_csv(
         formatfile,
