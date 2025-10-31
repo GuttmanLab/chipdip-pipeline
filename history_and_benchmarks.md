@@ -4,7 +4,7 @@ Major releases
 - [v1](https://github.com/GuttmanLab/chipdip-pipeline/releases/tag/v1.0_publication), 2024-10: release for Nature Genetics paper
   - Snakemake v7.31
 - [v2](https://github.com/GuttmanLab/chipdip-pipeline/releases/tag/v2.0.0), 2025-05: Update to Snakemake 8+; re-structure repository to a [Snakemake-standardized workflow](https://snakemake.github.io/snakemake-workflow-catalog/docs/catalog.html#standardized-usage-workflows)
-- [v3](), 2025-10: Use BAM files with custom tags instead of text-based cluster files
+- [v3](https://github.com/GuttmanLab/chipdip-pipeline/releases/tag/v3.0.0), 2025-10: Use BAM files with custom tags instead of text-based cluster files
   - Pipeline implements streaming approach to demultiplexing so that only 1 cluster needs to be fully loaded in memory at a time.
 
 # Complexity analysis
