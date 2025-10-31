@@ -151,7 +151,7 @@ num_chunks = config.get("num_chunks")
 if num_chunks is not None:
     num_chunks = int(num_chunks)
     assert num_chunks > 0 and num_chunks < 100, "num_chunks must be an integer between 1 and 99."
-    print(f"Splitting FASTQ files into {num_chuks} chunks for parallel processing",
+    print(f"Splitting FASTQ files into {num_chunks} chunks for parallel processing",
           file=sys.stderr)
 else:
     num_chunks = 2

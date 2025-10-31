@@ -35,7 +35,7 @@ conda_env: "envs/chipdip.yaml"
 path_chrom_map: "config/chrom_map.txt"
 
 # Path to pipeline DAG configuration file - used to generate pipeline_counts.txt output
-pipeline_structure: "config/pipeline.yaml"
+pipeline_structure: "workflow/pipeline.yaml"
 
 # Chromatin reads deduplication method - usually one of the following:
 # - "RT&start&end": deduplicate by DPM and read alignment start and end position
