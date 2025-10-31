@@ -34,6 +34,13 @@ conda_env: "envs/chipdip.yaml"
 # Path to chromosome name map file; set to null or "" to skip chromosome renaming and filtering
 path_chrom_map: "config/chrom_map.txt"
 
+# Chromatin reads deduplication method - usually one of the following:
+# - "RT&start&end": deduplicate by DPM and read alignment start and end position
+# - "RT&start|RT&end": deduplicate by (DPM and read alignment start) or (DPM and end position)
+# - "RT&start": deduplicate by DPM and read alignment start position
+# - "RT&end": deduplicate by DPM and read alignment end position
+deduplication_method: "RT&start&end"
+
 # Number of chunks to split FASTQ reads into for parallel processing
 num_chunks: 2
 
