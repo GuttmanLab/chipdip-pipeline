@@ -74,9 +74,9 @@ diff "$tmpbed2" <(sort -k1,1V -k2,2n -k3,3n "$BED_REF_AB2")
 [ "$?" = 0 ] && echo "AB2-A2 matches reference." && rm "$tmpbed2"
 
 # validate cluster file
-hash_cluster=$( \
-    sort "$DIR_OUTPUT"/clusters/cluster_statistics.txt |
-    sed -E 's/(For clusterfile  )[^\/]+\/(clusters\/.*)/\1\2/' |
-    md5sum |
-    cut -f 1 -d ' ')
-[ "$hash_cluster" = "$HASH_REF_CLUSTERS" ] && echo "MD5 checksum of cluster_statistics.txt matches reference."
+# hash_cluster=$( \
+#     sort "$DIR_OUTPUT"/clusters/cluster_statistics.txt |
+#     sed -E 's/(For clusterfile  )[^\/]+\/(clusters\/.*)/\1\2/' |
+#     md5sum |
+#     cut -f 1 -d ' ')
+# [ "$hash_cluster" = "$HASH_REF_CLUSTERS" ] && echo "MD5 checksum of cluster_statistics.txt matches reference."

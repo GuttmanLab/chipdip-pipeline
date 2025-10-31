@@ -1,7 +1,7 @@
 <!-- see https://snakemake.github.io/snakemake-workflow-catalog/docs/catalog.html and https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html for how this repository is formatted to comply with the Snakemake standardized workflow specification and the WorkflowHub standards -->
 
 The pipeline is configured relative to the following directories:
-- <a name="working-directory">working directory</a>: either the directory in which you have invoked Snakemake or whatever was specified for `--directory` or the `workdir:` directive
+- <a name="working-directory">working directory</a>: in decreasing order of precedence, the path specified by the `--directory` command-line parameter passed to Snakemake, the path specified by the `workdir:` directive in the Snakefile, or the directory in which Snakemake was invoked.
 - <a name="workflow-directory">workflow directory</a>: directory containing the Snakefile
 - <a name="input-directory">input directory</a>: directory containing the `config/` and `resources/` folders
 - <a name="output-directory">output-directory</a>: directory containing the pipeline output
@@ -29,6 +29,7 @@ These files are located under `<input_directory>/config/`.
      - `conda_env` (default = `"envs/chipdip.yaml"`): either a path to a conda environment YAML file ("\*.yml" or "\*.yaml") or the name of an existing conda environment. If the path to a conda environment YAML file, Snakemake will create a new conda environment within the `.snakemake` folder of the [working directory](#working-directory). [*If a relative path is used, the path is interpreted as relative to the Snakefile.*](https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html#integrated-package-management)
      - `mask` (default = `null`): path to BED file of genomic regions to ignore, such as [ENCODE blacklist regions](#blacklist-bed); reads mapping to these regions are discarded. If `null`, no masking is performed.
      - `path_chrom_map` (default = `null`): path to [chromosome name map file](#chrom-map). If `null`, chromosome renaming and filtering are skipped, and the final BAM and/or bigWig files will use all chromosome names as-is from the Bowtie 2 index.
+     - `deduplication_method` (default = `"RT&start&end"`): specify keys to use for chromatin reads deduplication, in addition to the cluster barcode. Alignment positions ('start' and/or 'end') and/or the DPM tag ('RT') can be combined using '&' (AND) or '|' (OR) operators, with '&' operators taking precedence.
      - `num_chunks` (default = `2`): integer between 1 and 99 giving the number of chunks to split FASTQ files from each sample into for parallel processing
      - `generate_splitbams` (default = `false`): [boolean value](https://yaml.org/type/bool.html) indicating whether to generate separate BAM files for each antibody target
      - `min_oligos` (default = `2`): integer giving the minimum count of deduplicated antibody oligo reads in a cluster for that cluster to be assigned to the corresponding antibody target; this criteria is intersected (AND) with the `proportion` and `max_size` criteria
@@ -76,9 +77,9 @@ These files are located under `<input_directory>/config/`.
      - FASTQ files are gzip-compressed.
      - Read names do not contain two consecutive colons (`::`). This is required because the pipeline adds `::` to the end of read names before adding barcode information; the string `::` is used as a delimiter in the pipeline to separate the original read name from the identified barcode.
    - If there are multiple FASTQ files per read orientation per sample (as shown for `sample1` in the example above), the pipeline will concatenate them and process them together as the same sample.
-   - Each sample is processed independently, generating independent cluster and BAM files. Statistics used for quality assessment (barcode identification efficiency, cluster statistics, MultiQC report, cluster size distributions, splitbam statistics) are computed independently for each sample but reported together in aggregate files to enable quick quality comparison across samples.
+   - Each sample is processed independently, generating independent BAM files and statistics for quality assessment (barcode identification efficiency, cluster statistics, cluster size distributions, splitbam statistics). For ease of comparison, all samples are overlaid together in quality assessment plots.
    - The provided sample read files under the `data/` folder were simulated via a [Google Colab notebook](https://colab.research.google.com/drive/1CyjY0fJSiBl4vCz6FGFuT3IZEQR5XYlI). The genomic DNA reads correspond to ChIP-seq peaks on chromosome 19 (mm10) for transcription factors MYC (simulated as corresponding to Antibody ID `BEAD_AB1-A1`) and TCF12 (simulated as corresponding to Antibody ID `BEAD_AB2-A2`).
-   - Sample names (the keys of the samples JSON file) cannot contain any periods (`.`). This is enforced to simplify wildcard pattern matching in the Snakefile and to simplify implementation of `workflow/scripts/python/threshold_tag_and_split.py:label_bam_file()`.
+   - Sample names (the keys of the samples JSON file) cannot contain any periods (`.`). This is enforced to simplify wildcard pattern matching in the Snakefile and to allow the use of periods to delimit tags in a barcode string.
 
 3. <a name="config-txt">`config.txt`</a>: Barcode config file - text file containing the sequences of split-pool tags and the expected split-pool barcode structure.
    - Required? Yes.
@@ -159,7 +160,7 @@ These files are located under `<input_directory>/config/`.
    - Column 2 specifies new chromosome names for the corresponding chromosomes in column 1.
    - The provided `chrom-map.txt` in this repository contains examples for retaining only canonical human or mouse chromosomes (i.e., excluding alternate loci, unlocalized sequences, and unplaced sequences) and renaming them to UCSC chromosome names (i.e., `chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`) as needed. The header of provided file also includes more detailed documentation about the specific format requirements, such as allowed characters.
 
-## Resource files
+## Resource Files
 
 These files are located under `<input_directory>/resources/`.
 
