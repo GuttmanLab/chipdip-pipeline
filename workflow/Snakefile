@@ -1104,37 +1104,39 @@ rule cluster_all:
         conda_env
     shell:
         '''
-        all_paths=({input:q})
-        n_files=${{#all_paths[@]}}
+        {{
+            all_paths=({input:q})
+            n_files=${{#all_paths[@]}}
 
-        if [ $n_files -eq 1 ]; then
-            # if there is only one input file, then just link it to the output
-            ln -s "${{all_paths[0]}}" "{output}"
-        else
-            # validate that the headers are compatible. iteratively compare the first file against all other files
-            for ((i=2; i<$n_files; i++)); do
-                # if the headers are different, then diff will return a non-zero exit code, causing Snakemake to stop
-                # this rule immediately, as desired.
+            if [ $n_files -eq 1 ]; then
+                # if there is only one input file, then just link it to the output
+                ln -s "${{all_paths[0]}}" "{output}"
+            else
+                # validate that the headers are compatible. iteratively compare the first file against all other files
+                for ((i=2; i<$n_files; i++)); do
+                    # if the headers are different, then diff will return a non-zero exit code, causing Snakemake to stop
+                    # this rule immediately, as desired.
 
-                # check for same @HD line
-                diff -q \\
-                    <(samtools head "${{all_paths[0]}}" | grep -F "@HD") \\
-                    <(samtools head "${{all_paths[i]}}" | grep -F "@HD")
+                    # check for same @HD line
+                    diff -q \\
+                        <(samtools head "${{all_paths[0]}}" | grep -F "@HD") \\
+                        <(samtools head "${{all_paths[i]}}" | grep -F "@HD")
 
-                # check for same @SQ lines, with the same order
-                diff -q \\
-                    <(samtools head "${{all_paths[0]}}" | grep -F "@SQ") \\
-                    <(samtools head "${{all_paths[i]}}" | grep -F "@SQ")
+                    # check for same @SQ lines, with the same order
+                    diff -q \\
+                        <(samtools head "${{all_paths[0]}}" | grep -F "@SQ") \\
+                        <(samtools head "${{all_paths[i]}}" | grep -F "@SQ")
 
-                # check for same @RG lines, order does not matter
-                diff -q \\
-                    <(samtools head "${{all_paths[0]}}" | grep -F "@RG" | sort)
-                    <(samtools head "${{all_paths[i]}}" | grep -F "@RG" | sort)
-            done
+                    # check for same @RG lines, order does not matter
+                    diff -q \\
+                        <(samtools head "${{all_paths[0]}}" | grep -F "@RG" | sort) \\
+                        <(samtools head "${{all_paths[i]}}" | grep -F "@RG" | sort)
+                done
 
-            # concatenate the input files
-            samtools cat -o "{output}" {input:q}
-        fi
+                # concatenate the input files
+                samtools cat -o "{output}" {input:q}
+            fi
+        }} &> "{log}"
         '''
 
 # Plot distributions of maximally-represented BPM counts and proportions
