@@ -573,13 +573,18 @@ rule validate:
         bt2_sum = os.path.join(DIR_LOGS, "bowtie2_index_summary.txt"),
     params:
         mask = "" if mask == "" else f"--mask '{mask}'",
+        pipeline = "" if path_pipeline_structure in (None, "") else f"--pipeline '{path_pipeline_structure}'",
     conda:
         conda_env
     shell:
         '''
         {{
             bowtie2-inspect --summary "{bowtie2_index}" > "{log.bt2_sum}"
-            python "{validate}" -c "{input.config}" --bt2_index_summary "{log.bt2_sum}" {params.mask}
+            python "{validate}" \\
+                -c "{input.config}" \\
+                --bt2_index_summary "{log.bt2_sum}" \\
+                {params.mask} \\
+                {params.pipeline}
         }} &> "{log.log}"
         '''
 

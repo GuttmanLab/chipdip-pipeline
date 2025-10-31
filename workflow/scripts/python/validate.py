@@ -46,6 +46,15 @@ def parse_arguments():
         help="path to mask BED file",
     )
     parser.add_argument(
+        "--pipeline",
+        metavar="pipeline.yaml",
+        help=(
+            "path to pipeline DAG description file (YAML format). Mapping from level to a mapping describing that "
+            "output. Except for a 'data' level, the secondary mapping must contain the key 'path' mapping to a list of "
+            "strings that form the path pattern for that output."
+        )
+    )
+    parser.add_argument(
         "-q", "--quiet", action="store_true", help="suppress output"
     )
     return parser.parse_args()
@@ -96,9 +105,9 @@ def validate_barcode_config(barcode_config_file):
                 assert regex_tag_name.match(row[1]) is not None, \
                     base_error_msg.format(i, f"Tag name did not match the pattern {regex_tag_name.pattern}.", line)
                 assert re.match('[0-9]+', row[3]) is not None, \
-                    base_error_msg.format(i, f"Tag error tolerance must be an integer.", line)
+                    base_error_msg.format(i, "Tag error tolerance must be an integer.", line)
                 if row[0].upper() == 'DPM':
-                    assert ('DPM' in row[1] and (not 'BEAD' in row[1])) or row[1].startswith('BEAD_'), \
+                    assert ('DPM' in row[1] and ('BEAD' not in row[1])) or row[1].startswith('BEAD_'), \
                         base_error_msg.format(
                             i,
                             (
@@ -109,7 +118,7 @@ def validate_barcode_config(barcode_config_file):
                         )
                 else:
                     assert not ('DPM' in row[1] or 'BEAD' in row[1]), \
-                        base_error_msg.format(i, f"Non-DPM, non-antibody ID tag names cannot contain 'BEAD' or 'DPM'.", line)
+                        base_error_msg.format(i, "Non-DPM, non-antibody ID tag names cannot contain 'BEAD' or 'DPM'.", line)
             else:
                 raise ValueError(base_error_msg.format(i, "Unrecognized tag category.", line))
     assert tag_layout_defined, (
@@ -213,6 +222,36 @@ def validate_mask(path_mask: str, chrom_map=None, chrom_sizes=None) -> None:
         f'Mask BED file {path_mask} does not contain any regions from chromosomes in the {chrom_name_source}.'
 
 
+def validate_pipeline_structure(pipeline: dict):
+    """
+    Validate that the pipeline structure adheres to the following:
+    1. Read output paths end with expected extensions: .fastq.gz, .fq.gz, or .bam
+    2. Parent and base levels (if specified) exist in the pipeline structure.
+
+    Args
+    - pipeline: mapping from level to a structured information (a dictionary) describing that output. Except for the
+        "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
+        for that output.
+
+    Returns: None
+
+    Raises
+    - ValueError: if any path pattern does not end with a recognized file extension
+    - AssertionError if any level (except "data") is missing a "path" key or if any specified parent/base level does
+      not exist.
+    """
+    for level, info in pipeline.items():
+        if level != "data":
+            assert "path" in info, f"Pipeline level {level} must contain a 'path' key."
+        path = info.get('path')
+        if path and not path[-1].endswith(('.fastq.gz', '.fq.gz', '.bam')):
+            raise ValueError(f"Invalid file extension in path pattern for level {level}: {path}")
+        assert info.get("parent") in (None, *pipeline.keys()), \
+            f"Parent {info.get('parent')} of level {level} is not a valid level."
+        assert info.get("base") in (None, *pipeline.keys()), \
+            f"Parent {info.get('base')} of level {level} is not a valid level."
+
+
 def parse_bt2_index_summary(path_bt2_index_summary):
     """
     Parse the output of `bowtie2-inspect --summary <bt2_base>` to a dictionary mapping
@@ -271,6 +310,12 @@ def main():
     if args.mask and (chrom_map is not None or chrom_sizes is not None):
         validate_mask(config["mask"], chrom_map, chrom_sizes)
         print('Validated mask file.')
+
+    if args.pipeline:
+        with open(args.pipeline) as f:
+            pipeline = yaml.safe_load(f)
+        validate_pipeline_structure(pipeline)
+        print('Validated pipeline structure.')
     # validate_config(config)
     # validate_format(config["format"])
 

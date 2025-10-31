@@ -36,30 +36,6 @@ import string
 DIR_COUNTS = os.path.join(DIR_OUT, "pipeline_counts")
 
 
-def validate_pipeline_structure(pipeline: dict):
-    """
-    Validate that the pipeline structure adheres to the following:
-    1. Read output paths end with expected extensions: .fastq.gz, .fq.gz, or .bam
-    2. Parent and base levels (if specified) exist in the pipeline structure.
-
-    Args
-    - pipeline: mapping from level to a structured information (a dictionary) describing that output. Except for the
-        "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
-        for that output.
-
-    Raises
-    - ValueError: if any path pattern does not end with a recognized file extension
-    """
-    for level, info in pipeline.items():
-        path = info.get('path')
-        if path and not path[-1].endswith(('.fastq.gz', '.fq.gz', '.bam')):
-            raise ValueError(f"Invalid file extension in path pattern for level {level}: {path}")
-        assert info.get("parent") in (None, *pipeline.keys()), \
-            f"Parent {info.get('parent')} of level {level} is not a valid level."
-        assert info.get("base") in (None, *pipeline.keys()), \
-            f"Parent {info.get('base')} of level {level} is not a valid level."
-
-
 def path_to_count_ext(path: str) -> str:
     """
     Given a path pattern, return the corresponding count file extension pattern without the leading period.
