@@ -5,6 +5,7 @@ jobs: 100
 latency-wait: 60 # seconds to wait for the output file(s) of a job after the job finishes
 printshellcmds: True
 rerun-incomplete: True
+slurm-efficiency-report: True # set to True to generate a logfile of CPU and memory utilization
 
 # Resources for each job/rule
 default-resources:
@@ -16,47 +17,14 @@ set-resources:
         runtime: "48h"
     compress_fastq:
         runtime: "48h"
-    adaptor_trimming:
-        mem_mb: 50000
-    barcode_id:
-        mem_mb: 20000
-    barcode_identification_efficiency:
-        mem_mb: 20000
-    cutadapt_dpm:
-        mem_mb: 50000
-    cutadapt_oligo:
-        mem_mb: 50000
-    bowtie2_align:
-        mem_mb: 20000
-    merge_dna:
+    merge_dpm:
         runtime: "24h"
-        mem_mb: 20000
-    fastq_to_bam:
-        mem_mb: 20000
-    merge_beads:
+    merge_bpm:
         runtime: "24h"
-        mem_mb: 20000
-    make_clusters:
-        mem_mb: 50000
-    merge_clusters:
+    assign_label:
         runtime: "24h"
-        mem_mb: 100000
-    clusters_all:
+    splitbam_counts:
         runtime: "24h"
-    pipeline_counts:
-        mem_mb: 50000
-    threshold_tag_and_split:
-        runtime: "24h"
-        mem_mb: 20000
-    index_splitbams:
-        runtime: "4h"
-        mem_mb: 4000
-    generate_splitbam_statistics:
-        runtime: "24h"
-    splitbams_merged:
-        mem_mb: 20000
-    generate_bigwigs:
-        mem_mb: 20000
 
 # SLURM executor plugin options
 slurm-logdir: "results/logs/slurm"

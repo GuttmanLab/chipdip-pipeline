@@ -4,6 +4,7 @@ channels:
   - bioconda
 dependencies:
   - snakemake=9.3.3
-  - snakemake-executor-plugin-slurm=1.2.1
-  - snakefmt=0.11.0
+  - snakemake-executor-plugin-slurm>=1.8
+  - snakefmt=0.11.2
   - python=3.12
+  - time=1.9 # only used for benchmarking/profiling
