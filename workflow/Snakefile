@@ -63,7 +63,7 @@ if DIR_SCRIPTS is None:
 def get_num_tags(path_config):
     """Parse a BarcodeID config file and return the number of tags (DPM, ODD, EVEN, Y) as an integer."""
     num_tags = 0
-    with open(path_config, 'rt') as f:
+    with open(path_config) as f:
         n_lines_processed = 0
         for line in f:
             if line.strip() == "" or line.startswith("#"):
@@ -83,19 +83,19 @@ except:
     print("Could not determine number of tags from BarcodeID config file.", file=sys.stderr)
     sys.exit()
 
-try:
+if config.get("cutadapt_dpm") in (None, "") or not exists(config["cutadapt_dpm"]):
+    print("DPM adaptor sequences not correctly specified in config.yaml", file=sys.stderr)
+    sys.exit()
+else:
     adapters = "-g file:" + config["cutadapt_dpm"]
     print("Using cutadapt sequence file", adapters, file=sys.stderr)
-except:
-    print("DPM adaptor sequences not specificed in config.yaml", file=sys.stderr)
-    sys.exit()
 
-try:
-    oligos = "-g file:" + config["cutadapt_oligos"]
-    print("Using bead oligo file", oligos, file=sys.stderr)
-except:
-    print("Oligo sequences not specified in config.yaml", file=sys.stderr)
+if config.get("cutadapt_oligos") in (None, "") or not exists(config["cutadapt_oligos"]):
+    print("Bead oligo sequences not correctly specified in config.yaml", file=sys.stderr)
     sys.exit()
+else:
+    oligos = "-g file:" + config["cutadapt_oligos"]
+    print("Using cutadapt sequence file", adapters, file=sys.stderr)
 
 bead_umi_length = config.get("bead_umi_length")
 if bead_umi_length is not None:
@@ -151,7 +151,7 @@ num_chunks = config.get("num_chunks")
 if num_chunks is not None:
     num_chunks = int(num_chunks)
     assert num_chunks > 0 and num_chunks < 100, "num_chunks must be an integer between 1 and 99."
-    print("Splitting FASTQ files into {} chunks for parallel processing".format(num_chunks),
+    print(f"Splitting FASTQ files into {num_chuks} chunks for parallel processing",
           file=sys.stderr)
 else:
     num_chunks = 2
@@ -497,7 +497,7 @@ if generate_splitbams:
             FINAL.extend(BIGWIGS_MERGED)
 
 if path_pipeline_structure:
-    with open(path_pipeline_structure, "rt") as f:
+    with open(path_pipeline_structure) as f:
         pipeline_structure = yaml.safe_load(f)
     FINAL.extend(PIPELINE_COUNTS)
 
@@ -561,7 +561,7 @@ rule log_config:
     output:
         CONFIG
     run:
-        with open(output[0], "wt") as f:
+        with open(output[0], "w") as f:
             json.dump(config, f, indent=4, sort_keys=True)
 
 # Check that configuration files and assets are set up correctly

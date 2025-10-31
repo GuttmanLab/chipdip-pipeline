@@ -30,7 +30,6 @@
 
 import itertools
 import os
-import re
 import string
 
 DIR_COUNTS = os.path.join(DIR_OUT, "pipeline_counts")
@@ -164,7 +163,6 @@ def count_filename_to_source(
     return path_source
 
 
-validate_pipeline_structure(pipeline_structure)
 COUNT_FILES_ALL = sorted(set(itertools.chain.from_iterable(generate_count_files_all(
     pipeline_structure,
     wildcards=dict(sample=ALL_SAMPLES, target=TARGETS, splitid=NUM_CHUNKS),
