@@ -348,7 +348,7 @@ def merge_clusters(in_file, out_file):
     current_reads = set()
     count = 0
     pattern = re.compile(r"([a-zA-Z0-9]+)\[(.*)\]_(.+):([0-9]+)\-([0-9]+)")
-    with open(in_file, "r") as in_clusters, \
+    with open(in_file) as in_clusters, \
          open(out_file, "w") as out_clusters:
         for line in in_clusters:
             barcode, *reads = line.rstrip("\n").split("\t")

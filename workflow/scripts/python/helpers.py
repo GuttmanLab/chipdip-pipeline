@@ -57,7 +57,7 @@ def file_open(filename: str, mode: str = "rb", encoding: str = "utf-8") -> typin
         return f
 
 
-def fastq_parse(fp: typing.IO) -> collections.abc.Generator[typing.Tuple[str, str, str, str]]:
+def fastq_parse(fp: typing.IO) -> collections.abc.Generator[tuple[str, str, str, str]]:
     """
     Parse FASTQ file.
     """

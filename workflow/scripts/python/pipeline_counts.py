@@ -156,7 +156,7 @@ class Node:
         repr_parent = self.parent.name if isinstance(self.parent, Node) else self.parent
         repr_base = self.base.name if isinstance(self.base, Node) else self.base
         repr_children = (
-            ";".join((child.name for child in self.children))
+            ";".join(child.name for child in self.children)
             if len(self.children) > 0
             else self.children
         )
@@ -258,7 +258,7 @@ class Graph:
         return names_set
 
     def get_node_levels(self):
-        return set([node.level for node in self.nodes])
+        return {node.level for node in self.nodes}
 
     def get_node(self, sample, level):
         matching_nodes = [node for node in self.nodes if node.sample == sample and node.level == level]
@@ -426,7 +426,7 @@ def collect_pipeline_counts(
                         counts[(file_number,)] = np.nan
                         print(f"Warning: count file {path_count} does not exist", file=sys.stderr)
                     else:
-                        with open(path_count, "rt") as f:
+                        with open(path_count) as f:
                             counts[(file_number,)] = int(f.read().strip())
 
                 # construct a node for this sample and level; the constructor automatically adds the node to the graph
@@ -464,7 +464,7 @@ def collect_pipeline_counts(
                         counts[field_combination] = np.nan
                         print(f"Warning: count file {path_count} does not exist", file=sys.stderr)
                     else:
-                        with open(path_count, "rt") as f:
+                        with open(path_count) as f:
                             counts[field_combination] = int(f.read().strip())
 
                 # construct a node for this sample and level; the constructor automatically adds the node to the graph
@@ -484,10 +484,10 @@ def collect_pipeline_counts(
 def main():
     args = parse_args()
 
-    with open(args.pipeline, "rt") as f:
+    with open(args.pipeline) as f:
         pipeline = yaml.safe_load(f)
 
-    with open(args.path_samples, "rt") as f:
+    with open(args.path_samples) as f:
         samples = json.load(f)
 
     wildcards = {

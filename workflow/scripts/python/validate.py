@@ -76,7 +76,7 @@ def validate_barcode_config(barcode_config_file):
     tag_layout_defined = False
     regex_tag_name = re.compile(r'[a-zA-Z0-9_\-]+')
     base_error_msg = "Error parsing line {} in the barcode config file. {}\n\t{}"
-    with open(barcode_config_file, 'rt') as f:
+    with open(barcode_config_file) as f:
         for i, line in enumerate(f):
             line = line.strip()
             if line.upper().startswith(("#", "SPACER = ", "LAXITY = ")) or line == "":
@@ -221,7 +221,7 @@ def parse_bt2_index_summary(path_bt2_index_summary):
     """
     REGEX_BT2_SEQ_LINE = re.compile(r"^Sequence-\d+")
     chrom_sizes = dict()
-    with open(path_bt2_index_summary, "rt") as f:
+    with open(path_bt2_index_summary) as f:
         for line in f:
             if not REGEX_BT2_SEQ_LINE.search(line):
                 continue
@@ -239,14 +239,14 @@ def main():
 
     config = dict()
     if args.config:
-        with open(args.config, "rt") as f:
+        with open(args.config) as f:
             if args.config.lower().endswith(".json"):
                 config = json.load(f)
             elif args.config.lower().endswith(".yaml") or args.config.lower().endswith(".yml"):
                 config = yaml.safe_load(f)
             else:
-                raise ValueError(("Unrecognized file extension (not .json, .yaml, or .yml) for config file: "
-                                  "{}".format(args.config)))
+                raise ValueError("Unrecognized file extension (not .json, .yaml, or .yml) for config file: "
+                                 "{}".format(args.config))
     assert all(key in config for key in REQUIRED_KEYS), \
         'Config file must contain the following required keys: {}.'.format(', '.join(REQUIRED_KEYS))
     print(f'Config file {args.config} contains all required keys.')

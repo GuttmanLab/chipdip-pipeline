@@ -187,7 +187,7 @@ def label_counts_to_interaction_chunked(
             pool.close()
             pool.join()
         pbar.close()
-        return sum((result.get() for result in results))
+        return sum(result.get() for result in results)
     out = None
     for chunk in chunks(label_counts, chunksize):
         if out is None:

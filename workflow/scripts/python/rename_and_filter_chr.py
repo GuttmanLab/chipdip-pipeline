@@ -354,7 +354,7 @@ def filter_fasta(path_in, path_out, chrom_map) -> None:
             with gzip.open(path_out, "wt") as f:
                 return filter_fasta(path_in, f, chrom_map)
         else:
-            with open(path_out, "wt") as f:
+            with open(path_out, "w") as f:
                 return filter_fasta(path_in, f, chrom_map)
 
     include = False

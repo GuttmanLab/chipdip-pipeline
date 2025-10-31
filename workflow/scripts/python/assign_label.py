@@ -161,7 +161,7 @@ def parse_splitcode_config(path_config: str) -> tuple[list[int], dict[str, str]]
       same antibody ID, then they are concatenated with a hyphen.
     """
     pos = 0
-    with open(path_config, 'rt') as f:
+    with open(path_config) as f:
         # skip blank lines, comments (#), and header options (@)
         line = f.readline()
         while line:
@@ -217,7 +217,7 @@ def parse_bID_config(path_config: str) -> tuple[int, dict[str, str]]:
     read1_seen = False
     read2_seen = False
     antibody_IDs = dict()
-    with open(path_config, 'rt') as f:
+    with open(path_config) as f:
         for line in f:
             line = line.strip()
             if line == "" or line.startswith("#"):

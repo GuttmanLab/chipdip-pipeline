@@ -39,7 +39,7 @@ class BarcodeIdentificationEfficiency:
         map from tag position to position description
         '''
         tag_layout = [list(), list()]
-        with open(configfile, "rt") as f:
+        with open(configfile) as f:
             for line in f:
                 line = line.strip()
                 if line.startswith(("#", "SPACER = ", "LAXITY = ")) or line == "":
@@ -99,7 +99,7 @@ class BarcodeIdentificationEfficiency:
         counts = sorted(self._aggregate_count.items(), key=operator.itemgetter(0))
 
         for num_tags, count in counts:
-            pct = "{0:.1f}%".format(100.0 * count / self._total)
+            pct = f"{100.0 * count / self._total:.1f}%"
             tag = "tag" if num_tags == 1 else "tags"
             print(f"{count} ({pct}) reads found with {num_tags} {tag}.")
 
@@ -107,7 +107,7 @@ class BarcodeIdentificationEfficiency:
         counts = sorted(self._position_count.items(), key=operator.itemgetter(0))
 
         for position, count in counts:
-            pct = "{0:.1f}%".format(100.0 * count / self._total)
+            pct = f"{100.0 * count / self._total:.1f}%"
             description = ""
             if position in self._position_names:
                 description = f" ({self._position_names[position]})"
