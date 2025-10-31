@@ -88,15 +88,7 @@ Code interpreters and runtimes: The pipeline relies on scripts written in Java, 
 - Bash: 4.2 through 5.2
 - Python: 3.10+
 
-### Benchmarks
-
-| Dataset | CPU cores and architecture | Operating System | Pipeline wall time (HH:MM:SS) | Core-hours utilized (HH:MM:SS) | Maximum RAM utilization | Disk space of output files | Benchmark times include creating `chipdip` conda environment? | Notes |
-| ------- | -------------------------- | ---------------- | ----------------------------- | ------------------------------ | ----------------------- | -------------------------- | --------------------------------------------- | ----- |
-| example dataset provided in `data/`: 4,532 paired reads (≤ 130 bp read 1, ≤ 150 bp read 2) | 2 cores of AMD EPYC 7763 | Ubuntu 20.04.6 LTS | 00:13:01 | 00:20:28 | 2.91 GB | 20 MB | No | run "locally" on a single node on [GitHub Codespaces](https://github.com/features/codespaces) |
-| example dataset provided in `data/` | Intel Core i5-4300U | Ubuntu 22.04.4 LTS via WSL | 00:12:23 | 00:41:31 | 2.76 GB | 14 MB | No | Hyperthreading enabled; `snakemake` run with `--jobs 4` |
-| example dataset provided in `data/` | Apple M2 (4 performance + 4 efficiency cores) | macOS Sequoia 15.1.1 | 00:04:45 | 00:14:06 | 2.33 GB | 16 MB | No | conda environment targeting `osx-64` platform; `snakemake` run with `--jobs 4` |
-| example dataset provided in `data/` | 2 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 00:21:20 | 00:26:35 | 827.49 MB | 20 MB | Yes | run "locally" on a single node on [Caltech's HPC cluster](https://www.hpc.caltech.edu/) |
-| 49,222,185 paired reads (89 bp read 1, 209 bp read 2) | 8 cores of Intel Xeon Gold 6130 | [RHEL9.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.3_release_notes/index) | 02:43:38 | 09:49:34 | 10.65 GB | 45 GB | Yes | run "locally" on a single node on [Caltech's HPC cluster](https://www.hpc.caltech.edu/) |
+See [history_and_benchmarks.md](./history_and_benchmarks.md) for pipeline benchmarks.
 
 ## Pipeline
 
@@ -546,9 +538,10 @@ Publications
 
 Developers
 - Isabel Goronzy ([@igoronzy](https://github.com/igoronzy)): Adapted this pipeline from the [SPRITE](https://github.com/GuttmanLab/sprite-pipeline) and [RNA-DNA SPRITE](https://github.com/GuttmanLab/sprite2.0-pipeline) pipelines.
-- Benjamin Yeh ([@bentyeh](https://github.com/bentyeh)): Streamlined and documented the pipeline. Added more extensive QC outputs. Created simulated data for testing the pipeline. Created the Jupyter notebook for in-depth cluster analysis.
+- Benjamin Yeh ([@bentyeh](https://github.com/bentyeh)): Streamlined and documented the pipeline; implemented v2 and v3. Added more extensive QC outputs. Created simulated data for testing the pipeline. Created the Jupyter notebook for in-depth cluster analysis.
 
 Other contributors
+- Albert Yang: initial implementation of BAM cluster file format
 - Andrew Perez ([@HeyDrew64](https://github.com/heydrew64))
 - Mario Blanco ([@mrblanco](https://github.com/mrblanco))
 - Mitchell Guttman ([@mitchguttman](https://github.com/mitchguttman))
