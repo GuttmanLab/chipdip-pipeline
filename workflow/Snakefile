@@ -7,6 +7,8 @@ import os
 import re
 import sys
 import datetime
+
+import yaml
 import pandas as pd
 
 ##############################################################################
@@ -222,6 +224,8 @@ if binsize and bigwig_normalization == "RPGC":
             file=sys.stderr
         )
 
+path_pipeline_structure = config.get("pipeline_structure", None)
+
 ##############################################################################
 # Location of scripts
 ##############################################################################
@@ -297,9 +301,9 @@ CONFIG = [os.path.join(DIR_LOGS, "config_" + run_date + ".json")]
 
 BID_EFFICIENCY_ALL = [os.path.join(DIR_OUT, "barcode_identification_efficiency.txt")]
 
-MULTI_QC = [os.path.join(DIR_OUT, "qc", "multiqc_report.html")]
-
 LOG_VALIDATE = [os.path.join(DIR_LOGS, "validate.txt")]
+
+PIPELINE_COUNTS = [os.path.join(DIR_OUT, "pipeline_counts.txt")]
 
 ##############################################################################
 # Trimming
@@ -492,6 +496,11 @@ if generate_splitbams:
         if merge_samples:
             FINAL.extend(BIGWIGS_MERGED)
 
+if path_pipeline_structure:
+    with open(path_pipeline_structure, "rt") as f:
+        pipeline_structure = yaml.safe_load(f)
+    FINAL.extend(PIPELINE_COUNTS)
+
 # ALL_OUTPUTS = \
 #     SPLIT_FASTQ + TRIM + BARCODEID + SPLIT_BPM_DPM + TRIM_RD + \
 #     DPM_TRIMMED + DPM_ALIGNED + DPM_RENAMED + DPM_MASKED + DPM_TAGGED + DPM_MERGED + \
@@ -500,7 +509,9 @@ if generate_splitbams:
 #     CLUSTERS_BPM_MAX_REP + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS + \
 #     SPLITBAMS + SPLITBAM_COUNTS + SPLITBAMS_MERGED + SPLITBAMS_MEGED_INDEXED + \
 #     BIGWIGS + BIGWIGS_MERGED + \
-#     CONFIG + BID_EFFICIENCY_ALL + MULTI_QC + PIPELINE_COUNTS
+#     CONFIG + BID_EFFICIENCY_ALL + PIPELINE_COUNTS
+
+include: "pipeline_counts.smk"
 
 ##############################################################################
 ##############################################################################

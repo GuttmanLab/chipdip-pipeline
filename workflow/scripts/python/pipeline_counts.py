@@ -1,135 +1,81 @@
 """
 Count the number of reads at each stage in the ChIP-DIP pipeline.
-
-Dependencies
-- samtools
-- standard linux tools: ls, xargs, grep, wc, sort, uniq, awk, sh, gzip
-- Python libraries: NumPy, Pandas
-
-Notes
-- The pipeline order is specified in the global PIPELINE and PIPELINE_CLUSTERS
-  variables.
 """
 
 import argparse
-import glob
+import itertools
 import json
 import os
-import re
-import shutil
-import shlex
-import subprocess
+import string
 import sys
+from typing import Union
+
 import numpy as np
 import pandas as pd
+import yaml
 
-regex_uniq_count = re.compile(r"\s*(?P<count>\d+)\s+(?P<pattern>.*)")
-regex_fastq = re.compile(r'(\.fastq\.gz$)|(\.fq.gz$)|(\.fastq$)|(\.fq$)')
-regex_bam = re.compile(r'(\.bam$)|(\.sam$)|(\.cram$)')
 
-PIPELINE = {
-    # (split_fastq) raw reads
-    "split_fastq": {"parent": None, "path": os.path.join("split_fastq", "{sample}_R1.part_*.fastq.gz")},
-    # (adaptor_trimming_pe) adapter trimming
-    "trim": {"parent": "split_fastq", "path": os.path.join("trimmed", "{sample}*val_1.fq.gz")},
-    # (barcode_id) barcode idenfication - should not discard any reads; barcode gets appended to read name
-    "barcode": {
-        "parent": "trim",
-        "path": os.path.join("fastqs", "{sample}*_R1*.barcoded.fastq.gz"),
-    },
-    # (split_bpm_dpm) Split reads into DPM, BPM, short, other
-    # - short: any barcode position is [NOT_FOUND]
-    # - other: incorrect barcode order
-    "short": {
-        "parent": "barcode",
-        "path": os.path.join("fastqs", "{sample}*_R1*.barcoded_short.fastq.gz"),
-    },
-    "other": {
-        "parent": "barcode",
-        "path": os.path.join("fastqs", "{sample}*_R1*.barcoded_other.fastq.gz"),
-    },
-    "bpm": {
-        "parent": "barcode",
-        "path": os.path.join("fastqs", "{sample}*_R1*.barcoded_bpm.fastq.gz"),
-    },
-    "dpm": {
-        "parent": "barcode",
-        "path": os.path.join("fastqs", "{sample}*_R1*.barcoded_dpm.fastq.gz"),
-    },
-    ## DNA processing ##
-    # (cutadapt_dpm) Remove DPM from read1 of DPM reads
-    "dpm-trim": {
-        "parent": "dpm",
-        "base": "dpm",
-        "path": os.path.join("trimmed", "{sample}*_R1*.barcoded_dpm.RDtrim.fastq.gz"),
-    },
-    # (bowtie2_align) Align to genome
-    "bowtie2": {
-        "parent": "dpm-trim",
-        "base": "dpm",
-        "path": os.path.join("alignments_parts", "{sample}*.DNA.bowtie2.mapq20.bam"),
-    },
-    # (add_chr) Chromosome relabeling (add "chr") and filtering (removing non-canonical chromosomes)
-    "add-chr": {
-        "parent": "bowtie2",
-        "base": "dpm",
-        "path": os.path.join("alignments_parts", "{sample}*.DNA.chr.bam"),
-    },
-    # (repeat_mask)
-    "mask": {
-        "parent": "add-chr",
-        "base": "dpm",
-        "path": os.path.join("alignments_parts", "{sample}*.DNA.chr.masked.bam"),
-    },
-    # (merge_dna)
-    "merge-dna": {
-        "parent": "mask",
-        "base": "dpm",
-        "path": os.path.join("alignments", "{sample}.DNA.merged.bam"),
-    },
-    # (thresh_and_split)
-    "merge-labeled": {
-        "parent": "merge-dna",
-        "base": "dpm",
-        "path": os.path.join("alignments", "{sample}.DNA.merged.labeled.bam"),
-    },
-    # (thresh_and_split)
-    "splitbam": {
-        "parent": "merge-labeled",
-        "base": "dpm",
-        "path": os.path.join("splitbams", "{sample}.DNA.merged.labeled_*.bam"),
-    },
-    ## Oligo processing ##
-    # (cutadapt_oligo)
-    "bpm-trim": {
-        "parent": "bpm",
-        "base": "bpm",
-        "path": os.path.join("trimmed", "{sample}*_R1*.barcoded_bpm.RDtrim.fastq.gz"),
-    },
-    # (fastq_to_bam)
-    "bpm-bam": {
-        "parent": "bpm-trim",
-        "base": "bpm",
-        "path": os.path.join("alignments_parts", "{sample}*.BPM.bam"),
-    },
-    # (merge_beads)
-    "bpm-merge": {
-        "parent": "bpm-bam",
-        "base": "bpm",
-        "path": os.path.join("alignments", "{sample}.merged.BPM.bam"),
-    },
-}
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Count reads at each step of the ChIP-DIP pipeline.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "pipeline",
+        help=(
+            "path to pipeline DAG description file (YAML format). Mapping from level to a mapping describing that "
+            "output. Except for a 'data' level, the secondary mapping must contain the key 'path' mapping to a list of "
+            "strings that form the path pattern for that output."
+        )
+    )
+    parser.add_argument(
+        "--path_samples",
+        required=True,
+        help="path to samples.json file mapping sample name to mapping from read orientation to list of .fastq.gz files"
+    )
+    parser.add_argument(
+        "--splitids",
+        nargs="+",
+        help="split IDs"
+    )
+    parser.add_argument(
+        "--targets",
+        nargs="+",
+        help="target names"
+    )
+    parser.add_argument(
+        "--dir_counts",
+        required=True,
+        help="path to directory containing count files named {level}[.{wildcard1}.{wildcard2}...].{ext}.count"
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="print status messages to stderr"
+    )
+    parser.add_argument(
+        "-o", "--out",
+        help="path to save counts as CSV file"
+    )
+    parser.add_argument(
+        "-s", "--sep",
+        default="\t",
+        help='separator for printing efficiency output'
+    )
+    args = parser.parse_args()
+    return args
 
-PIPELINE_CLUSTERS = {
-    "cluster": {
-        "parent": {"dpm": "mask", "bpm": "bpm-bam"},
-        "path": os.path.join("clusters_parts", "{sample}*.clusters"),
-    },
-    "cluster-merge": {
-        "parent": {"dpm": "cluster", "bpm": "cluster"},
-        "path": os.path.join("clusters", "{sample}.clusters"),
-    },
-}
+
+def path_to_count_ext(path: str) -> str:
+    """
+    Given a path pattern, return the corresponding count file extension pattern without the leading period.
+    """
+    if path.endswith(('.fastq.gz', '.fq.gz')):
+        return 'fastq-gz.count'
+    elif path.endswith('.bam'):
+        return 'bam.count'
+    else:
+        raise ValueError(f"Unknown file extension for path: {path}")
 
 
 class Node:
@@ -139,25 +85,27 @@ class Node:
 
     def __init__(
         self,
-        sample,
-        level,
-        graph,
-        children=None,
-        parent=None,
-        base=None,
-        n_reads=np.nan,
-        depth=None,
+        sample: str,
+        level: str,
+        graph: "Graph",
+        children: set[Union["Node", str]] | None = None,
+        parent: Union["Node", str, None] = None,
+        base: Union["Node", str, None] = None,
+        n_reads: int | float = np.nan,
+        n_reads_detailed: dict | None = None,
+        depth: int | None = None,
     ):
         """
         Args
-        - sample: str
-        - level: str
-        - graph: Graph
-        - children: set of Node or None
-        - parent: Node or None
-        - base: Node or None
-        - n_reads: int or np.nan
-        - depth: int or None
+        - sample: sample name
+        - level: level of node in pipeline
+        - graph: ChIP-DIP pipeline Graph
+        - children: set of children nodes, either as Node objects or node names ("{sample}_{level}")
+        - parent: parent node, either as Node object or node name ("{sample}_{level}")
+        - base: base node, either as Node object or node name ("{sample}_{level}")
+        - n_reads: total number of reads
+        - n_reads_detailed: mapping wildcard combinations to number of reads
+        - depth: depth of the node in the graph
         """
         if children is None:
             children = set()
@@ -170,6 +118,13 @@ class Node:
         self.set_parent(parent)
         self.base = base
         self.n_reads = n_reads
+        self.n_reads_detailed = n_reads_detailed
+        if n_reads_detailed:
+            n_reads_detailed_sum = np.nansum(list(n_reads_detailed.values()))
+            if not np.isnan(n_reads):
+                assert n_reads == n_reads_detailed_sum
+            else:
+                self.n_reads = n_reads_detailed_sum
         self.depth = depth
         self.graph.add_node(self)
 
@@ -182,9 +137,14 @@ class Node:
 
     def set_parent(self, parent):
         self.parent = parent
-        if parent is not None:
+        if isinstance(parent, Node):
             assert parent.graph == self.graph
             self.parent.add_children([self])
+
+    def set_base(self, base):
+        self.base = base
+        if isinstance(base, Node):
+            assert base.graph == self.graph
 
     def get_root(self):
         node = self
@@ -193,8 +153,8 @@ class Node:
         return node
 
     def __repr__(self):
-        repr_parent = self.parent.name if self.parent is not None else "None"
-        repr_base = self.base.name if self.base is not None else "None"
+        repr_parent = self.parent.name if isinstance(self.parent, Node) else self.parent
+        repr_base = self.base.name if isinstance(self.base, Node) else self.base
         repr_children = (
             ";".join((child.name for child in self.children))
             if len(self.children) > 0
@@ -214,16 +174,16 @@ class Node:
             frac_root = self.n_reads / root.n_reads if root.n_reads > 0 else np.nan
         frac_base = None
         if self.base:
-            frac_base = self.n_reads / self.base.n_reads if self.base.n_reads > 0 else np.nan
+            frac_base = self.n_reads / self.base.n_reads if isinstance(self.base, Node) and self.base.n_reads > 0 else np.nan
         frac_parent = None
         if self.parent:
-            frac_parent = self.n_reads / self.parent.n_reads if self.parent.n_reads > 0 else np.nan
+            frac_parent = self.n_reads / self.parent.n_reads if isinstance(self.parent, Node) and self.parent.n_reads > 0 else np.nan
         d = {
             "sample": self.sample,
             "depth": self.depth,
             "level": self.level,
-            "parent_level": self.parent.level if self.parent is not None else None,
-            "base_level": self.base.level if self.base is not None else None,
+            "parent_level": self.parent.level if isinstance(self.parent, Node) else None,
+            "base_level": self.base.level if isinstance(self.base, Node) else None,
             "root_level": root.level if self.parent else None,
             "n_reads": self.n_reads,
             "frac_parent": frac_parent,
@@ -235,7 +195,7 @@ class Node:
     def print_efficiency(self, sep="\t", sample=None, toprint=True):
         d = self.to_dict()
         indent = ""
-        if self.depth > 0:
+        if self.depth is not None and self.depth > 0:
             indent = "  " * (self.depth - 1) + "- "
         else:
             if sample is None:
@@ -301,15 +261,55 @@ class Graph:
         return set([node.level for node in self.nodes])
 
     def get_node(self, sample, level):
-        return [node for node in self.nodes if node.sample == sample and node.level == level][0]
+        matching_nodes = [node for node in self.nodes if node.sample == sample and node.level == level]
+        if len(matching_nodes) > 1:
+            raise ValueError(f"Multiple nodes found with sample {sample} and level {level}.")
+        elif len(matching_nodes) == 0:
+            return None
+        else:
+            return matching_nodes[0]
 
     def get_node_by_name(self, name):
         if name is None:
             return None
-        return [node for node in self.nodes if node.name == name][0]
+        matching_nodes = [node for node in self.nodes if node.name == name]
+        if len(matching_nodes) > 1:
+            raise ValueError(f"Multiple nodes found with name {name}.")
+        elif len(matching_nodes) == 0:
+            return None
+        else:
+            return matching_nodes[0]
 
     def get_roots(self):
         return [node for node in self.nodes if node.parent is None]
+
+    def resolve_parents(self):
+        """
+        Resolve parent nodes given as strings to Node objects.
+
+        Raises: ValueError if a parent cannot be resolved.
+        """
+        for node in self.nodes:
+            if isinstance(node.parent, str):
+                parent = self.get_node_by_name(node.parent)
+                if isinstance(parent, Node):
+                    node.set_parent(parent)
+                else:
+                    raise ValueError(f"Could not resolve parent {node.parent} for node {node.name}.")
+
+    def resolve_bases(self):
+        """
+        Resolve base nodes given as strings to Node objects.
+
+        Raises: ValueError if a parent cannot be resolved.
+        """
+        for node in self.nodes:
+            if isinstance(node.base, str):
+                base = self.get_node_by_name(node.base)
+                if isinstance(base, Node):
+                    node.set_base(base)
+                else:
+                    raise ValueError(f"Could not resolve base {node.base} for node {node.name}.")
 
     def compute_depths_from_node(self, node):
         assert node.depth is not None
@@ -388,299 +388,126 @@ class Graph:
         return G_merged
 
 
-def count_lines(paths, n_processes=1, cmd_unzip=None, cmd_count=None, env=None, return_raw=False):
-    """
-    Count the number of lines in each file.
-
-    Args
-    - paths: list-like
-        Paths to read files. All read files must be of the same file type.
-    - n_processes: int. default=1
-        Number of parallel processes to use.
-    - cmd_unzip: str. default=None
-        Command to write file contents to standard output.
-        If None, defaults to 'cat'.
-        Example: If pigz is available, use 'unpigz -c' instead of 'gunzip -c' for a
-          small speedup for gzipped files.
-    - cmd_count: str. default=None
-        Command that reads from standard in lines output from cmd_unzip and
-        outputs an integer.
-        If None, defaults to 'wc -l'.
-    - env: dict. default=None
-        Environment variables for shell commands.
-    - return_raw: bool. default=False
-        Return unprocessed output as split lines from underlying counting subprocesses.
-
-    Returns
-    - If return_raw is True: list of str, where each element is '<path><tab><count>'
-    - If return_raw is False: dict[str, int], where keys are paths and values are counts
-    """
-    if cmd_unzip is None:
-        cmd_unzip = "cat"
-    if cmd_count is None:
-        cmd_count = "wc -l"
-    cmd_xargs = f"xargs -n 1 -P {n_processes} sh -c"
-    cmd_shell = f'{cmd_unzip} "$0" | {cmd_count} | awk -v pre="$0" ' + "'$0=pre\"\t\"$0'"
-    cmd = shlex.split(cmd_xargs) + [cmd_shell]
-
-    # The equivalent terminal command looks something like
-    #
-    # ls path1 path2 | xargs -n 1 -P n_processes sh -c $'cat "$0" | wc -l | awk -v pre="$0" \'$0=pre"\t"$0\''
-    #
-    # where the construction sh -c $'... \' ...' is used to escape the internal single quote while maintaining
-    # the entire command as a single string.
-    #
-    # The idea is to pass each path to the following shell command:
-    #
-    # cat "$0" | wc -l | awk -v pre="$0" '$0=pre"\t"$0'
-    #
-    # where the shell variable "$0" is the path of the input file.
-    # The purpose of the awk command is to output the string <path><tab><count>
-    # - The shell variable "$0" is passed into awk as a variable of name "pre".
-    # - The awk variable "$0" is the input line piped in from from wc -l, which is just the count.
-    # - The awk script therefore appends <pre><tab> before the count.
-
-    with subprocess.Popen(["ls"] + paths, stdout=subprocess.PIPE, env=env) as p1:
-        with subprocess.Popen(cmd, stdin=p1.stdout, stdout=subprocess.PIPE, env=env) as p2:
-            p1.stdout.close()
-            out = p2.communicate()[0].decode().strip().splitlines()
-    if return_raw:
-        return out
-    counts = {path: int(count) for path, count in map(lambda s: s.strip().rsplit("\t", 1), out)}
-    return counts
-
-
-def count_reads(
-    paths, filetype=None, cmd_unzip=None, n_processes=None, agg=True, return_raw=False, **kwargs
-):
-    """
-    Count the number of reads in FASTQ or SAM/BAM/CRAM files.
-
-    Assumes samtools is available.
-
-    Args
-    - paths: list-like
-        Paths to read files. All read files must be of the same file type.
-    - filetype: str. default=None
-        Type of files to count.
-        - 'fastq': files ending in .fastq, .fq., .fastq.gz, or .fq.gz
-        - 'bam': files ending in .sam, .bam., or .cram
-        - None: automatically detect based on the first file in paths
-    - cmd_unzip: str. default=None
-        Command to write file contents to standard output. See count_lines().
-    - n_processes: int. default=None
-        Number of parallel processes to use.
-        If None, defaults to 1.
-    - agg: bool. default=True
-        Return sum of read counts
-    - return_raw: bool. default=False
-        Return unprocessed output as split lines from underlying counting subprocesses.
-    - **kwargs
-        Additional keyword arguments to count_lines()
-        - cmd_count
-        - env
-
-    Returns: depends
-    - If return_raw is True: returns list(str)
-    - If agg is False: returns dict(str -> int), giving the read counts for each path in paths
-    - If agg is True: returns int, the sum of read counts over all files in paths
-    """
-    if n_processes is None:
-        n_processes = 1
-    if filetype is None:
-        if regex_fastq.search(paths[0]):
-            assert all(map(regex_fastq.search, paths)), "Files with differing extensions detected."
-            filetype = "fastq"
-        elif regex_bam.search(paths[0]):
-            assert all(map(regex_bam.search, paths)), "Files with differing extensions detected."
-            filetype = "bam"
-        else:
-            raise ValueError(
-                (
-                    f"Unsupported file extension for file {paths[0]}. "
-                    "Must be .fastq.gz, .fq.gz, .bam, .sam., or .cram"
-                )
-            )
-    assert str(filetype).lower() in ("fastq", "bam")
-    factor = 4 if filetype == "fastq" else 1
-
-    if cmd_unzip is None:
-        if paths[0].endswith(".gz"):
-            assert all(
-                (path.endswith(".gz") for path in paths)
-            ), "Files with different compressions detected."
-            if shutil.which("unpigz"):
-                cmd_unzip = "unpigz -c"
-            else:
-                cmd_unzip = "gunzip -c"
-        elif filetype == "bam":
-            cmd_unzip = f"samtools view -@ {int(max(n_processes / len(paths), 1))}"
-    counts = count_lines(paths, cmd_unzip=cmd_unzip, return_raw=return_raw, **kwargs)
-    if return_raw:
-        return counts
-    if factor != 1:
-        counts = {path: count / factor for path, count in counts.items()}
-    return sum(counts.values()) if agg else counts
-
-
-def count_reads_clusters(paths, n_processes):
-    """
-    Count the number of DPM and BPM reads in SPRITE cluster files.
-    Implemented as a wrapper around helpers.count_reads()
-
-    Args
-    - paths: list-like
-        Paths to cluster files
-    - n_processes: int
-        Number of parallel processes to use.
-
-    Returns: dict
-        Keys = 'DPM', 'BPM'
-        Values = sum of the number of DPM or BPM reads in cluster files.
-    """
-    counts = dict(DPM=0, BPM=0)
-    out = count_lines(
-        paths,
-        n_processes=n_processes,
-        cmd_unzip="cat",
-        cmd_count=f'grep -h -F -o -e "DPM" -e "BPM" | sort --parallel {n_processes} | uniq -c',
-        return_raw=True,
-    )
-    for line in out:
-        count, pattern = regex_uniq_count.match(line.strip().rsplit("\t", 1)[1].strip()).groups()
-        counts[pattern] += int(count)
-    return counts
-
-
 def collect_pipeline_counts(
-    samples,
-    DIR_WORKUP,
-    n_processes,
-    pipeline=None,
-    pipeline_clusters=None,
-    unzip=None,
-    verbose=True,
-):
+    pipeline: dict,
+    samples: dict[str, dict[str, list[str]]],
+    wildcards: dict[str, list[str]],
+    DIR_COUNTS: str,
+    verbose: bool = True,
+) -> Graph:
     """
     Parse pipeline read file counts into a Graph.
 
     Args
-    - samples: list-like of str
-    - DIR_WORKUP: str
-        Directory to which all paths given in pipeline or pipeline_clusters are relative to
-    - n_processes: int
-        Number of processes
-    - pipeline: dict. default=None
-        Pipeline specification. If None, defaults to PIPELINE.
-    - pipeline_clusters: dict. default=None
-        Pipeline specification for cluster files. If None, defaults to PIPELINE_CLUSTERS.
-    - unzip: str. default=None
-        Command (e.g., 'zcat', 'unpigz -c') to write file contents to standard output.
-        See helpers.count_reads() docstring.
-    - verbose: bool. default=True
-        Print status messages to standard error.
+    - pipeline: mapping from level to a structured information (a dictionary) describing that output. Except for the
+        "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
+        for that output.
+    - samples: mapping of sample names to mapping from read orientation to list of .fastq.gz files
+    - wildcards: mapping of placeholder names to lists of values
+    - DIR_COUNTS: directory containing count files
+    - verbose: print status messages to standard error.
 
-    Returns: tuple(Graph, Graph or None)
-    - G: Graph
-        Graph with potentially multiple root nodes, each corresponding to an sample
-    - G_merged: Graph or None
-        - If the number of samples is 1, G_merged is None
-        - Otherwise, a Graph where all the samples in G have been merged; one root node
+    Returns
+    - G: Graph with potentially multiple root nodes, each corresponding to sample
     """
-    if pipeline is None:
-        pipeline = PIPELINE
-    if pipeline_clusters is None:
-        pipeline_clusters = PIPELINE_CLUSTERS
     G = Graph()
+    formatter = string.Formatter()
 
     for level, node_info in pipeline.items():
         if verbose:
-            print(f"Counting {level}", file=sys.stderr)
-        for sample in samples:
-            paths = glob.glob(os.path.join(DIR_WORKUP, node_info["path"].format(sample=sample)))
-            if len(paths) == 0:
-                count = 0
-            else:
-                cmd_unzip = None
-                if node_info["path"].endswith(".gz"):
-                    cmd_unzip = unzip
-                count = count_reads(paths, n_processes=n_processes, cmd_unzip=cmd_unzip)
-            base = None
-            if "base" in node_info and node_info["base"]:
-                base = G.get_node(sample, node_info["base"])
-            parent = None
-            if node_info["parent"]:
-                parent = G.get_node(sample, node_info["parent"])
-            node = Node(sample, level, graph=G, n_reads=count, parent=parent, base=base)
-    for level, node_info in pipeline_clusters.items():
-        if verbose:
-            print(f"Counting {level}", file=sys.stderr)
-        for sample in samples:
-            paths = glob.glob(os.path.join(DIR_WORKUP, node_info["path"].format(sample=sample)))
-            if len(paths) == 0:
-                counts = dict(DPM=0, BPM=0)
-            else:
-                counts = count_reads_clusters(paths, n_processes=n_processes)
-            for base_level, parent in node_info["parent"].items():
-                if parent == "cluster":
-                    parent += f"-{base_level}"
-                node = Node(
+            print(f"Reading counts from {level}", file=sys.stderr)
+        if level == "data":
+            for sample, d in samples.items():
+                files_R1 = d["R1"]
+                counts = dict()
+                for file_number in range(len(files_R1)):
+                    path_count = os.path.join(DIR_COUNTS, f'data.{sample}.{file_number}.fastq-gz.count')
+                    if not os.path.exists(path_count):
+                        counts[(file_number,)] = np.nan
+                        print(f"Warning: count file {path_count} does not exist", file=sys.stderr)
+                    else:
+                        with open(path_count, "rt") as f:
+                            counts[(file_number,)] = int(f.read().strip())
+
+                # construct a node for this sample and level; the constructor automatically adds the node to the graph
+                Node(
                     sample,
-                    f"{level}-{base_level}",
+                    level,
                     graph=G,
-                    n_reads=counts[base_level.upper()],
-                    parent=G.get_node(sample, parent),
-                    base=G.get_node(sample, base_level),
+                    parent=f"{sample}_{node_info['parent']}" if node_info.get("parent") else None,
+                    base=f"{sample}_{node_info['base']}" if node_info.get("base") else None,
+                    n_reads_detailed=counts
                 )
-    G_merged = None
-    if len(samples) > 1:
-        G_merged = G.merge_samples()
-    return G, G_merged
+        else:
+            fields = sorted(field for _, field, _, _ in formatter.parse(os.path.join(*node_info['path']))
+                            if field is not None)
+            fields_excluding_sample = [field for field in fields if field != "sample"]
+            assert all(field in wildcards.keys() for field in fields_excluding_sample), \
+                f"Not all fields {fields} for output level {level} are in wildcards (keys: {wildcards.keys()})."
+            path_count_template = os.path.join(
+                DIR_COUNTS,
+                '.'.join((
+                    level,
+                    '.'.join([f"{{{field}}}" for field in fields]),
+                    path_to_count_ext(node_info["path"][-1])
+                ))
+            )
+            wildcards_filtered = dict()
+            for field, values in wildcards.items():
+                exclude = set(node_info.get("exclude", dict()).get(field, []))
+                wildcards_filtered[field] = [v for v in values if v not in exclude]
+            for sample in samples.keys():
+                counts = dict()
+                for field_combination in itertools.product(*[wildcards_filtered[field] for field in fields_excluding_sample]):
+                    path_count = path_count_template.format(**dict(zip(fields_excluding_sample, field_combination), sample=sample))
+                    if not os.path.exists(path_count):
+                        counts[field_combination] = np.nan
+                        print(f"Warning: count file {path_count} does not exist", file=sys.stderr)
+                    else:
+                        with open(path_count, "rt") as f:
+                            counts[field_combination] = int(f.read().strip())
+
+                # construct a node for this sample and level; the constructor automatically adds the node to the graph
+                Node(
+                    sample,
+                    level,
+                    graph=G,
+                    parent=f"{sample}_{node_info['parent']}" if node_info.get("parent") else None,
+                    base=f"{sample}_{node_info['base']}" if node_info.get("base") else None,
+                    n_reads_detailed=counts
+                )
+    G.resolve_bases()
+    G.resolve_parents()
+    return G
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Count reads at each step of the ChIP-DIP pipeline."
-    )
-    parser.add_argument("--samples", required=True, help="path to samples.json file")
-    parser.add_argument("-w", "--dir-workup", required=True, help="path to workup directory")
-    parser.add_argument("-n", "--n-processes", type=int, help="number of processes to use")
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="print status messages to stderr"
-    )
-    parser.add_argument("-o", "--out", help="path to save counts as CSV file")
-    parser.add_argument(
-        "-u",
-        "--unzip",
-        help="command to write gzip-compressed file contents to standard output: e.g., zcat, unpigz -c, etc.",
-    )
-    parser.add_argument(
-        "-s", "--sep", default="\t", help='separator for printing efficiency output (default="\\t")'
-    )
+    args = parse_args()
 
-    args = parser.parse_args()
-    n_processes = args.n_processes
-    if n_processes is None:
-        try:
-            n_processes = len(os.sched_getaffinity(0))
-        except:
-            n_processes = os.cpu_count()
-    DIR_WORKUP = args.dir_workup
+    with open(args.pipeline, "rt") as f:
+        pipeline = yaml.safe_load(f)
 
-    with open(args.samples, "rt") as f:
-        samples = tuple(json.load(f).keys())
-    G, G_merged = collect_pipeline_counts(
-        samples, DIR_WORKUP, n_processes, unzip=args.unzip, verbose=args.verbose
+    with open(args.path_samples, "rt") as f:
+        samples = json.load(f)
+
+    wildcards = {
+        "splitid": args.splitids,
+        "target": args.targets,
+    }
+
+    G = collect_pipeline_counts(
+        pipeline,
+        samples,
+        wildcards,
+        args.dir_counts,
+        args.verbose
     )
+    G_merged = G.merge_samples() if len(samples) > 1 else None
 
-    if args.verbose:
-        print("Pipline Read Counts Per Sample:", file=sys.stderr)
-    G.print_efficiency(sep=args.sep)
+    G.print_efficiency(sep=args.sep, toprint=True)
     if G_merged:
         print()
-        if args.verbose:
-            print("Pipline Read Counts Aggregated Over All Samples", file=sys.stderr)
-        G_merged.print_efficiency(sample=False, sep=args.sep)
+        G_merged.print_efficiency(sample=False, sep=args.sep, toprint=True)
     if args.out:
         df = G.to_df()
         if G_merged:
