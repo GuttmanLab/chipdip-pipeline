@@ -20,6 +20,7 @@
 # This Snakemake module should be included (include:) in the make Snakefile after the following global variables have
 # been defined:
 # - DIR_OUT: path to output directory
+# - DIR_TEMP: path to temporary directory
 # - pipeline_structure: dict describing the pipeline outputs
 # - ALL_SAMPLES: list of sample names
 # - TARGETS: list of target names
@@ -33,7 +34,7 @@ import os
 import string
 
 DIR_COUNTS = os.path.join(DIR_OUT, "pipeline_counts")
-
+GLOBAL_PATHS_WILDCARDS = {'DIR_TEMP': DIR_TEMP, 'DIR_OUT': DIR_OUT}
 
 def path_to_count_ext(path: str) -> str:
     """
@@ -41,6 +42,8 @@ def path_to_count_ext(path: str) -> str:
     """
     if path.endswith(('.fastq.gz', '.fq.gz')):
         return 'fastq-gz.count'
+    if path.endswith(('.fastq', '.fq')):
+        return 'fastq.count'
     elif path.endswith('.bam'):
         return 'bam.count'
     else:
@@ -126,8 +129,9 @@ def generate_count_files_all(
 def count_filename_to_source(
     filename: str,
     pipeline: dict,
-    source_prefix: str = "",
     data_files: dict[str, dict[str, list[str]]] | None = None,
+    source_prefix: str | None = None,
+    dir_wildcards: dict[str, str] | None = None,
 ) -> str:
     """
     Given a target count file, determine the reads files from which to generate the count file.
@@ -139,6 +143,7 @@ def count_filename_to_source(
         for that output.
     - data_files: mapping from sample names to a list of their source data files. If None, defaults to the global FILES.
     - source_prefix: prefix to add to the source path (e.g., output directory)
+    - dir_wildcards: directory wildcards
 
     Returns
     - path_source: paths to the source reads files
@@ -155,26 +160,53 @@ def count_filename_to_source(
     if level == "data":
         sample, file_number = field_values
         return data_files[sample]["R1"][int(file_number)]
-            
+
     formatter = string.Formatter()
     fields = sorted(field for _, field, _, _ in formatter.parse(os.path.join(*info['path'])) if field is not None)
     assert len(fields) == len(field_values), f"Filename {filename} does not match expected fields for output level {level}."
-    path_source = os.path.join(source_prefix, os.path.join(*info['path']).format(**dict(zip(fields, field_values))))
+    path_source = os.path.join(*info['path']).format(**dict(zip(fields, field_values)))
+    if 'dir' in info and dir_wildcards is not None:
+        path_source = os.path.join(info['dir'].format(**dir_wildcards), path_source)
+    if source_prefix is not None:
+        path_source = os.path.join(source_prefix, path_source)
     return path_source
 
 
 COUNT_FILES_ALL = sorted(set(itertools.chain.from_iterable(generate_count_files_all(
     pipeline_structure,
-    wildcards=dict(sample=ALL_SAMPLES, target=TARGETS, splitid=NUM_CHUNKS),
+    wildcards=dict(sample=ALL_SAMPLES, target=TARGETS, splitid=NUM_CHUNKS, **GLOBAL_PATHS_WILDCARDS),
     data_files=FILES,
     DIR_COUNTS=os.path.join(DIR_OUT, "pipeline_counts"),
     generate_splitbams=generate_splitbams
 ).values())))
 
+
+# Count reads from a list of gzip-compressed FASTQ files.
+rule count_fastq:
+    input:
+        lambda w: count_filename_to_source(w.file, pipeline_structure, dir_wildcards=GLOBAL_PATHS_WILDCARDS)
+    output:
+        temp(os.path.join(DIR_OUT, "pipeline_counts", "{file}.fastq.count"))
+    conda:
+        conda_env
+    shell:
+        """
+        total_lines=$(cat "{input}" | wc -l)
+        remainder=$(( total_lines % 4 ))
+        if [ "$remainder" -ne 0 ]; then
+            echo "ERROR: FASTQ file '{input}' has $total_lines lines, which is not divisible by 4."
+            echo "This suggests the file may be truncated or corrupted."
+            exit 1
+        fi
+        read_count=$(( total_lines / 4 ))
+        echo "$read_count" > "{output}"
+        """
+
+
 # Count reads from a list of gzip-compressed FASTQ files.
 rule count_fastq_gz:
     input:
-        lambda w: count_filename_to_source(w.file, pipeline_structure, source_prefix=DIR_OUT)
+        lambda w: count_filename_to_source(w.file, pipeline_structure, dir_wildcards=GLOBAL_PATHS_WILDCARDS)
     output:
         temp(os.path.join(DIR_OUT, "pipeline_counts", "{file}.fastq-gz.count"))
     conda:
@@ -186,7 +218,7 @@ rule count_fastq_gz:
         total_lines=$(unpigz -c "{input}" | wc -l)
         remainder=$(( total_lines % 4 ))
         if [ "$remainder" -ne 0 ]; then
-            echo "ERROR: FASTQ file "{input}" has $total_lines lines, which is not divisible by 4."
+            echo "ERROR: FASTQ file '{input}' has $total_lines lines, which is not divisible by 4."
             echo "This suggests the file may be truncated or corrupted."
             exit 1
         fi
@@ -196,7 +228,7 @@ rule count_fastq_gz:
 
 rule count_bam:
     input:
-        lambda w: count_filename_to_source(w.file, pipeline_structure, source_prefix=DIR_OUT)
+        lambda w: count_filename_to_source(w.file, pipeline_structure, dir_wildcards=GLOBAL_PATHS_WILDCARDS)
     output:
         temp(os.path.join(DIR_OUT, "pipeline_counts", "{file}.bam.count"))
     conda:

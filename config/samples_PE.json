@@ -1,0 +1,10 @@
+{
+    "sample3": {
+      "R1": ["data/sample3_R1.fastq.gz"],
+      "R2": ["data/sample3_R2.fastq.gz"]
+    },
+    "sample4": {
+      "R1": ["data/sample4_R1.fastq.gz"],
+      "R2": ["data/sample4_R2.fastq.gz"]
+    }
+}

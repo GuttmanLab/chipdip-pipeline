@@ -93,6 +93,43 @@ def fastq_parse(fp: typing.IO) -> collections.abc.Generator[tuple[str, str, str,
             name, seq, thrd, qual = [None] * 4
 
 
+def fasta_parse(fp: typing.IO, mimic_fastq: typing.Literal['no', 'placeholder', 'sim'] = 'no') -> collections.abc.Generator:
+    """
+    Parse FASTA file.
+
+    Args
+    - fp: file-like object to read FASTA data from
+    - mimic_fastq: one of the following:
+      - 'no': yield (name, seq)
+      - 'placeholder': yield (name, seq, None, None)
+      - 'sim': yield (name, seq, '+', 'I' * len(seq))
+    """
+    if mimic_fastq == 'no':
+        make_tuple = lambda n, s: (n, s)
+    elif mimic_fastq == 'placeholder':
+        make_tuple = lambda n, s: (n, s, None, None)
+    elif mimic_fastq == 'sim':
+        make_tuple = lambda n, s: (n, s, '+', 'I' * len(s))
+    else:
+        raise ValueError(f"mimic_fastq parameter must be 'no', 'placeholder', or 'sim', not '{mimic_fastq}'.")
+
+    name = None
+    seq_lines = []
+    for line in fp:
+        line = line.strip()
+        if line.startswith(">"):
+            if name is not None:
+                seq = ''.join(seq_lines)
+                yield make_tuple(name, seq)
+            name = line
+            seq_lines = []
+        else:
+            seq_lines.append(line)
+    if name is not None:
+        seq = ''.join(seq_lines)
+        yield make_tuple(name, seq)
+
+
 def positive_int(value: str) -> int:
     """
     Check that a string represents a positive integer.

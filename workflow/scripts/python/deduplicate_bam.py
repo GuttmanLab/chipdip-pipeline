@@ -43,9 +43,10 @@ def parse_args():
             "Key(s) by which to deduplicate reads. Either a position format ('start' or 'end') or tag name (e.g., 'RX' "
             "for UMIs). Keys can be combined using '&' (AND) or '|' (OR) operators, with '&' operators taking "
             "precedence. For example, 'start&end|RX' will deduplicate reads that share the same start and end "
-            "positions, or the same RX tag value. Because no assumptions are made about the order of reads with "
-            "respect to their positions in the BAM file, this script may consume significant memory if the --tag "
-            "option is not used."
+            "positions, or the same RX tag value. If --paired is set, start and end positions are relative to the "
+            "fragment/template rather than individual reads. Because no assumptions are made about the order of reads "
+            "with respect to their positions in the BAM file, this script may consume significant memory if the --tag "
+            "option is not used. "
         )
     )
     parser.add_argument(
@@ -55,6 +56,15 @@ def parse_args():
             "requirement imposed by --by) to be considered duplicates. If this option is provided, then the input BAM "
             "file is assumed to be sorted by this tag value (e.g., samtools sort -t <tag>). If --by is not a position "
             "format, then this tag must be different than the one specified by --by."
+        )
+    )
+    parser.add_argument(
+        "--paired",
+        action="store_true",
+        help=(
+            "Deduplicate read pairs rather than individual reads, and record counts in terms of read pairs instead of "
+            "individual reads. If this option is provided, then the input BAM file is assumed to be collated by read "
+            "names, and all reads must be paired and share the same reference chromosome (not chimeric)."
         )
     )
     parser.add_argument(
@@ -94,6 +104,124 @@ def parse_args():
     return parser.parse_args()
 
 
+class Read:
+    """
+    Wrapper/proxy around pysam.AlignedSegment that implements a write() method to match interface of ReadPair.
+    """
+    def __init__(self, obj):
+        assert isinstance(obj, pysam.AlignedSegment)
+        self._obj = obj
+
+    def __getattr__(self, name):
+        return getattr(self._obj, name)
+
+    def write(self, bam_out: pysam.AlignmentFile):
+        bam_out.write(self._obj)
+
+
+class ReadPair:
+    """
+    Class representing a pair of non-chimeric reads. Reimplements part of the pysam.AlignedSegment API for convenience.
+    """
+    def __init__(
+        self,
+        mate1: pysam.AlignedSegment,
+        mate2: pysam.AlignedSegment,
+        validate: bool = True,
+        local: bool = False
+    ):
+        '''
+        Args
+        - mate1: pysam.AlignedSegment object for one mate.
+        - mate2: pysam.AlignedSegment object for the other mate.
+        - validate: Whether to validate that the reads are properly paired, non-chimeric, and map to opposite strands.
+        - local: Whether to compute fragment length based on the mapped positions of the mates, rather than the template
+            length (TLEN) field. (They are supposed to be identical, according to the SAM specification. However, not
+            all implementations adhere to the spec. For example, Bowtie 2 run in its --local mode includes soft-clipped
+            bases when calculating TLEN (contrary to the SAM spec) unless --soft-clipped-unmapped-tlen is also used.)
+        '''
+        if validate:
+            if mate1.is_read1 and mate2.is_read2:
+                self.mate1 = mate1
+                self.mate2 = mate2
+            elif mate2.is_read1 and mate1.is_read2:
+                self.mate1 = mate2
+                self.mate2 = mate1
+            else:
+                raise ValueError("Both reads are marked as the same mate.")
+            assert mate1.query_name == mate2.query_name, "Read names do not match"
+            assert mate1.reference_id == mate2.reference_id, "Reads are chimeric (mapped to different references)"
+            assert mate1.template_length == -mate2.template_length, "Inconsistent template lengths."
+            if mate1.is_forward and mate2.is_reverse:
+                self.mate_fwd = mate1
+                self.mate_rev = mate2
+            elif mate2.is_forward and mate1.is_reverse:
+                self.mate_fwd = mate2
+                self.mate_rev = mate1
+            else:
+                raise ValueError("Both reads are mapped to the same strand.")
+        else:
+            self.mate1 = mate1
+            self.mate2 = mate2
+        self.local = local
+
+    @property
+    def is_unmapped(self) -> int:
+        return self.mate1.is_unmapped or self.mate2.is_unmapped
+
+    @property
+    def reference_id(self) -> int:
+        return self.mate1.reference_id
+
+    @property
+    def reference_start(self) -> int:
+        return min(self.mate1.reference_start, self.mate2.reference_start)
+
+    @property
+    def reference_end(self) -> int:
+        return max(self.mate1.reference_end, self.mate2.reference_end)
+
+    @property
+    def fragment_length(self) -> int:
+        if self.local:
+            return self.mate_rev.reference_end - self.mate_fwd.reference_start
+        else:
+            return abs(self.mate1.template_length)
+
+    def get_tag(self, *args, **kwargs):
+        value1 = self.mate1.get_tag(*args, **kwargs)
+        value2 = self.mate2.get_tag(*args, **kwargs)
+        assert value1 == value2, "Tag values do not match between mates."
+        return value1
+
+    def set_tag(self, *args, **kwargs):
+        self.mate1.set_tag(*args, **kwargs)
+        self.mate2.set_tag(*args, **kwargs)
+
+    def write(self, bam_out: pysam.AlignmentFile):
+        bam_out.write(self.mate1)
+        bam_out.write(self.mate2)
+
+    def has_tag(self, *args) -> bool:
+        return self.mate1.has_tag(*args) and self.mate2.has_tag(*args)
+
+
+def read_iter(bamfile: pysam.AlignmentFile, paired: bool, **kwargs) -> collections.abc.Iterator[Read | ReadPair]:
+    """Yield reads or read pairs from a BAM file."""
+    if paired:
+        # Group reads by name
+        for qname, group in itertools.groupby(bamfile.fetch(until_eof=True), key=lambda r: r.query_name):
+            reads = list(group)
+            # Optionally check that you really got pairs
+            if len(reads) != 2:
+                raise ValueError(f"Expected 2 reads per pair, got {len(reads)} for {qname}")
+            yield ReadPair(reads[0], reads[1])  # yield a pair as a list of 2 reads
+    else:
+        # Just yield reads one by one
+        for read in bamfile.fetch(until_eof=True):
+            yield Read(read)
+
+
 def deduplicate_reads(
     reads: collections.abc.Iterable,
     bam_out: pysam.AlignmentFile,
@@ -106,7 +234,7 @@ def deduplicate_reads(
     Deduplicate reads based on the specified criteria.
 
     Args
-    - reads: Iterable of pysam.AlignedSegment objects (reads).
+    - reads: ReadOrReadPair objects
     - bam_out: pysam.AlignmentFile object for writing deduplicated reads.
     - by: Key(s) by which to deduplicate reads. Either a position format ('start' or 'end') or tag name (e.g., 'RX'
         for UMIs). Keys can be combined using '&' (AND) or '|' (OR) operators, with '&' operators taking precedence. For
@@ -117,9 +245,9 @@ def deduplicate_reads(
     - record_histogram: Whether to record multiplicity histogram.
 
     Returns
-    - n_written: Number of unique reads written to the output BAM.
-    - n_total: Total number of reads processed.
-    - histogram: (if record_histogram is True) mapping from multiplicity to number of unique reads with that
+    - n_written: Number of unique reads (or read pairs) written to the output BAM.
+    - n_total: Total number of reads (or read pairs) processed.
+    - histogram: (if record_histogram is True) mapping from multiplicity to number of unique reads (or read pairs) with that
         multiplicity; (if record_histogram is False) empty Counter.
 
     Notes
@@ -141,14 +269,14 @@ def deduplicate_reads(
         for tag_set in by.split('|'):
             key = []
             for tag_name in tag_set.split('&'):
-                if (tag_name in ('start', 'end') and read.reference_id < 0) or (tag_name not in ('start', 'end') and not read.has_tag(tag_name)):
+                if (tag_name in ('start', 'end') and read.is_unmapped) or (tag_name not in ('start', 'end') and not read.has_tag(tag_name)):
                     # unmapped read: if keep_unmapped, write it out; otherwise, skip
                     if keep_unmapped:
                         if record_histogram:
                             histogram[1] += 1
                         if record_counts:
                             read.set_tag("dc", 1, value_type="i", replace=True)
-                        bam_out.write(read)
+                        read.write(bam_out)
                         n_written += 1
                     skip_to_next_read = True
                     break
@@ -182,7 +310,7 @@ def deduplicate_reads(
             if record_counts:
                 idx_to_read[idx] = read
             else:
-                bam_out.write(read)
+                read.write(bam_out)
                 n_written += 1
 
     n_total = idx + 1 # total number of reads processed
@@ -190,7 +318,7 @@ def deduplicate_reads(
     if record_counts:
         for idx, read in idx_to_read.items():
             read.set_tag("dc", idx_to_count[idx], value_type="i", replace=True)
-            bam_out.write(read)
+            read.write(bam_out)
             n_written += 1
     if record_histogram:
         histogram.update(collections.Counter(idx_to_count.values()))
@@ -203,6 +331,7 @@ def deduplicate_bam(
     file_out: str | typing.IO,
     by: str,
     tag: str | None = None,
+    paired: bool = False,
     keep_unmapped: bool = False,
     keep_untagged: bool = False,
     record_counts: bool = False,
@@ -216,24 +345,27 @@ def deduplicate_bam(
     is written to the output BAM file, and subsequent duplicates are discarded.
 
     Args
-    - file_in: Path to input BAM file or a file-like object.
+    - file_in: Path to input BAM file or a file-like object. If paired, the input BAM file is assumed to be collated by
+        read name.
     - file_out: Path to output BAM file or a file-like object.
     - by: Value(s) by which to deduplicate reads. Either a position format ('start', 'end', 'start&end', or 'start|end')
         or tag name (e.g., 'RX' for UMIs).
     - tag: Optional additional tag name to use as criteria for deduplication.
+    - paired: Whether reads are paired. If True, positions keys (see by argument) are relative to the fragment/template
+        rather than individual reads.
     - keep_unmapped: Whether to keep unmapped or untagged reads, as specified by `by`.
     - keep_untagged: Whether to keep reads without the tag specified by `tag`.
     - record_counts: Whether to record the number of duplicates represented by each read in a dc tag.
     - record_histogram: Whether to record multiplicity histogram.
     - uncompressed: Write uncompressed BAM output.
     - threads: Number of threads to use for writing the output BAM. Only applicable if uncompressed is False.
-    - progress: Display a progress bar.
+    - progress: Display a progress bar reflecting the number of reads or read pairs processed.
 
     Returns
-    - n_written: Number of unique reads written to the output BAM.
-    - n_total: Total number of reads processed.
-    - histogram: (if record_histogram is True) mapping from multiplicity to number of unique reads with that
-        multiplicity; (if record_histogram is False) empty Counter.
+    - n_written: Number of unique reads (or read pairs) written to the output BAM.
+    - n_total: Total number of reads (or read pairs) processed.
+    - histogram: (if record_histogram is True) mapping from multiplicity to number of unique reads (or read pairs ) with
+        that multiplicity; (if record_histogram is False) empty Counter.
     """
     mode_out = "wb"
     if uncompressed:
@@ -243,11 +375,11 @@ def deduplicate_bam(
          pysam.AlignmentFile(file_out, mode=mode_out, threads=threads, template=bam_in) as bam_out:
         if tag:
             # first group by tag value (e.g., cluster barcode)
-            n_total = 0 # total number of reads processed
-            n_written = 0 # number of unique reads written to the output BAM
+            n_total = 0 # total number of reads or read pairs processed
+            n_written = 0 # number of unique reads or read pairs written to the output BAM
             histogram = collections.Counter() # map from multiplicity to number of unique reads with that multiplicity
             for tag_value, reads in itertools.groupby(
-                tqdm(bam_in.fetch(until_eof=True), disable=not progress),
+                tqdm(read_iter(bam_in, paired=paired), disable=not progress),
                 key=lambda read: read.get_tag(tag) if read.has_tag(tag) else None
             ):
                 if tag_value is None:
@@ -258,7 +390,7 @@ def deduplicate_bam(
                                 read.set_tag("dc", 1, value_type="i", replace=True)
                             if record_histogram:
                                 histogram[1] += 1
-                            bam_out.write(read)
+                            read.write(bam_out)
                             n_written += 1
                 else:
                     cluster_written, cluster_total, cluster_histogram = deduplicate_reads(
@@ -274,7 +406,7 @@ def deduplicate_bam(
                     n_written += cluster_written
         else:
             n_written, n_total, histogram = deduplicate_reads(
-                tqdm(bam_in.fetch(until_eof=True), disable=not progress),
+                tqdm(read_iter(bam_in, paired=paired), disble=not progress),
                 bam_out,
                 by,
                 keep_unmapped=keep_unmapped,
@@ -296,6 +428,7 @@ def main():
         args.output if args.output else sys.stdout,
         args.by,
         tag=args.tag,
+        paired=args.paired,
         keep_unmapped=args.keep_unmapped,
         keep_untagged=args.keep_untagged,
         record_counts=args.record_counts,
@@ -311,7 +444,10 @@ def main():
             index=True,
             header=False
         )
-    print(f"Total reads processed: {n_total}. Unique reads written: {n_written}", file=sys.stderr)
+    if args.paired:
+        print(f"Total read pairs processed: {n_total}. Unique read pairs written: {n_written}", file=sys.stderr)
+    else:
+        print(f"Total reads processed: {n_total}. Unique reads written: {n_written}", file=sys.stderr)
     print(f"Duplication rate: {(n_total - n_written) / n_total:.2%}", file=sys.stderr)
 
 

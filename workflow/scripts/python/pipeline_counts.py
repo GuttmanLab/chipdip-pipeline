@@ -72,6 +72,8 @@ def path_to_count_ext(path: str) -> str:
     """
     if path.endswith(('.fastq.gz', '.fq.gz')):
         return 'fastq-gz.count'
+    if path.endswith(('.fastq', '.fq')):
+        return 'fastq.count'
     elif path.endswith('.bam'):
         return 'bam.count'
     else:

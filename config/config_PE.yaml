@@ -1,0 +1,92 @@
+# Except for conda_env, paths in this file are specified relative to the working directory, which refers to following,
+# in order of precedence:
+# 1. the directory specified by the `--directory` command line option
+# 2. the directory specified by the `workdir:` directive in the Snakefile
+# 3. the directory in which Snakemake is invoked
+
+# Email to which errors will be sent; set to null or "" to skip emails
+email: ""
+
+# (Required) Path to samples JSON file, e.g., as produced with the fastq2json.py script
+samples: "config/samples_PE.json"
+
+# (Required) Either "splitcode" or "barcodeID"
+config_type: "splitcode"
+
+# (Required if barcode_type is "splitcode") Path to splitcode config files
+splitcode-configs:
+    split-bpm-dpm: "config/splitcode-config_split-bpm-dpm.tsv"
+    oligo: "config/splitcode-config_oligo.tsv"
+    chromatin: "config/splitcode-config_chromatin.tsv"
+num_tags_oligo: [3, 7, 3]
+num_tags_chromatin: [1, 7, 1]
+
+# (Required) Scripts directory
+scripts_dir: "workflow/scripts/"
+
+# Output directory
+output_dir: "results"
+
+# Temporary directory
+temp_dir: "/tmp"
+
+# (Required) Whether to perform paired-end alignment (true) or single-end (R1) alignment (false)
+# - paired-end alignment is only relevant if the R2 read length is significantly longer than the barcode length
+paired_reads: True
+
+# Whether to check that the same DPM tag was detected on both ends of the DNA insert.
+# - if True, then read pairs with inconsistent DPM tags will not be used for alignment
+filter_consistent_dpm: True
+
+# Conda environment: either a path to a conda environment YAML file ("*.yml" or "*.yaml")
+# or the name of an existing conda environment.
+# - If a relative path is used, the path is interpreted as relative to the Snakefile.
+# - Alternatively, an absolute path can be used.
+conda_env: "chipdip_test"
+
+# Path to chromosome name map file; set to null or "" to skip chromosome renaming and filtering
+path_chrom_map: "config/chrom_map.txt"
+
+# Chromatin reads deduplication method - usually one of the following:
+# - "RT&start&end": deduplicate by DPM and read alignment start and end position
+# - "RT&start|RT&end": deduplicate by (DPM and read alignment start) or (DPM and end position)
+# - "RT&start": deduplicate by DPM and read alignment start position
+# - "RT&end": deduplicate by DPM and read alignment end position
+deduplication_method: "RT&start&end"
+
+# Number of chunks to split FASTQ reads into for parallel processing
+num_chunks: 2
+
+# Mask used for filtering DNA reads
+# e.g., "resources/blacklist_mm10.bed" or "resources/blacklist_hg38.bed"
+# Set to null or "" to skip filtering
+mask: "resources/blacklist_mm10.bed"
+
+# (Required) Bowtie2 indexes for aligning DNA reads
+# e.g., "resources/index_hg38/GRCh38_noalt_as" or "resources/index_mm10/mm10"
+bowtie2_index: "resources/index_mm10/mm10"
+bowtie2_max_insert_size: 2500
+
+# Merge cluster files for all samples
+# Merge BAM files and bigWigs for individual targets across samples
+merge_samples: true
+
+# Generate BAM files for individual targets
+generate_splitbams: true
+min_oligos: 2
+proportion: 0.8
+max_size: 10000
+
+# bigWig generation parameters
+# - only relevant if generate_splitbams is True
+# - binsize: bin size in bp
+#   - Set to false to skip bigWig generation
+# - bigwig_normalization: "RPKM", "CPM", "BPM", "RPGC", or "None"
+#   - Passed to the --normalizeUsing argument for bamCoverage from the deepTools suite
+# - effective_genome_size: effective genome size in bp
+#   - only relevant if bigwig_normalization is "RPGC"
+#   - Supply as an integer, or set to null for the pipeline to compute the effective genome size
+#     based on the Bowtie2 index, mask, and chromosome name map
+binsize: false
+bigwig_normalization: "None"
+effective_genome_size: null
