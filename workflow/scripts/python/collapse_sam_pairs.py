@@ -1,5 +1,5 @@
 import argparse
-import contextlib
+import collections.abc
 import itertools
 import os
 import sys
@@ -14,15 +14,16 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Collapse or decollapse SAM/BAM files with paired reads. When collapsing paired reads, the output is a 27 "
-            "(or 28 if --chrom_map is provided) column BED-like format with the following fields: <chrom> <start> "
-            "<end> <11 required fields of the first read> <TLV-encoded tags of the first read> <11 required fields of "
-            "the second read> <TLV-encoded tags of the second read>. Both reads in a pair must be aligned to the same "
-            "chromosome; otherwise, both reads are discarded. Tags are encoded in a type-length-value format so that "
-            "the tab character can be safely used as a field separator in the BED-like format. TLV encoding is "
-            "performed as follows: [length]:[tag]:[type]:[value] [length]:[tag]:[type]:[value] ... where 'length' is "
-            "the number of characters of the tag field, and each tag field (previous tab-delimited) is now delimited "
-            "by a single space character. For example, the tag 'NM:i:1' would be encoded as '6:NM:i:1', since the "
-            "length of the string 'NM:i:1' is 6 characters."
+            "(or 28 if --chrom_map is provided) column BED-like tab-delimited format with the following fields: "
+            "<chrom> <start> <end> <11 required fields of the first read> <TLV-encoded tags of the first read> "
+            "<11 required fields of the second read> <TLV-encoded tags of the second read>. Both reads in a pair must "
+            "be aligned to the same chromosome; otherwise, both reads are discarded. <start> and <end> give 0-indexed "
+            "start-closed end-open coordinates of the fragment/template defined by the paired reads. Tags are encoded "
+            "in a type-length-value (TLV) format so that the tab character can be safely used as a field separator. "
+            "TLV encoding is performed as follows: [length]:[tag]:[type]:[value] [length]:[tag]:[type]:[value] ... "
+            "where 'length' is the number of characters of the tag field, and each tag field (previous tab-delimited) "
+            "is now delimited by a single space character. For example, the tag 'NM:i:1' would be encoded as "
+            "'6:NM:i:1', since the length of the string 'NM:i:1' is 6 characters."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -72,36 +73,15 @@ def parse_args():
     return parser.parse_args()
 
 
-@contextlib.contextmanager
-def default_file_object(path=None, mode='wt', default=None):
-    '''
-    If path is not None, open it with the provided mode within a with statement.
-    If path is None, yield default. (If default is None, yields None.)
+def encode_tags(tags: collections.abc.Iterable[str]) -> str:
+    """
+    Encode SAM optional fields as concatenated <len>:<field> TLV blocks.
 
     Args
-    - path: None | str
-        Path to file
-    - mode: str. default='wt'
-        Mode with which to open path.
-    - default: None | file object. default=None.
-        Default file object to yield if path is None.
-        Typically, set to sys.stdin, sys.stdout or sys.stderr.
+    - tags: SAM optional fields (e.g., ['NM:i:1', 'MD:Z:35A4', ...])
 
-    Yields: file object or None
-
-    Example
-        with default_file_object(path, default=sys.stderr) as f:
-            f.write('hi')
-    '''
-    if path is None:
-        yield default
-    else:
-        with open(path, mode=mode) as file:
-            yield file
-
-
-def encode_tags(tags) -> str:
-    """Encode SAM optional fields as concatenated <len>:<field> TLV blocks."""
+    Returns: TLV-encoded string (e.g., '6:NM:i:1 9:MD:Z:35A4 ...')
+    """
     out = []
     for field in tags:
         out.append(f"{len(field)}:{field}")
@@ -110,10 +90,10 @@ def encode_tags(tags) -> str:
 
 def decode_tags(tlv_str: str) -> list[str]:
     """
-    Decode TLV-encoded SAM optional fields into a list of strings.
+    Decode TLV-encoded SAM optional fields into a list of SAM fields.
 
     Returns: list of fields (e.g., ['NM:i:1', 'MD:Z:35A4', ...])
-    - Empty list if tlv_str is empty.
+    - Empty list if tlv_str is the empty string.
     """
     tags = []
     i = 0
@@ -145,17 +125,31 @@ def decode_tags(tlv_str: str) -> list[str]:
 
 def collapse_sam(
     file_in: str | typing.IO,
-    file_out: str | None = None,
+    file_out: str | typing.IO,
     path_chrom_map: str | None = None,
     keep_unpaired: bool = False,
 ):
-    """Collapse paired reads in a SAM/BAM file into a BED-like format."""
+    """
+    Collapse paired reads in a SAM/BAM file into a BED-like format.
+
+    Args
+    - file_in: path or file object to input SAM/BAM file. Read names are assumed to be unique to a read or read pair.
+    - file_out: path or file object to output BED-like file
+        Columns: 1-3 = chrom, start, end
+                 4-14 = 11 required fields of first read
+                 15 = TLV-encoded tags of first read
+                 16-26 = 11 required fields of second read; if no read pair, column 16 (read 2 QNAME) is '*'
+                 27 = TLV-encoded tags of second read
+    - path_chrom_map: path to chromosome name map file; if provided, prepend an extra field with the 0-based index of
+        the chromosome to each output line (e.g., for subsequent sorting by a custom chromosome order)
+    - keep_unpaired: if True, retain unpaired reads in the output BED-like file
+    """
     chrom_to_index = None
     if path_chrom_map is not None:
         chrom_map = helpers.parse_chrom_map(path_chrom_map)
         chrom_to_index = {v: str(i) for i, v in enumerate(chrom_map.values())}
     with pysam.AlignmentFile(file_in, mode="r") as bam_in, \
-         default_file_object(file_out, default=sys.stdout) as f_out:
+         helpers.open_path_or_file(file_out, mode="wt") as f_out:
         for name, pair in itertools.groupby(
             bam_in.fetch(until_eof=True),
             key=lambda read: read.query_name
@@ -190,6 +184,8 @@ def collapse_sam(
                 else:
                     out_str = '\t'.join([chrom, start, end]) + '\t' + mate1_str + '\t' + mate2_str
                 f_out.write(out_str + '\n')
+            elif len(pair) > 2:
+                raise ValueError(f"Error: More than two reads found with name '{name}'.")
 
 
 def decollapse_bam(
@@ -199,18 +195,24 @@ def decollapse_bam(
     keep_unpaired: bool = False,
     uncompressed: bool = False,
     threads: int = 1,
-):
+) -> int:
     """
     Decollapse a BED-like file back into a SAM/BAM file with paired reads.
 
     Args
-    - file_in: path or file object to input BED-like file
+    - file_in: path or file object to input BED-like file; may be gzip-compressed
         Columns: 1-3 = chrom, start, end
                  4-14 = 11 required fields of first read
                  15 = TLV-encoded tags of first read
-                 16-26 = 11 required fields of second read
+                 16-26 = 11 required fields of second read; if no read pair, column 16 (read 2 QNAME) is '*'
                  27 = TLV-encoded tags of second read
     - file_out: path or file object to output BAM file
+    - path_template_bam: path to template BAM file from which to copy the header
+    - keep_unpaired: if True, retain unpaired reads in the output BAM
+    - uncompressed: if True, output uncompressed BAM
+    - threads: number of threads to use for BAM compression (if not uncompressed)
+
+    Returns: number of individual reads written to output BAM
     """
     mode_out = "wb"
     if uncompressed:
@@ -218,7 +220,8 @@ def decollapse_bam(
         threads = 1
     with pysam.AlignmentFile(path_template_bam, "r") as f:
         header_dict = f.header.to_dict()
-    with default_file_object(file_in, mode='rt', default=sys.stdin) as f_in, \
+    n_written = 0
+    with helpers.open_path_or_file(file_in, opener=helpers.file_open, mode='rt') as f_in, \
          pysam.AlignmentFile(file_out, mode=mode_out, header=header_dict, threads=threads) as bam_out:
         header = bam_out.header
         for line in f_in:
@@ -227,13 +230,18 @@ def decollapse_bam(
             cols = line.rstrip('\n').split('\t')
             assert len(cols) == 27, f"Error: Expected 27 columns in collapsed BED-like format, found {len(cols)}."
             if keep_unpaired or cols[15] != '*':
+                # write out mate1
                 mate1_tags = decode_tags(cols[14])
                 read = pysam.AlignedSegment.fromstring('\t'.join(cols[3:14] + mate1_tags), header)
                 bam_out.write(read)
-            if cols[15] != '*': # mate 2 exists and is paired
+                n_written += 1
+            if cols[15] != '*':
+                # mate 2 exists and is paired --> write out mate2
                 mate2_tags = decode_tags(cols[26])
                 read = pysam.AlignedSegment.fromstring('\t'.join(cols[15:26] + mate2_tags), header)
                 bam_out.write(read)
+                n_written += 1
+    return n_written
 
 
 def main():
@@ -241,8 +249,8 @@ def main():
 
     if args.decollapse:
         decollapse_bam(
-            args.input,
-            args.output,
+            args.input if args.input else sys.stdin,
+            args.output if args.output else sys.stdout,
             path_template_bam=args.template_bam,
             keep_unpaired=args.keep_unpaired,
             uncompressed=args.uncompressed,
@@ -251,7 +259,7 @@ def main():
     else:
         collapse_sam(
             args.input if args.input else sys.stdin,
-            args.output,
+            args.output if args.output else sys.stdout,
             keep_unpaired=args.keep_unpaired,
             path_chrom_map=args.chrom_map,
         )

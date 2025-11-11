@@ -794,7 +794,9 @@ rule mask:
                     -b "{input.mask}" \\
                     -sorted \\
                     -g "{input.genome}" |
-                python {collapse_sam_pairs} --template_bam "{input.bam}" --decollapse -o "{output.bam}"
+                python {collapse_sam_pairs} --threads {threads} \\
+                    --template_bam "{input.bam}" \\
+                    --decollapse -o "{output.bam}"
             else
                 echo "No mask file specified, skipping masking."
 
@@ -812,12 +814,15 @@ rule mask:
         }} &> "{log}"
         '''
 
-# Move barcode from read name to SAM/BAM tags, and sort by barcode.
+# Move barcode from read name to SAM/BAM tags.
+# Check if tags detected in R1 and R2 read orientations match.
+# Sort by barcode then read name.
 rule extract_barcode_to_tags:
     input:
         os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.masked.DPM.bam")
     output:
         bam = os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.tagged.DPM.bam"),
+        discarded = os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.tagged.discarded.bam"),
         counts = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.tagged.counts"),
     log:
         os.path.join(DIR_LOGS, "extract_barcode_to_tags.{sample}.{splitid}.log")
@@ -834,6 +839,7 @@ rule extract_barcode_to_tags:
         {{
             python "{extract_barcode_to_tags}" \\
                 -i "{input}" \\
+                --discarded "{output.discarded}" \\
                 --input_fmt bam \\
                 --num_tags {params.num_tags} \\
                 --remove_barcode_from_names \\
@@ -913,7 +919,7 @@ rule process_bpm:
         config = config['splitcode-configs']['oligo'],
         num_tags = config.get('num_tags_oligo')
     conda:
-        "seqproc"
+        conda_env
     threads:
         4
     resources:

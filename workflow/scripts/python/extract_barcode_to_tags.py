@@ -58,6 +58,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Path to output BAM file. If not provided, write to stdout."
     )
     parser.add_argument(
+        "-d",
+        "--discarded",
+        metavar="discarded.bam",
+        help="Path to output BAM file for discarded reads. An XD tag is added indicating the reason for discard."
+    )
+    parser.add_argument(
         "--input_fmt",
         choices=('fasta', 'fastq', 'bam'),
         default='fastq',
@@ -209,12 +215,7 @@ def parse_arguments() -> argparse.Namespace:
 
 
 @contextlib.contextmanager
-def default_file_object(
-    file: typing.IO | str,
-    mode: str,
-    fmt: str = 'fastq',
-    **kwargs
-) -> typing.Generator[typing.IO | None, None, None]:
+def open_reads_file(file: typing.IO | str, mode: str, fmt: str = 'fastq', **kwargs) -> collections.abc.Generator[typing.IO]:
     '''
     Transparently open a file or yield a file object within a with statement.
 
@@ -224,19 +225,16 @@ def default_file_object(
     - mode: file object mode
     - fmt: If 'SAM' or 'BAM' (not case sensitive), use pysam.AlignmentFile to open the file, then yield the file within
         a with statement.
+    - **kwargs: additional keyword arguments to pass to pysam.AlignmentFile() if fmt is 'SAM' or 'BAM'
 
     Yields: file object or None
     '''
     if fmt.lower() in ('sam', 'bam'):
-        with pysam.AlignmentFile(file, mode=mode, **kwargs) as file_object:
-            yield file_object
+        with pysam.AlignmentFile(file, mode=mode, **kwargs) as f:
+            yield f
     elif isinstance(file, str):
-        if mode.startswith('r'):
-            with helpers.file_open(file, mode=mode) as file_object:
-                yield file_object
-        else:
-            with open(file, mode=mode) as file_object:
-                yield file_object
+        with helpers.file_open(file, mode=mode) as f:
+            yield f
     else:
         yield file
 
@@ -342,8 +340,8 @@ def read_parse(file: typing.IO, input_fmt: typing.Literal['fasta', 'fastq', 'bam
     - file: file-like object to read from
     - input_fmt: 'fasta', 'fastq', or 'bam'
 
-    Yields: tuple of read, read name, sequence, quality string
-    - read is None for FASTA/FASTQ input
+    Yields: read, read name, sequence, quality string
+    - read is None for FASTA/FASTQ input; pysam.AlignedSegment for BAM input
     - quality string is None for FASTA input
     """
     if input_fmt == 'fasta':
@@ -430,8 +428,9 @@ def process_barcode(
 
 
 def convert_reads(
-    file_in: str | None,
+    file_in: str | typing.IO,
     file_out: str | typing.IO,
+    file_discard: str | typing.IO | None,
     num_tags: tuple[int, int, int],
     input_fmt: typing.Literal['fasta', 'fastq', 'bam'],
 
@@ -464,8 +463,9 @@ def convert_reads(
     Convert FASTA/FASTQ reads to BAM format with barcode and UMI tags.
 
     Args
-    - file_in: input FASTA/FASTQ file path or file-like object; if None, read from standard input
+    - file_in: input FASTA/FASTQ file path or file-like object
     - file_out: output BAM file path or file-like object
+    - file_discard: output BAM file path or file-like object for discarded reads; if None, do not output discarded
     - num_tags: tuple of (NUM_TAGS_IN_R1, NUM_TAGS_IN_R2, NUM_TAGS_OVERLAP) specifying number of barcode tags from each
         read orientation
     - is_fasta: whether the input file is in FASTA format (as opposed to FASTQ)
@@ -529,19 +529,26 @@ def convert_reads(
     n_r1_r2_mismatch = 0 if num_tags[2] > 0 else None
 
     with contextlib.ExitStack() as stack:
-        f_in = stack.enter_context(default_file_object(
-            sys.stdin if file_in is None else file_in,
+        f_in = stack.enter_context(open_reads_file(
+            file_in,
             mode='rt' if input_fmt in ('fasta', 'fastq') else 'r',
-            fmt=input_fmt
+            fmt=input_fmt,
+            check_sq=False
         ))
         f_out = stack.enter_context(pysam.AlignmentFile(
-            sys.stdout if file_out is None else file_out,
+            file_out,
             mode=mode_out,
             header=f_in.header if input_fmt == 'bam' else header,
             threads=threads
         ))
+        f_discard = stack.enter_context(pysam.AlignmentFile(
+            file_discard,
+            mode=mode_out,
+            header=f_in.header if input_fmt == 'bam' else header,
+            threads=threads
+        )) if file_discard is not None else None
         for n_total, (read, rname, seq, quals) in tqdm(enumerate(read_parse(f_in, input_fmt)), disable=not verbose):
-
+            discard_reasons = set()
             quals = None if drop_quals else quals
 
             # extract UMI if requested
@@ -550,7 +557,7 @@ def convert_reads(
             UMI_tags = None
             if extract_UMI is not None:
                 umi_seq = seq[umi_start:umi_end]
-                if discard_UMI_N and 'N' in umi_seq:
+                if not f_discard and discard_UMI_N and 'N' in umi_seq:
                     n_umi_mismatch -= 1
                     continue
                 UMI_tags = [('RX', 'Z', umi_seq)]
@@ -592,7 +599,9 @@ def convert_reads(
                 # no read type tag found, despite prefixes being specified
                 if require_read_type:
                     n_no_read_type -= 1
-                    continue
+                    if not f_discard:
+                        continue
+                    discard_reasons.add('no_read_type')
                 else:
                     n_no_read_type += 1
 
@@ -601,7 +610,9 @@ def convert_reads(
                 # R1 and R2 barcodes do not match
                 if discard_inconsistent_R1_R2:
                     n_r1_r2_mismatch -= 1
-                    continue
+                    if not f_discard:
+                        continue
+                    discard_reasons.add('R1_R2_mismatch')
                 else:
                     n_r1_r2_mismatch += 1
 
@@ -620,7 +631,9 @@ def convert_reads(
                 if 'N' in final_SAM_tags['RX'][1]:
                     if discard_UMI_N:
                         n_umi_mismatch -= 1
-                        continue
+                        if not f_discard:
+                            continue
+                        discard_reasons.add('UMI_N')
                     else:
                         n_umi_mismatch += 1
                 else:
@@ -629,7 +642,9 @@ def convert_reads(
                         # multiple UMIs extracted and do not match
                         if discard_UMI_mismatch:
                             n_umi_mismatch -= 1
-                            continue
+                            if not f_discard:
+                                continue
+                            discard_reasons.add('UMI_mismatch')
                         else:
                             n_umi_mismatch += 1
 
@@ -660,10 +675,12 @@ def convert_reads(
                 # for array tags, pysam infers the type automatically and currently (v0.23.3) does not support passing
                 # the value_type explicitly. See https://github.com/pysam-developers/pysam/issues/1108.
 
-            f_out.write(read)
-            n_written += 1
-            if verbose and n_total % 100000 == 0:
-                print('Reads processed:', n_total, file=sys.stderr)
+            if len(discard_reasons) > 0 and f_discard is not None:
+                read.set_tag('XD', ';'.join(sorted(discard_reasons)), value_type='Z')
+                f_discard.write(read)
+            else:
+                f_out.write(read)
+                n_written += 1
         n_total += 1
 
     n_discard = sum([x for x in (n_umi_mismatch, n_no_read_type, n_r1_r2_mismatch) if x is not None and x < 0])
@@ -694,10 +711,12 @@ def main():
         extract_UMI = None
 
     counts = convert_reads(
-        args.input,
+        args.input if args.input else sys.stdin,
         args.output if args.output else sys.stdout,
+        args.discarded,
         args.num_tags,
         input_fmt=args.input_fmt,
+
         remove_barcode_from_names=args.remove_barcode_from_names,
         reverse_barcode_order=args.reverse_barcode_order,
         add_sample_to_barcode=args.add_sample_to_barcode,

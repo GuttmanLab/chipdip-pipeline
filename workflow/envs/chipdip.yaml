@@ -1,4 +1,4 @@
-# last updated: 2025-10-30
+# last updated: 2025-11-11
 name: chipdip
 channels:
   - conda-forge
@@ -25,6 +25,7 @@ dependencies:
   - samtools=1.22
   - seaborn=0.13.2
   - sed>=4.7, <=4.8
+  - splitcode>=0.31.4
   - tqdm=4.65
   - trim-galore=0.6.10
   - util-linux>=2.37.4, <=2.41   # column

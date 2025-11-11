@@ -4,6 +4,7 @@ Convenience functions related to parsing arguments and files.
 
 import argparse
 import collections.abc
+import contextlib
 import gzip
 import io
 import re
@@ -34,7 +35,7 @@ class AutoCloseGzipFile(gzip.GzipFile):
         super().close()
 
 
-def file_open(filename: str, mode: str = "rb", encoding: str = "utf-8") -> typing.IO:
+def file_open(filename: str, mode: typing.Literal["rb", "rt"] = "rb", encoding: str = "utf-8") -> typing.IO:
     """
     Detect if a file is gzip-compressed and return an appropriate file object for
     reading only (only supports "rb" and "rt" modes). Meant to be a mostly drop-in
@@ -93,41 +94,63 @@ def fastq_parse(fp: typing.IO) -> collections.abc.Generator[tuple[str, str, str,
             name, seq, thrd, qual = [None] * 4
 
 
-def fasta_parse(fp: typing.IO, mimic_fastq: typing.Literal['no', 'placeholder', 'sim'] = 'no') -> collections.abc.Generator:
+def fasta_parse(fp: typing.IO, header_char: str | tuple[str] = '>') -> collections.abc.Generator[tuple[str, str]]:
     """
     Parse FASTA file.
 
     Args
-    - fp: file-like object to read FASTA data from
-    - mimic_fastq: one of the following:
-      - 'no': yield (name, seq)
-      - 'placeholder': yield (name, seq, None, None)
-      - 'sim': yield (name, seq, '+', 'I' * len(seq))
-    """
-    if mimic_fastq == 'no':
-        make_tuple = lambda n, s: (n, s)
-    elif mimic_fastq == 'placeholder':
-        make_tuple = lambda n, s: (n, s, None, None)
-    elif mimic_fastq == 'sim':
-        make_tuple = lambda n, s: (n, s, '+', 'I' * len(s))
-    else:
-        raise ValueError(f"mimic_fastq parameter must be 'no', 'placeholder', or 'sim', not '{mimic_fastq}'.")
+    - fp: file-like object to read from
+    - header_char: character(s) indicating header lines
 
+    Yield tuples of (header, sequence), where 'header' includes the leading header_char character.
+    """
     name = None
     seq_lines = []
     for line in fp:
         line = line.strip()
-        if line.startswith(">"):
+        if line.startswith(header_char):
             if name is not None:
-                seq = ''.join(seq_lines)
-                yield make_tuple(name, seq)
+                yield name, ''.join(seq_lines)
             name = line
             seq_lines = []
         else:
             seq_lines.append(line)
     if name is not None:
-        seq = ''.join(seq_lines)
-        yield make_tuple(name, seq)
+        yield name, ''.join(seq_lines)
+
+
+@contextlib.contextmanager
+def open_path_or_file(
+    file: str | typing.IO,
+    opener: collections.abc.Callable[[str], typing.IO] = open,
+    **kwargs
+) -> collections.abc.Generator[typing.IO]:
+    """
+    Given either a file path or a file-like object, yield a file-like object.
+
+    Args
+    - file: if a file-like object is given, yield as-is; if a string file path is given, the opened file object is
+        yielded and will be closed after use.
+    - opener: function to open the file path (e.g., open, gzip.open, helpers.file_open, etc.)
+    - **kwargs: keyword arguments to pass to opener()
+
+    Yields: file-like object
+
+    Usage:
+        # open either a path or file object, transparently supporting paths to gzip-compressed files
+        with open_path_or_file(file, file_open, mode="rt") as f:
+            # use f here
+
+        # pass through sys.stdin or sys.stdout as needed, without closing after use
+        with open_path_or_file(sys.stdout) as f:
+            f.write(...)
+        # stdout is not closed after use
+    """
+    if isinstance(file, str):
+        with opener(file, **kwargs) as f:
+            yield f
+    else:
+        yield file
 
 
 def positive_int(value: str) -> int:

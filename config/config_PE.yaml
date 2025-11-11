@@ -32,7 +32,7 @@ temp_dir: "/tmp"
 # or the name of an existing conda environment.
 # - If a relative path is used, the path is interpreted as relative to the Snakefile.
 # - Alternatively, an absolute path can be used.
-conda_env: "chipdip_test"
+conda_env: "envs/chipdip.yaml"
 
 # Path to chromosome name map file; set to null or "" to skip chromosome renaming and filtering
 path_chrom_map: "config/chrom_map.txt"
