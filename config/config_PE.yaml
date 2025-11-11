@@ -77,6 +77,6 @@ max_size: 10000
 #   - only relevant if bigwig_normalization is "RPGC"
 #   - Supply as an integer, or set to null for the pipeline to compute the effective genome size
 #     based on the Bowtie2 index, mask, and chromosome name map
-binsize: false
+binsize: 1000
 bigwig_normalization: "None"
 effective_genome_size: null
