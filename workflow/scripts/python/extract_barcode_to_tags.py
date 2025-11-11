@@ -549,6 +549,7 @@ def convert_reads(
         )) if file_discard is not None else None
         for n_total, (read, rname, seq, quals) in tqdm(enumerate(read_parse(f_in, input_fmt)), disable=not verbose):
             discard_reasons = set()
+            discard_count = 1 # value to increment/decrement discard counts by
             quals = None if drop_quals else quals
 
             # extract UMI if requested
@@ -598,23 +599,25 @@ def convert_reads(
             if read_type == -1:
                 # no read type tag found, despite prefixes being specified
                 if require_read_type:
-                    n_no_read_type -= 1
+                    n_no_read_type -= discard_count
                     if not f_discard:
                         continue
                     discard_reasons.add('no_read_type')
                 else:
-                    n_no_read_type += 1
+                    n_no_read_type += discard_count
+                discard_count = 0
 
             # apply read filtering on R1/R2 consistency
             if consistent == -1:
                 # R1 and R2 barcodes do not match
                 if discard_inconsistent_R1_R2:
-                    n_R1_R2_mismatch -= 1
+                    n_R1_R2_mismatch -= discard_count
                     if not f_discard:
                         continue
                     discard_reasons.add('R1_R2_mismatch')
                 else:
-                    n_R1_R2_mismatch += 1
+                    n_R1_R2_mismatch += discard_count
+                discard_count = 0
 
             # process SAM tags, in ascending order of precedence:
             # 1. from read name
@@ -630,23 +633,25 @@ def convert_reads(
             if 'RX' in final_SAM_tags:
                 if 'N' in final_SAM_tags['RX'][1]:
                     if discard_UMI_N:
-                        n_UMI_N -= 1
+                        n_UMI_N -= discard_count
                         if not f_discard:
                             continue
                         discard_reasons.add('UMI_N')
                     else:
-                        n_UMI_N += 1
+                        n_UMI_N += discard_count
+                    discard_count = 0
                 else:
                     all_UMIs = final_SAM_tags['RX'][1].split('-')
                     if len(all_UMIs) > 1 and len(set(all_UMIs)) != 1:
                         # multiple UMIs extracted and do not match
                         if discard_UMI_mismatch:
-                            n_UMI_mismatch -= 1
+                            n_UMI_mismatch -= discard_count
                             if not f_discard:
                                 continue
                             discard_reasons.add('UMI_mismatch')
                         else:
-                            n_UMI_mismatch += 1
+                            n_UMI_mismatch += discard_count
+                        discard_count = 0
 
             # create/modify read object
             if read is None:
@@ -683,7 +688,7 @@ def convert_reads(
                 n_written += 1
         n_total += 1
 
-    n_discard = sum([x for x in (n_UMI_mismatch, n_no_read_type, n_R1_R2_mismatch) if x is not None and x < 0])
+    n_discard = sum([x for x in (n_UMI_mismatch, n_UMI_N, n_no_read_type, n_R1_R2_mismatch) if x is not None and x < 0])
     assert n_total + n_discard == n_written, "Error: Read counts do not add up."
 
     counts = {

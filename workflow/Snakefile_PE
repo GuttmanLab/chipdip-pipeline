@@ -1014,7 +1014,7 @@ rule assign_label:
     shell:
         '''
         {{
-            samtools merge -@ {threads} -t CB -u -o - {input.dpm} {input.bpm} |
+            samtools merge -@ {threads} -t CB -n -u -o - {input.dpm} {input.bpm} |
             python "{assign_label}" \\
                 "{params.barcode_config}" --config_type splitcode \\
                 -o "{output.bam}" \\
