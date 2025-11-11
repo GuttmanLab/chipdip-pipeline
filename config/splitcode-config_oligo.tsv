@@ -4,10 +4,10 @@
 # - R2: NYStgBot + Odd + OddBot3 + Even + EvenBot2 + Odd + OddBot2 + Even + EvenBot1 + Odd + OddBot1 + Even + UMI + oligo								
 # Notes								
 # - A read length of 156 nt is required to span (assuming no indels) the entire structure shown above (aka "DNA insert") between the Illumina sequencing primers.								
-# - This config as-is assumes read lengths of >= 156 nt from each orientation; delete groups as appropriate for shorter read lengths.								
+# - This config as-is assumes read lengths of >= 65 x >= 156 nt.								
 # - The last nucleotide was dropped from each OddBot1 tag so that the detected tag (which allows for a Levenshtein distance of 1) does not eat into the subsequent Even tag.								
 # - The antibody ID tag group in Read 1 is named "oligo_rc" because Read 1 contains the reverse complement sequence of the antibody ID, relative to the 5'-3' orientation of the antibody ID in the single-stranded oligo.								
-# - The oligo tags are named BEAD_<target>_<antibody>.								
+# - The oligo tags are named BEAD_<target>_<antibody>. Only the first 2 oligo tags are used, corresponding to the example ChIP-DIP dataset.								
 # - The edit distances here are appropriate if all 96 tags are used in each round; more flexible edit distances may be allowed if only a subset of tags are used in each round.								
 # - Output sequences should be empty strings due to the trimming specified by the 'right' column.								
 # Splitcode command: splitcode -c config.tsv --nFastqs=2 --assign --no-outb --no-x-out --mapping=/dev/null --x-names --mod-names --output=out1.fasta.gz,out2.fasta.gz R1.fastq.gz R2.fastq.gz								
@@ -16,7 +16,7 @@
 # - use --x-names to add UMI as a SAM tag: RX:Z:<read 1 UMI, reverse-complemented>-<read 2 UMI>; any differences between <read 1 UMI, reverse-complemented> and <read 2 UMI> reflect sequencing errors.								
 # - optional arguments: --summary=summary.txt --out-fasta								
 # - expected read name structure: @read::[BEAD_*][O#][E#][Y#][O#][E#][O#][E#][O#][BEAD_*]								
-@extract {{oligo_rc}}<~umi[8]>{LigEven}								
+@extract {{oligo_rc}}<~umi[8]>{LigEven},{Even}<umi2[8]>{{oligo}}								
 group	id	tag	distance	location	minFindsG	previous	exclude	right
 oligo_rc	BEAD_AB1-A1	GGAACAGTT	1:0:1	0:0:9	1	-	-	1
 oligo_rc	BEAD_AB2-A2	CGCCGAATT	1:0:1	0:0:9	1	-	-	1
