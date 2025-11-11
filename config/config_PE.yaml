@@ -10,14 +10,12 @@ email: ""
 # (Required) Path to samples JSON file, e.g., as produced with the fastq2json.py script
 samples: "config/samples_PE.json"
 
-# (Required) Either "splitcode" or "barcodeID"
-config_type: "splitcode"
-
-# (Required if barcode_type is "splitcode") Path to splitcode config files
+# (Required for paired-end pipeline) Path to splitcode config files
 splitcode-configs:
     split-bpm-dpm: "config/splitcode-config_split-bpm-dpm.tsv"
     oligo: "config/splitcode-config_oligo.tsv"
     chromatin: "config/splitcode-config_chromatin.tsv"
+# Number of tags expected in R1, Number of tags expected in R2, and Number of tags expected in both read orientations
 num_tags_oligo: [3, 7, 3]
 num_tags_chromatin: [1, 7, 1]
 
@@ -29,14 +27,6 @@ output_dir: "results"
 
 # Temporary directory
 temp_dir: "/tmp"
-
-# (Required) Whether to perform paired-end alignment (true) or single-end (R1) alignment (false)
-# - paired-end alignment is only relevant if the R2 read length is significantly longer than the barcode length
-paired_reads: True
-
-# Whether to check that the same DPM tag was detected on both ends of the DNA insert.
-# - if True, then read pairs with inconsistent DPM tags will not be used for alignment
-filter_consistent_dpm: True
 
 # Conda environment: either a path to a conda environment YAML file ("*.yml" or "*.yaml")
 # or the name of an existing conda environment.

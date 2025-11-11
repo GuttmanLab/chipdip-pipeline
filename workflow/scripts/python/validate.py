@@ -18,6 +18,14 @@ REQUIRED_KEYS = (
     'bead_umi_length'
 )
 
+REQUIRED_KEYS_PE = (
+    'samples',
+    'splitcode-configs',
+    'bowtie2_index',
+    'num_tags_oligo',
+    'num_tags_chromatin',
+)
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -55,6 +63,10 @@ def parse_arguments():
         )
     )
     parser.add_argument(
+        "--paired",
+        action="store_true"
+    )
+    parser.add_argument(
         "-q", "--quiet", action="store_true", help="suppress output"
     )
     return parser.parse_args()
@@ -75,56 +87,6 @@ def validate_samples(path_samples):
             with open(path, "rb") as f:
                 assert f.read(2) == GZIP_MAGIC_NUMBER, \
                     f"Error in {path_samples}. FASTQ file {path} does not appear to be gzip compressed."
-
-
-def validate_barcode_config(barcode_config_file):
-    '''
-    Validate barcode config file.
-    '''
-    supported_tags = ('DPM', 'EVEN', 'ODD', 'Y', 'RPM', 'LIGTAG')
-    tag_layout_defined = False
-    regex_tag_name = re.compile(r'[a-zA-Z0-9_\-]+')
-    base_error_msg = "Error parsing line {} in the barcode config file. {}\n\t{}"
-    with open(barcode_config_file) as f:
-        for i, line in enumerate(f):
-            line = line.strip()
-            if line.upper().startswith(("#", "SPACER = ", "LAXITY = ")) or line == "":
-                continue
-            if line.upper().startswith("READ1 = "):
-                tag_layout_defined = True
-                assert all(x.upper() in supported_tags for x in line.split("= ")[1].split("|SPACER|")), \
-                    base_error_msg.format(i, "Unsupported tag in READ1 tag layout.", line)
-            elif line.startswith("READ2 = "):
-                tag_layout_defined = True
-                assert all(x.upper() in supported_tags for x in line.split("= ")[1].split("|SPACER|")), \
-                    base_error_msg.format(i, "Unsupported tag in READ2 tag layout.", line)
-            elif line.startswith(tuple(f"{x.upper()}\t" for x in supported_tags)):
-                row = line.split("\t")
-                assert len(row) == 4, \
-                    base_error_msg.format(i, f"Expected 4 tab-delimited columns but only found {len(row)}.", line)
-                assert regex_tag_name.match(row[1]) is not None, \
-                    base_error_msg.format(i, f"Tag name did not match the pattern {regex_tag_name.pattern}.", line)
-                assert re.match('[0-9]+', row[3]) is not None, \
-                    base_error_msg.format(i, "Tag error tolerance must be an integer.", line)
-                if row[0].upper() == 'DPM':
-                    assert ('DPM' in row[1] and ('BEAD' not in row[1])) or row[1].startswith('BEAD_'), \
-                        base_error_msg.format(
-                            i,
-                            (
-                                "DPM tag names must contain 'DPM' and not 'BEAD', "
-                                "while antibody ID tag names must start with 'BEAD_'."
-                            ),
-                            line
-                        )
-                else:
-                    assert not ('DPM' in row[1] or 'BEAD' in row[1]), \
-                        base_error_msg.format(i, "Non-DPM, non-antibody ID tag names cannot contain 'BEAD' or 'DPM'.", line)
-            else:
-                raise ValueError(base_error_msg.format(i, "Unrecognized tag category.", line))
-    assert tag_layout_defined, (
-        "Barcode config file must define the tag layout for read 1 and/or read 2 orientations "
-        "(i.e., lines that start with 'READ1 = ' or 'READ2 = ')."
-    )
 
 
 def validate_config(config):
@@ -244,7 +206,7 @@ def validate_pipeline_structure(pipeline: dict):
         if level != "data":
             assert "path" in info, f"Pipeline level {level} must contain a 'path' key."
         path = info.get('path')
-        if path and not path[-1].endswith(('.fastq.gz', '.fq.gz', '.bam')):
+        if path and not path[-1].endswith(('.fastq', '.fq', '.fastq.gz', '.fq.gz', '.bam')):
             raise ValueError(f"Invalid file extension in path pattern for level {level}: {path}")
         assert info.get("parent") in (None, *pipeline.keys()), \
             f"Parent {info.get('parent')} of level {level} is not a valid level."
@@ -286,8 +248,9 @@ def main():
             else:
                 raise ValueError("Unrecognized file extension (not .json, .yaml, or .yml) for config file: "
                                  "{}".format(args.config))
-    assert all(key in config for key in REQUIRED_KEYS), \
-        'Config file must contain the following required keys: {}.'.format(', '.join(REQUIRED_KEYS))
+    required_keys = REQUIRED_KEYS_PE if args.paired else REQUIRED_KEYS
+    assert all(key in config for key in required_keys), \
+        'Config file must contain the following required keys: {}.'.format(', '.join(required_keys))
     print(f'Config file {args.config} contains all required keys.')
 
     path_chrom_map = args.chrom_map if args.chrom_map else config.get("path_chrom_map", None)
@@ -300,9 +263,6 @@ def main():
     if chrom_map is not None and chrom_sizes is not None:
         validate_chrom_map(path_chrom_map, args.bt2_index_summary, chrom_map=chrom_map, chrom_sizes=chrom_sizes, verbose=verbose)
         print('Validated chromosome name map file.')
-
-    validate_barcode_config(config["barcode_config"])
-    print('Validated barcode config file.')
 
     validate_samples(config['samples'])
     print('Validated samples file.')

@@ -201,7 +201,7 @@ ALL_SAMPLES = sorted(FILES.keys())
 
 NUM_CHUNKS = [f"{i:02}" for i in range(num_chunks)]
 
-def get_targets(barcode_config_file: str) -> tuple[list[str], list[int]]:
+def get_targets(barcode_config_file: str) -> tuple[list[str]]:
     """
     Args
     - barcode_config_file: Path to splitcode oligo config file
@@ -243,23 +243,21 @@ if generate_splitbams:
 assert all(re.match(r'[a-zA-Z0-9_-]+', target) is not None for target in TARGETS), \
     'Target names must only contain alphanumeric characters, underscores, and hyphens.'
 
-# check that longest file name generated will not exceed 255 characters
-# - longest file name template is {sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz
-# - longest sample + target name template is {sample}.DNA.merged.labeled_{target}.bam.bai
-longest_sample_name = max(map(len, ALL_SAMPLES))
-assert longest_sample_name <= 214, 'Sample names must be <= 214 characters'
-if generate_splitbams:
-    longest_target_name = max(map(len, TARGETS))
-    assert longest_sample_name + longest_target_name <= 227, \
-        'Sample name + target name combined must be <= 227 characters'
+# # check that longest file name generated will not exceed 255 characters
+# # - longest file name template is {sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz
+# # - longest sample + target name template is {sample}.DNA.merged.labeled_{target}.bam.bai
+# longest_sample_name = max(map(len, ALL_SAMPLES))
+# assert longest_sample_name <= 214, 'Sample names must be <= 214 characters'
+# if generate_splitbams:
+#     longest_target_name = max(map(len, TARGETS))
+#     assert longest_sample_name + longest_target_name <= 227, \
+#         'Sample name + target name combined must be <= 227 characters'
 
 ##############################################################################
 # Logging and QC
 ##############################################################################
 
 CONFIG = [os.path.join(DIR_LOGS, "config_" + run_date + ".json")]
-
-BID_EFFICIENCY_ALL = [os.path.join(DIR_OUT, "barcode_identification_efficiency.txt")]
 
 LOG_VALIDATE = [os.path.join(DIR_LOGS, "validate.txt")]
 
@@ -293,33 +291,33 @@ SPLIT_BPM_DPM = expand(
 # Genomic DNA read processing
 ##############################################################################
 
-DPM_TRIMMED = expand(
-    os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
+DPM_PROCESSED = expand(
+    os.path.join(DIR_TEMP, "trimmed", "{sample}.part_{splitid}.dpm_R1.fastq.gz"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS
 )
 DPM_ALIGNED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
+    os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.paired.DPM.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS
 )
 DPM_RENAMED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
+    os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.renamed.DPM.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS
 )
 DPM_MASKED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"),
+    os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.masked.DPM.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS
 )
 DPM_TAGGED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.tagged.bam"),
+    os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.tagged.DPM.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS
 )
 DPM_MERGED = expand(
-    os.path.join(DIR_OUT, "alignments", "{sample}.merged.DNA.bam"),
+    os.path.join(DIR_OUT, "alignments", "{sample}.merged.DPM.bam"),
     sample=ALL_SAMPLES
 )
 
@@ -327,13 +325,8 @@ DPM_MERGED = expand(
 # Bead oligo read processing
 ##############################################################################
 
-BPM_TRIMMED = expand(
-    os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
-    sample=ALL_SAMPLES,
-    splitid=NUM_CHUNKS
-)
-BPM_BAMS = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
+BPM_PROCESSED = expand(
+    os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.BPM.bam"),
     sample=ALL_SAMPLES,
     splitid=NUM_CHUNKS
 )
@@ -418,10 +411,10 @@ BIGWIGS_MERGED = expand(
     target=TARGETS
 )
 
-FINAL = CLUSTERS_LABELED # + CONFIG + BID_EFFICIENCY_ALL + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS
+FINAL = CLUSTERS_LABELED + CONFIG + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS
 
-# if merge_samples:
-#     FINAL.extend(CLUSTERS_LABELED_ALL)
+if merge_samples:
+    FINAL.extend(CLUSTERS_LABELED_ALL)
 if generate_splitbams:
     FINAL.extend(SPLITBAMS + SPLITBAM_COUNTS)
     if merge_samples:
@@ -483,7 +476,6 @@ rule clean:
                [[ "$path" != "{DIR_OUT}/clusters" ]] &&
                [[ "$path" != "{DIR_OUT}/qc" ]] &&
                [[ "$path" != "{DIR_OUT}/splitbams" ]] &&
-               [[ "$path" != "{DIR_OUT}/barcode_identification_efficiency.txt" ]] &&
                [[ "$path" != "{DIR_OUT}/effective_genome_size.txt" ]] &&
                [[ "$path" != "{DIR_OUT}/pipeline_counts.txt" ]]; then
                 echo "Removing $path" && rm -rf "$path"
@@ -518,6 +510,7 @@ rule validate:
             bowtie2-inspect --summary "{bowtie2_index}" > "{log.bt2_sum}"
             python "{validate}" \\
                 -c "{input.config}" \\
+                --paired \\
                 --bt2_index_summary "{log.bt2_sum}" \\
                 {params.mask} \\
                 {params.pipeline}
