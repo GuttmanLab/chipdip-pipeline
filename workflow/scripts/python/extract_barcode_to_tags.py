@@ -189,13 +189,13 @@ def parse_arguments() -> argparse.Namespace:
         "--output_counts",
         metavar="counts.json",
         help=(
-            "Output summary counts JSON file. Keys = total, written, r1_r2_mismatch, no_read_type, umi_mismatch. "
-            "Keys r1_r2_mismatch, no_read_type, umi_mismatch correspond to the number of reads matching the filters "
-            "for --discard_inconsistent_R1_R2, --require_read_type, and (--discard_UMI_N or --discard_UMI_mismatch), "
-            "respectively. r1_r2_mismatch is null if NUM_TAGS_OVERLAP is 0. no_read_type is null if "
-            "--read_type_prefixes is not specified. For these 3 keys, positive values indicate the number of reads "
+            "Output summary counts JSON file. Keys: total, written, R1_R2_mismatch, no_read_type, UMI_N, UMI_mismatch. "
+            "R1_R2_mismatch, no_read_type, UMI_N, and UMI_mismatch correspond to the number of reads matching the "
+            "filters for --discard_inconsistent_R1_R2, --require_read_type, --discard_UMI_N, and "
+            "--discard_UMI_mismatch, respectively. For these 4 keys, positive values indicate the number of reads "
             "written out; negative values indicate discarded reads, such that written = total + sum of negative "
-            "counts. In other words, any discarded read is only counted in one category."
+            "counts. In other words, any discarded read is only counted in one category. R1_R2_mismatch is null if "
+            "NUM_TAGS_OVERLAP is 0. no_read_type is null if --read_type_prefixes is not specified."
         )
     )
 
@@ -511,7 +511,7 @@ def convert_reads(
         mode_out = "wbu"
         threads = 1
 
-    umi_start, umi_end, umi_keep = extract_UMI if extract_UMI is not None else (None, None, None)
+    UMI_start, UMI_end, UMI_keep = extract_UMI if extract_UMI is not None else (None, None, None)
 
     extra_SAM_tags_dict = process_SAM_tags(list(map(process_SAM_tag_str, add_SAM_tags))) if add_SAM_tags else dict()
     if 'N' in extra_SAM_tags_dict.get('RX', (None, ''))[1]:
@@ -523,10 +523,10 @@ def convert_reads(
     # initialize counts variables
     n_total = -1
     n_written = 0
-    n_umi_mismatch = 0
-    n_umi_mismatch = 0
+    n_UMI_N = 0
+    n_UMI_mismatch = 0
     n_no_read_type = 0 if read_type_prefixes is not None else None
-    n_r1_r2_mismatch = 0 if num_tags[2] > 0 else None
+    n_R1_R2_mismatch = 0 if num_tags[2] > 0 else None
 
     with contextlib.ExitStack() as stack:
         f_in = stack.enter_context(open_reads_file(
@@ -552,22 +552,22 @@ def convert_reads(
             quals = None if drop_quals else quals
 
             # extract UMI if requested
-            umi_seq = None
-            umi_qual = None
+            UMI_seq = None
+            UMI_qual = None
             UMI_tags = None
             if extract_UMI is not None:
-                umi_seq = seq[umi_start:umi_end]
-                if not f_discard and discard_UMI_N and 'N' in umi_seq:
-                    n_umi_mismatch -= 1
+                UMI_seq = seq[UMI_start:UMI_end]
+                if not f_discard and discard_UMI_N and 'N' in UMI_seq:
+                    n_UMI_N -= 1
                     continue
-                UMI_tags = [('RX', 'Z', umi_seq)]
+                UMI_tags = [('RX', 'Z', UMI_seq)]
                 if quals is not None:
-                    umi_qual = quals[umi_start:umi_end]
-                    UMI_tags.append(('QX', 'Z', umi_qual))
-                if not umi_keep:
-                    seq = seq[:umi_start] + seq[umi_end:]
+                    UMI_qual = quals[UMI_start:UMI_end]
+                    UMI_tags.append(('QX', 'Z', UMI_qual))
+                if not UMI_keep:
+                    seq = seq[:UMI_start] + seq[UMI_end:]
                     if quals is not None:
-                        quals = quals[:umi_start] + quals[umi_end:]
+                        quals = quals[:UMI_start] + quals[UMI_end:]
 
             # parse read name into components
             match = REGEX_READ_NAME.match(rname)
@@ -609,12 +609,12 @@ def convert_reads(
             if consistent == -1:
                 # R1 and R2 barcodes do not match
                 if discard_inconsistent_R1_R2:
-                    n_r1_r2_mismatch -= 1
+                    n_R1_R2_mismatch -= 1
                     if not f_discard:
                         continue
                     discard_reasons.add('R1_R2_mismatch')
                 else:
-                    n_r1_r2_mismatch += 1
+                    n_R1_R2_mismatch += 1
 
             # process SAM tags, in ascending order of precedence:
             # 1. from read name
@@ -630,23 +630,23 @@ def convert_reads(
             if 'RX' in final_SAM_tags:
                 if 'N' in final_SAM_tags['RX'][1]:
                     if discard_UMI_N:
-                        n_umi_mismatch -= 1
+                        n_UMI_N -= 1
                         if not f_discard:
                             continue
                         discard_reasons.add('UMI_N')
                     else:
-                        n_umi_mismatch += 1
+                        n_UMI_N += 1
                 else:
-                    all_umis = final_SAM_tags['RX'][1].split('-')
-                    if len(all_umis) > 1 and len(set(all_umis)) != len(all_umis):
+                    all_UMIs = final_SAM_tags['RX'][1].split('-')
+                    if len(all_UMIs) > 1 and len(set(all_UMIs)) != 1:
                         # multiple UMIs extracted and do not match
                         if discard_UMI_mismatch:
-                            n_umi_mismatch -= 1
+                            n_UMI_mismatch -= 1
                             if not f_discard:
                                 continue
                             discard_reasons.add('UMI_mismatch')
                         else:
-                            n_umi_mismatch += 1
+                            n_UMI_mismatch += 1
 
             # create/modify read object
             if read is None:
@@ -683,15 +683,16 @@ def convert_reads(
                 n_written += 1
         n_total += 1
 
-    n_discard = sum([x for x in (n_umi_mismatch, n_no_read_type, n_r1_r2_mismatch) if x is not None and x < 0])
+    n_discard = sum([x for x in (n_UMI_mismatch, n_no_read_type, n_R1_R2_mismatch) if x is not None and x < 0])
     assert n_total + n_discard == n_written, "Error: Read counts do not add up."
 
     counts = {
         'total': n_total,
         'written': n_written,
-        'r1_r2_mismatch': n_r1_r2_mismatch,
+        'R1_R2_mismatch': n_R1_R2_mismatch,
         'no_read_type': n_no_read_type,
-        'umi_mismatch': n_umi_mismatch,
+        'UMI_N': n_UMI_N,
+        'UMI_mismatch': n_UMI_mismatch,
     }
     return counts
 
@@ -700,13 +701,13 @@ def main():
     args = parse_arguments()
 
     if args.extract_UMI:
-        umi_parts = args.extract_UMI.split(':')
-        if len(umi_parts) != 3:
+        UMI_parts = args.extract_UMI.split(':')
+        if len(UMI_parts) != 3:
             raise ValueError("Error: Invalid --extract_UMI format. Expected start:stop:#.")
-        umi_start = int(umi_parts[0])
-        umi_end = int(umi_parts[1])
-        umi_keep = bool(int(umi_parts[2]))
-        extract_UMI = (umi_start, umi_end, umi_keep)
+        UMI_start = int(UMI_parts[0])
+        UMI_end = int(UMI_parts[1])
+        UMI_keep = bool(int(UMI_parts[2]))
+        extract_UMI = (UMI_start, UMI_end, UMI_keep)
     else:
         extract_UMI = None
 

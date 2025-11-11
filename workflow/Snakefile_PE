@@ -910,7 +910,8 @@ rule process_bpm:
     output:
         bam = os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
         # fasta = os.path.join(DIR_TEMP, "trimmed", "{sample}.part_{splitid}.BPM.fasta"),
-        # converted = os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.BPM_converted.bam"),
+        # converted = os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.converted.BPM.bam"),
+        discarded = os.path.join(DIR_TEMP, "alignments_parts", "{sample}.part_{splitid}.discarded.BPM.bam"),
         summary = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.summary"),
         counts = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.counts"),
     log:
@@ -937,6 +938,7 @@ rule process_bpm:
 
             # convert to unmapped BAMs
             python "{extract_barcode_to_tags}" \\
+                --discarded "{output.discarded}" \\
                 --input_fmt fasta \\
                 --num_tags {params.num_tags} \\
                 --remove_barcode_from_names \\
