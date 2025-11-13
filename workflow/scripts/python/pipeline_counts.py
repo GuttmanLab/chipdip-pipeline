@@ -34,14 +34,15 @@ def parse_args():
         help="path to samples.json file mapping sample name to mapping from read orientation to list of .fastq.gz files"
     )
     parser.add_argument(
-        "--splitids",
+        "--wildcards",
+        action='append',
         nargs="+",
-        help="split IDs"
+        help="wildcards"
     )
     parser.add_argument(
-        "--targets",
-        nargs="+",
-        help="target names"
+        "--wildcard_names",
+        nargs='+',
+        help="wildcard names corresponding to --wildcards"
     )
     parser.add_argument(
         "--dir_counts",
@@ -55,12 +56,25 @@ def parse_args():
     )
     parser.add_argument(
         "-o", "--out",
-        help="path to save counts as CSV file"
+        help="path to save aggregated counts as CSV file"
+    )
+    parser.add_argument(
+        "--dump",
+        help="path to dump raw counts as CSV file (columns = level, path, count)"
     )
     parser.add_argument(
         "-s", "--sep",
         default="\t",
         help='separator for printing efficiency output'
+    )
+    parser.add_argument(
+        "--counts_per_template",
+        action="store_true",
+        help=(
+            "report counts per template rather than per read (e.g., for paired-end data, count each pair as one "
+            "template). Specifically, use the count_per_template value from the pipeline description file to divide "
+            "read counts. Levels without this field are assumed to have count_per_template = 1."
+        )
     )
     args = parser.parse_args()
     return args
@@ -393,8 +407,9 @@ def collect_pipeline_counts(
     samples: dict[str, dict[str, list[str]]],
     wildcards: dict[str, list[str]],
     DIR_COUNTS: str,
+    count_per_template: bool = False,
     verbose: bool = True,
-) -> Graph:
+) -> tuple[Graph, dict[tuple[str, str], int]]:
     """
     Parse pipeline read file counts into a Graph.
 
@@ -405,6 +420,9 @@ def collect_pipeline_counts(
     - samples: mapping of sample names to mapping from read orientation to list of .fastq.gz files
     - wildcards: mapping of placeholder names to lists of values
     - DIR_COUNTS: directory containing count files
+    - count_per_template: report counts per template rather than per read (e.g., for paired-end data, count each pair
+        as one template). Specifically, use the count_per_template value from the pipeline description file to divide
+        read counts. Levels without this field are assumed to have count_per_template = 1
     - verbose: print status messages to standard error.
 
     Returns
@@ -412,10 +430,12 @@ def collect_pipeline_counts(
     """
     G = Graph()
     formatter = string.Formatter()
+    all_counts = dict() # map from (level, filename) to count
 
     for level, node_info in pipeline.items():
         if verbose:
             print(f"Reading counts from {level}", file=sys.stderr)
+        scale_factor = node_info.get("count_per_template", 1) if count_per_template else 1
         if level == "data":
             for sample, d in samples.items():
                 files_R1 = d["R1"]
@@ -427,7 +447,9 @@ def collect_pipeline_counts(
                         print(f"Warning: count file {path_count} does not exist", file=sys.stderr)
                     else:
                         with open(path_count) as f:
-                            counts[(file_number,)] = int(f.read().strip())
+                            count = int(f.read().strip()) / scale_factor
+                            counts[(file_number,)] = count
+                            all_counts[(level, path_count)] = count
 
                 # construct a node for this sample and level; the constructor automatically adds the node to the graph
                 Node(
@@ -465,7 +487,9 @@ def collect_pipeline_counts(
                         print(f"Warning: count file {path_count} does not exist", file=sys.stderr)
                     else:
                         with open(path_count) as f:
-                            counts[field_combination] = int(f.read().strip())
+                            count = int(f.read().strip()) / scale_factor
+                            counts[field_combination] = count
+                            all_counts[(level, path_count)] = count
 
                 # construct a node for this sample and level; the constructor automatically adds the node to the graph
                 Node(
@@ -478,7 +502,7 @@ def collect_pipeline_counts(
                 )
     G.resolve_bases()
     G.resolve_parents()
-    return G
+    return G, all_counts
 
 
 def main():
@@ -490,17 +514,20 @@ def main():
     with open(args.path_samples) as f:
         samples = json.load(f)
 
-    wildcards = {
-        "splitid": args.splitids,
-        "target": args.targets,
-    }
+    assert len(args.wildcards) == len(args.wildcard_names), \
+        "--wildcards and --wildcard_names must have the same number of entries."
 
-    G = collect_pipeline_counts(
+    wildcards = dict()
+    for i in range(len(args.wildcards)):
+        wildcards[args.wildcard_names[i]] = args.wildcards[i]
+
+    G, all_counts = collect_pipeline_counts(
         pipeline,
         samples,
         wildcards,
         args.dir_counts,
-        args.verbose
+        count_per_template=args.counts_per_template,
+        verbose=args.verbose
     )
     G_merged = G.merge_samples() if len(samples) > 1 else None
 
@@ -513,6 +540,8 @@ def main():
         if G_merged:
             df = pd.concat((df, G_merged.to_df()), axis=0, ignore_index=True)
         df.to_csv(args.out)
+    if args.dump:
+        pd.Series(all_counts, name='count').rename_axis(['level', 'path']).to_csv(args.dump)
 
 
 if __name__ == "__main__":

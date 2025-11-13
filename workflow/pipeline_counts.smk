@@ -47,24 +47,6 @@ def path_to_count_ext(path: str) -> str:
         raise ValueError(f"Unknown file extension for path: {path}")
 
 
-def file_to_count_options(filename: str, pipeline: dict) -> str:
-    """
-    Given a target count file, return any additional options for counting reads from that file.
-
-    Args
-    - filename: count file filename, excluding the .count extension. Must be of the form '{name}[.{wildcard1}.{wildcard2}...]'
-    - pipeline: mapping from level to a structured information (a dictionary) describing that output. Except for the
-        "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
-        for that output.
-
-    Returns
-    - options: additional options for counting reads from the source file
-    """
-    level = filename.split('.')[0]
-    info = pipeline[level]
-    return info.get("count_options", "")
-
-
 def generate_count_files_all(
     pipeline,
     wildcards: dict[str, list[str]],
@@ -122,6 +104,7 @@ def generate_count_files_all(
             path_counts.append(path_count_template.format(**dict(zip(fields, field_combination))))
         path_counts_all[level] = path_counts
     return path_counts_all
+
 
 def count_filename_to_source(
     filename: str,
@@ -202,7 +185,7 @@ rule count_bam:
     conda:
         conda_env
     params:
-        options = lambda w: file_to_count_options(w.file, pipeline_structure)
+        options = lambda w: pipeline_structure[w.file.split('.')[0]].get("count_options", "")
     shell:
         """
         samtools view -c {params.options} "{input}" > "{output}"
@@ -213,7 +196,8 @@ rule pipeline_counts:
         COUNT_FILES_ALL
     output:
         csv = os.path.join(DIR_OUT, "qc", "pipeline_counts.csv"),
-        pretty = os.path.join(DIR_OUT, "pipeline_counts.txt")
+        dump = os.path.join(DIR_OUT, "qc", "pipeline_counts_raw.csv"),
+        pretty = os.path.join(DIR_OUT, "pipeline_counts.txt"),
     log:
         os.path.join(DIR_LOGS, "pipeline_counts.log")
     conda:
@@ -229,10 +213,13 @@ rule pipeline_counts:
         {{
             python {pipeline_counts} \\
                 --path_samples {params.samples:q} \\
-                --splitids {params.splitids:q} \\
-                --targets {params.targets:q} \\
+                --wildcards {params.splitids:q} \\
+                --wildcards {params.targets:q} \\
+                --wildcard_names splitid target \\
                 --dir_counts "{params.dir_counts}" \\
                 --out "{output.csv}" \\
+                --dump "{output.dump}" \\
+                --counts_per_template \\
                 "{params.path_pipeline}" |
             column -t -s $'\\t' > "{output.pretty}"
         }} &> "{log}"
