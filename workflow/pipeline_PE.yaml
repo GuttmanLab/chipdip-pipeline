@@ -2,42 +2,43 @@
 #
 # level: (this is the name displayed in pipeline_counts.txt and referenced by child/parent nodes in this pipeline DAG)
 #   parent (string): level of the parent step
-#   path (list of string): path pattern (relative to output_dir specified in config.yaml) to match the output files of this step
-#     {sample}, {splitid}, {target} are wildcards that will be replaced by actual values
+#   path (list of string): path pattern (relative to output_dir specified in config.yaml) to match the output files of
+#     this step {sample}, {splitid}, {target} are wildcards that will be replaced by actual values
 #   base (string): (optional) base step to compare the output counts against, if different from the parent step
 #   rule (string): (optional) name of the Snakemake rule that produces this step
 #   exclude (mapping): (optional) mapping specifying wildcard values to exclude when counting files for this step
 #   count_options (string): (optional) arguments to pass to the counting script
 #   description (string): (optional) description of this step
+#   count_per_template (int): (optional) number of reads per template represented in the output file (e.g., 2 for
+#     paired-end reads in a BAM file); if not specified, defaults to 1.
 #
 # Count files are expected to be named {level}[.{wildcard1}.{wildcard2}...].{ext}.count where:
 # 1. the wildcards are sorted
 # 2. {ext} is one of:
 #    - fastq-gz: corresponding to a gzip-compressed FASTQ file
 #    - bam: corresponding to a BAM file
+#
+# Tips
+# - Avoid counting temporary files (marked by temp() in the Snakefile); otherwise, if the pipeline runs into an error
+#   and needs to be restarted, the temp() files may need to be regenerated solely for counting purposes.
 
 # Special outputs
 data:
     parent: null
 
 # Pre-processing
-split_fastq:
-    parent: "data"
-    dir: "{DIR_TEMP}"
-    path: ["split_fastq", "{sample}_R1.part_{splitid}.fastq"]
-    rule: "split_fastq"
 bpm:
-    parent: "split_fastq"
+    parent: "data"
     dir: "{DIR_TEMP}"
     path: ["fastqs", "{sample}.part_{splitid}.bpm_R1.fastq.gz"]
     rule: "split_bpm_dpm"
 dpm:
-    parent: "split_fastq"
+    parent: "data"
     dir: "{DIR_TEMP}"
     path: ["fastqs", "{sample}.part_{splitid}.dpm_R1.fastq.gz"]
     rule: "split_bpm_dpm"
 other:
-    parent: "split_fastq"
+    parent: "data"
     dir: "{DIR_TEMP}"
     path: ["fastqs", "{sample}.part_{splitid}.other_R1.fastq.gz"]
     rule: "split_bpm_dpm"
@@ -56,6 +57,7 @@ bowtie2_align:
     dir: "{DIR_TEMP}"
     path: ["alignments_parts", "{sample}.part_{splitid}.paired.DPM.bam"]
     rule: "bowtie2_align"
+    count_per_template: 2
     description: "align DPM reads to reference genome"
 rename_and_filter_chr:
     parent: "bowtie2_align"
@@ -63,6 +65,7 @@ rename_and_filter_chr:
     dir: "{DIR_TEMP}"
     path: ["alignments_parts", "{sample}.part_{splitid}.renamed.DPM.bam"]
     rule: "rename_and_filter_chr"
+    count_per_template: 2
     description: "rename chromosomes to include 'chr' prefix and filter non-canonical chromosomes"
 repeat_mask:
     parent: "rename_and_filter_chr"
@@ -70,6 +73,7 @@ repeat_mask:
     dir: "{DIR_TEMP}"
     path: ["alignments_parts", "{sample}.part_{splitid}.masked.DPM.bam"]
     rule: "repeat_mask"
+    count_per_template: 2
     description: "discard aligned reads overlapping ENCODE blacklist regions"
 extract_barcode_to_tags:
     parent: "repeat_mask"
@@ -77,6 +81,7 @@ extract_barcode_to_tags:
     dir: "{DIR_TEMP}"
     path: ["alignments_parts", "{sample}.part_{splitid}.tagged.DPM.bam"]
     rule: "extract_barcode_to_tags"
+    count_per_template: 2
     description: "extract barcode from read name and add as SAM tag"
 merge_dpm:
     parent: "extract_barcode_to_tags"
@@ -84,6 +89,7 @@ merge_dpm:
     dir: "{DIR_OUT}"
     path: ["alignments", "{sample}.merged.DPM.bam"]
     rule: "merge_dpm"
+    count_per_template: 2
 
 # Oligo processing
 process_bpm:
@@ -107,30 +113,35 @@ splitbams_none:
     dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.none.bam"]
     rule: "sort_splitbams"
+    count_per_template: 2
 splitbams_uncertain:
     parent: "cluster_dpm"
     base: "dpm"
     dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.uncertain.bam"]
     rule: "sort_splitbams"
+    count_per_template: 2
 splitbams_ambiguous:
     parent: "cluster_dpm"
     base: "dpm"
     dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.ambiguous.bam"]
     rule: "sort_splitbams"
+    count_per_template: 2
 splitbams_filtered:
     parent: "cluster_dpm"
     base: "dpm"
     dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.filtered.bam"]
     rule: "sort_splitbams"
+    count_per_template: 2
 splitbams_assigned:
     parent: "cluster_dpm"
     base: "dpm"
     dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.{target}.bam"]
     rule: "sort_splitbams"
+    count_per_template: 2
     exclude:
         target: ["none", "uncertain", "ambiguous", "filtered"]
 cluster_dpm:
@@ -139,6 +150,7 @@ cluster_dpm:
     dir: "{DIR_OUT}"
     path: ["clusters", "{sample}.labeled.bam"]
     rule: "assign_labels"
+    count_per_template: 2
     count_options: "--expr '[RT]=~\"^DPM\"'" # for samtools view
 cluster_bpm:
     parent: "merge_bpm"
@@ -149,7 +161,7 @@ cluster_bpm:
     count_options: "--expr '[RT]=~\"^BEAD\"'" # for samtools view
 
 # Note that the cluster_dpm and cluster_bpm levels share the same output BAM file. There are many possible
-# implementations for distinguishing gDNA (DPM) reads from bead oligo (BPM) reads:
+# implementations for distinguishing genomic DNA (DPM) reads from bead oligo (BPM) reads:
 # 1. Here, we check whether the read type (RT) tag value starts with "DPM" or "BEAD".
 # 2. Alternatively, any mapped read should be a DPM read, while any unmapped read should be a bead oligo (BPM) read.
 # 3. Alternatively, check for the existence of an RG tag (indicating DPM) vs. a YG tag (indicating BPM).
