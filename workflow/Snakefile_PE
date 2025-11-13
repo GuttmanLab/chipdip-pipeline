@@ -1115,6 +1115,7 @@ rule plot_cluster_read_counts:
         python "{plot_cluster_read_counts}" {input:q} \\
             --dpm_read "{output.dpm_read}" \\
             --dpm_cluster "{output.dpm_cluster}" \\
+            --scale_dpm_counts 0.5 \\
             --bpm_read "{output.bpm_read}" \\
             --bpm_cluster "{output.bpm_cluster}" &> "{log}"
         '''
@@ -1340,13 +1341,14 @@ rule generate_bigwigs:
                     fi
 
                     bamCoverage \\
-                    --binSize "{binsize}" \\
-                    --normalizeUsing "{bigwig_normalization}" \\
-                    $effective_genome_size \\
-                    --extendReads \\
-                    -p {threads} \\
-                    --bam "{input.bam}" \\
-                    --outFileName "{output}"
+                        --binSize "{binsize}" \\
+                        --normalizeUsing "{bigwig_normalization}" \\
+                        $effective_genome_size \\
+                        --extendReads \\
+                        --scaleFactor 0.5 \\
+                        -p {threads} \\
+                        --bam "{input.bam}" \\
+                        --outFileName "{output}"
                 fi
             fi
         }} &> "{log}"

@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib
+import matplotlib.figure
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
@@ -13,7 +14,8 @@ matplotlib.use("Agg")
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Plot distributions of reads and clusters by reads per cluster for each read type."
+        description="Plot distributions of reads and clusters by reads per cluster for each read type.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "inputs",
@@ -50,6 +52,20 @@ def parse_arguments():
         "--bpm_cluster",
         metavar="BPM_cluster_distribution.(png|pdf)",
         help="Path to plot of distribution of clusters by number of BPM reads.",
+    )
+    parser.add_argument(
+        '--scale_dpm_counts',
+        type=float,
+        default=1.0,
+        help=(
+            "Factor to multiply DPM read counts. For paired-end datasets, set to 0.5 to count read pairs instead of "
+            "reads."
+        )
+    )
+    parser.add_argument(
+        "--noagg",
+        action="store_true",
+        help="Do not aggregate across samples to plot an 'all' category.",
     )
     parser.add_argument(
         "-c",
@@ -146,7 +162,7 @@ def cluster_distribution_stacked_bar(
     Plot the distribution of clusters or reads by number of reads per cluster.
 
     Args
-    - df: DataFrame with columns "sample", "reads per cluster", and "number of clusters" or "number of reads".
+    - df: DataFrame with columns "sample", "reads per cluster, binned", and "number of clusters" or "number of reads".
         Should already be subsetted for the read type to plot.
     - read_type: The read type to plot (e.g., DPM, BPM).
     - variable: One of "clusters" or "reads" - whether to plot a distribution of clusters or reads.
@@ -161,11 +177,11 @@ def cluster_distribution_stacked_bar(
         .groupby(["sample", "reads per cluster, binned"], observed=False)
         [col_weights].sum()
         .reset_index()
-        # 3 relevant columns: sample, reads per cluster, number of clusters/reads
+        # 3 relevant columns: sample; reads per cluster, binned; number of (clusters|reads)
         .groupby("sample", observed=True)[["reads per cluster, binned", col_weights]]
         .apply(lambda g: g.assign(proportion=g[col_weights] / g[col_weights].sum()))
         .droplevel(1, axis=0)
-        # 3 relevant columns: sample, reads per cluster, proportion
+        # 3 relevant columns: sample; reads per cluster, binned; proportion
         .reset_index()
         .pivot(index="sample", columns="reads per cluster, binned", values="proportion")
     )
@@ -215,29 +231,38 @@ def main():
         df.append(
             pd.read_csv(path, sep="\t", header=0, dtype=dtype)
             .assign(sample=sample)
-            .astype(dict(sample='category'))
         )
-    df = pd.concat(df, axis=0, ignore_index=True)
+    df = pd.concat(df, axis=0, ignore_index=True).astype(dict(sample='category'))
+    # df has columns antibody ID, read type, reads per cluster, number of clusters, sample
 
+    # aggregate over antibody IDs
     df_agg = (
         df.groupby(["sample", "read type", "reads per cluster"], observed=True)
         ["number of clusters"].sum()
         .reset_index()
     )
-    df_agg = pd.concat(
-        (
-            df_agg,
+    if not args.noagg:
+        # generate an additional "all" sample that aggregates across samples
+        df_agg = pd.concat(
             (
-                df_agg
-                .groupby(["read type", "reads per cluster"], observed=True)
-                ["number of clusters"].sum()
-                .reset_index()
-                .assign(sample="all")
-            )
-        ),
-        axis=0,
-        ignore_index=True
-    ).sort_values(["sample", "read type", "reads per cluster"])
+                df_agg,
+                (
+                    df_agg
+                    .groupby(["read type", "reads per cluster"], observed=True)
+                    ["number of clusters"].sum()
+                    .reset_index()
+                    .assign(sample="all")
+                )
+            ),
+            axis=0,
+            ignore_index=True
+        )
+    df_agg.sort_values(["sample", "read type", "reads per cluster"], inplace=True)
+    mask_dpm = df_agg["read type"] == 'DPM'
+    mask_bpm = df_agg["read type"] == 'BPM'
+    if args.scale_dpm_counts != 1:
+        # scale DPM read counts, e.g., to count read pairs instead of reads
+        df_agg.loc[mask_dpm, 'reads per cluster'] *= args.scale_dpm_counts
     df_agg['number of reads'] = df_agg['reads per cluster'] * df_agg['number of clusters']
     df_agg['reads per cluster, binned'] = pd.cut(
         df_agg["reads per cluster"],
@@ -246,8 +271,13 @@ def main():
         include_lowest=True,
         right=True
     )
-    mask_dpm = df_agg["read type"] == 'DPM'
-    mask_bpm = df_agg["read type"] == 'BPM'
+    # df_agg columns:
+    # - sample
+    # - read type
+    # - reads per cluster
+    # - number of clusters
+    # - number of reads
+    # - reads per cluster, binned
 
     if args.dpm_cluster:
         with PdfPages(args.dpm_cluster) as pdf:
