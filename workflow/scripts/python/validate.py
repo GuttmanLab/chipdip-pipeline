@@ -8,6 +8,28 @@ from helpers import parse_chrom_map, GZIP_MAGIC_NUMBER, file_open
 import yaml
 
 
+# Required keys for all modes
+REQUIRED_KEYS_COMMON = (
+    'samples',
+    'bowtie2_index',
+)
+
+# Required keys for BarcodeIdentification.jar mode
+REQUIRED_KEYS_BID = (
+    'barcode_config',
+    'cutadapt_dpm',
+    'cutadapt_oligos',
+    'bead_umi_length'
+)
+
+# Required keys for splitcode mode
+REQUIRED_KEYS_SPLITCODE = (
+    'splitcode-configs',
+    'num_tags_oligo',
+    'num_tags_chromatin',
+)
+
+# Legacy required keys (for backwards compatibility)
 REQUIRED_KEYS = (
     'scripts_dir',
     'samples',
@@ -72,18 +94,26 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def validate_samples(path_samples):
+def validate_samples(path_samples, paired_end=True):
     '''
     Validate samples.json file
+
+    Args:
+    - path_samples: path to samples.json file
+    - paired_end: if True, validate that R2 files are present
     '''
     with open(path_samples) as f:
         files = json.load(f)
     for sample, d in files.items():
         assert '.' not in sample, \
             f"Error in {path_samples}. Sample names are not allowed to contain periods."
-        assert 'R1' in d and 'R2' in d, \
-            f"Error in {path_samples}. Each sample must have read 1 (R1) and read 2 (R2) files."
-        for path in d["R1"] + d["R2"]:
+        assert 'R1' in d, \
+            f"Error in {path_samples}. Each sample must have read 1 (R1) files."
+        if paired_end:
+            assert 'R2' in d and len(d.get('R2', [])) > 0, \
+                f"Error in {path_samples}. Sample '{sample}' is missing R2 files but paired_end=true."
+        all_files = d.get("R1", []) + d.get("R2", [])
+        for path in all_files:
             with open(path, "rb") as f:
                 assert f.read(2) == GZIP_MAGIC_NUMBER, \
                     f"Error in {path_samples}. FASTQ file {path} does not appear to be gzip compressed."
@@ -248,9 +278,25 @@ def main():
             else:
                 raise ValueError("Unrecognized file extension (not .json, .yaml, or .yml) for config file: "
                                  "{}".format(args.config))
-    required_keys = REQUIRED_KEYS_PE if args.paired else REQUIRED_KEYS
-    assert all(key in config for key in required_keys), \
-        'Config file must contain the following required keys: {}.'.format(', '.join(required_keys))
+
+    # Determine mode based on config parameters or legacy --paired flag
+    paired_end = config.get('paired_end', args.paired)
+    barcode_tool = config.get('barcode_tool', 'barcodeidentification').lower()
+
+    # Validate barcode_tool parameter
+    assert barcode_tool in ('barcodeidentification', 'splitcode'), \
+        f"barcode_tool must be 'barcodeidentification' or 'splitcode', got '{barcode_tool}'"
+
+    # Determine required keys based on barcode_tool
+    if barcode_tool == 'barcodeidentification':
+        required_keys = REQUIRED_KEYS_COMMON + REQUIRED_KEYS_BID
+    else:
+        required_keys = REQUIRED_KEYS_COMMON + REQUIRED_KEYS_SPLITCODE
+
+    # Validate required keys
+    missing_keys = [key for key in required_keys if key not in config]
+    assert len(missing_keys) == 0, \
+        f'Config file must contain the following required keys: {", ".join(missing_keys)}'
     print(f'Config file {args.config} contains all required keys.')
 
     path_chrom_map = args.chrom_map if args.chrom_map else config.get("path_chrom_map", None)
@@ -264,8 +310,8 @@ def main():
         validate_chrom_map(path_chrom_map, args.bt2_index_summary, chrom_map=chrom_map, chrom_sizes=chrom_sizes, verbose=verbose)
         print('Validated chromosome name map file.')
 
-    validate_samples(config['samples'])
-    print('Validated samples file.')
+    validate_samples(config['samples'], paired_end=paired_end)
+    print(f'Validated samples file (paired_end={paired_end}, barcode_tool={barcode_tool}).')
 
     if args.mask and (chrom_map is not None or chrom_sizes is not None):
         validate_mask(config["mask"], chrom_map, chrom_sizes)

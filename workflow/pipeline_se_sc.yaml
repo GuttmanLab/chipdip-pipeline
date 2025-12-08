@@ -1,0 +1,122 @@
+# YAML representation of the directed acyclic graph (DAG) of the pipeline structure.
+# For single-end mode with splitcode barcode tool.
+
+# Special outputs
+data:
+    parent: null
+
+# Pre-processing (splitcode)
+compress_fastq:
+    parent: "data"
+    dir: "{DIR_OUT}"
+    path: ["split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"]
+    rule: "compress_fastq"
+bpm:
+    parent: "compress_fastq"
+    dir: "{DIR_OUT}"
+    path: ["trimmed", "{sample}.part_{splitid}.bpm_R1.fastq.gz"]
+    rule: "process_bpm_splitcode"
+dpm:
+    parent: "compress_fastq"
+    dir: "{DIR_OUT}"
+    path: ["trimmed", "{sample}.part_{splitid}.dpm_R1.fastq.gz"]
+    rule: "process_dpm_splitcode"
+
+# DNA processing #
+bowtie2_align:
+    parent: "dpm"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"]
+    rule: "bowtie2_align"
+    description: "align DPM reads to reference genome"
+rename_and_filter_chr:
+    parent: "bowtie2_align"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"]
+    rule: "rename_and_filter_chr"
+    description: "rename chromosomes to include 'chr' prefix and filter non-canonical chromosomes"
+repeat_mask:
+    parent: "rename_and_filter_chr"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"]
+    rule: "repeat_mask"
+    description: "discard aligned reads overlapping ENCODE blacklist regions"
+extract_barcode_to_tags:
+    parent: "repeat_mask"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.tagged.bam"]
+    rule: "extract_barcode_to_tags"
+    description: "extract barcode from read name and add as SAM tag"
+merge_dpm:
+    parent: "extract_barcode_to_tags"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["alignments", "{sample}.merged.DPM.bam"]
+    rule: "merge_dpm"
+
+# Oligo processing (splitcode)
+bpm_fastq_to_bam:
+    parent: "bpm"
+    base: "bpm"
+    dir: "{DIR_OUT}"
+    path: ["alignments_parts", "{sample}.part_{splitid}.BPM.bam"]
+    rule: "bpm_fastq_to_bam"
+merge_bpm:
+    parent: "bpm_fastq_to_bam"
+    base: "bpm"
+    dir: "{DIR_OUT}"
+    path: ["alignments", "{sample}.merged.BPM.bam"]
+    rule: "merge_bpm"
+    description: "merge and deduplicate oligo reads"
+
+# Clustering and splitting
+splitbams_none:
+    parent: "cluster_dpm"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["splitbams", "{sample}.none.bam"]
+    rule: "sort_splitbams"
+splitbams_uncertain:
+    parent: "cluster_dpm"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["splitbams", "{sample}.uncertain.bam"]
+    rule: "sort_splitbams"
+splitbams_ambiguous:
+    parent: "cluster_dpm"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["splitbams", "{sample}.ambiguous.bam"]
+    rule: "sort_splitbams"
+splitbams_filtered:
+    parent: "cluster_dpm"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["splitbams", "{sample}.filtered.bam"]
+    rule: "sort_splitbams"
+splitbams_assigned:
+    parent: "cluster_dpm"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["splitbams", "{sample}.{target}.bam"]
+    rule: "sort_splitbams"
+    exclude:
+        target: ["none", "uncertain", "ambiguous", "filtered"]
+cluster_dpm:
+    parent: "merge_dpm"
+    base: "dpm"
+    dir: "{DIR_OUT}"
+    path: ["clusters", "{sample}.labeled.bam"]
+    rule: "assign_labels"
+    count_options: "--expr '[RT]=~\"^DPM\"'" # for samtools view
+cluster_bpm:
+    parent: "merge_bpm"
+    base: "bpm"
+    dir: "{DIR_OUT}"
+    path: ["clusters", "{sample}.labeled.bam"]
+    rule: "assign_labels"
+    count_options: "--expr '[RT]=~\"^BEAD\"'" # for samtools view

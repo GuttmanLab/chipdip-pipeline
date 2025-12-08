@@ -1,55 +1,47 @@
 # YAML representation of the directed acyclic graph (DAG) of the pipeline structure.
-#
-# level: (this is the name displayed in pipeline_counts.txt and referenced by child/parent nodes in this pipeline DAG)
-#   parent (string): level of the parent step
-#   path (list of string): path pattern (relative to output_dir specified in config.yaml) to match the output files of this step
-#     {sample}, {splitid}, {target} are wildcards that will be replaced by actual values
-#   base (string): (optional) base step to compare the output counts against, if different from the parent step
-#   rule (string): (optional) name of the Snakemake rule that produces this step
-#   exclude (mapping): (optional) mapping specifying wildcard values to exclude when counting files for this step
-#   count_options (string): (optional) arguments to pass to the counting script
-#   description (string): (optional) description of this step
-#
-# Count files are expected to be named {level}[.{wildcard1}.{wildcard2}...].{ext}.count where:
-# 1. the wildcards are sorted
-# 2. {ext} is one of:
-#    - fastq-gz: corresponding to a gzip-compressed FASTQ file
-#    - bam: corresponding to a BAM file
+# For single-end mode with BarcodeIdentification.jar barcode tool.
 
 # Special outputs
 data:
     parent: null
 
-# Pre-processing
+# Pre-processing (BarcodeIdentification.jar)
 compress_fastq:
     parent: "data"
+    dir: "{DIR_OUT}"
     path: ["split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"]
     rule: "compress_fastq"
 adaptor_trimming:
     parent: "compress_fastq"
-    path: ["trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"]
+    dir: "{DIR_OUT}"
+    path: ["trimmed", "{sample}_R1.part_{splitid}_trimmed.fq.gz"]
     rule: "adaptor_trimming"
 barcode_id:
     parent: "adaptor_trimming"
+    dir: "{DIR_OUT}"
     path: ["fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz"]
     rule: "barcode_id"
-    description: "barcode idenfication - should not discard any reads; barcode gets appended to read name"
+    description: "barcode identification - should not discard any reads; barcode gets appended to read name"
 short:
     parent: "barcode_id"
+    dir: "{DIR_OUT}"
     path: ["fastqs", "{sample}_R1.part_{splitid}.barcoded_short.fastq.gz"]
     rule: "split_bpm_dpm"
     description: "any barcode position is [NOT_FOUND]"
 other:
     parent: "barcode_id"
+    dir: "{DIR_OUT}"
     path: ["fastqs", "{sample}_R1.part_{splitid}.barcoded_other.fastq.gz"]
     rule: "split_bpm_dpm"
     description: "incorrect barcode order"
 bpm:
     parent: "barcode_id"
+    dir: "{DIR_OUT}"
     path: ["fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"]
     rule: "split_bpm_dpm"
 dpm:
     parent: "barcode_id"
+    dir: "{DIR_OUT}"
     path: ["fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz"]
     rule: "split_bpm_dpm"
 
@@ -57,36 +49,42 @@ dpm:
 cutadapt_dpm:
     parent: "dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"]
     rule: "cutadapt_dpm"
     description: "remove DPM sequence from read1 of DPM reads"
 bowtie2_align:
     parent: "cutadapt_dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"]
     rule: "bowtie2_align"
     description: "align DPM reads to reference genome"
 rename_and_filter_chr:
     parent: "bowtie2_align"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"]
     rule: "rename_and_filter_chr"
     description: "rename chromosomes to include 'chr' prefix and filter non-canonical chromosomes"
 repeat_mask:
     parent: "rename_and_filter_chr"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"]
     rule: "repeat_mask"
     description: "discard aligned reads overlapping ENCODE blacklist regions"
 extract_barcode_to_tags:
     parent: "repeat_mask"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.tagged.bam"]
     rule: "extract_barcode_to_tags"
     description: "extract barcode from read name and add as SAM tag"
 merge_dpm:
     parent: "extract_barcode_to_tags"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["alignments", "{sample}.merged.DPM.bam"]
     rule: "merge_dpm"
 
@@ -94,16 +92,19 @@ merge_dpm:
 cutadapt_oligo:
     parent: "bpm"
     base: "bpm"
+    dir: "{DIR_OUT}"
     path: ["trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"]
     rule: "cutadapt_oligo"
 bpm_fastq_to_bam:
     parent: "cutadapt_oligo"
     base: "bpm"
+    dir: "{DIR_OUT}"
     path: ["alignments_parts", "{sample}.part_{splitid}.BPM.bam"]
     rule: "bpm_fastq_to_bam"
 merge_bpm:
     parent: "bpm_fastq_to_bam"
     base: "bpm"
+    dir: "{DIR_OUT}"
     path: ["alignments", "{sample}.merged.BPM.bam"]
     rule: "merge_bpm"
     description: "merge and deduplicate oligo reads"
@@ -112,26 +113,31 @@ merge_bpm:
 splitbams_none:
     parent: "cluster_dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.none.bam"]
     rule: "sort_splitbams"
 splitbams_uncertain:
     parent: "cluster_dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.uncertain.bam"]
     rule: "sort_splitbams"
 splitbams_ambiguous:
     parent: "cluster_dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.ambiguous.bam"]
     rule: "sort_splitbams"
 splitbams_filtered:
     parent: "cluster_dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.filtered.bam"]
     rule: "sort_splitbams"
 splitbams_assigned:
     parent: "cluster_dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["splitbams", "{sample}.{target}.bam"]
     rule: "sort_splitbams"
     exclude:
@@ -139,19 +145,14 @@ splitbams_assigned:
 cluster_dpm:
     parent: "merge_dpm"
     base: "dpm"
+    dir: "{DIR_OUT}"
     path: ["clusters", "{sample}.labeled.bam"]
     rule: "assign_labels"
     count_options: "--expr '[RT]=~\"^DPM\"'" # for samtools view
 cluster_bpm:
     parent: "merge_bpm"
     base: "bpm"
+    dir: "{DIR_OUT}"
     path: ["clusters", "{sample}.labeled.bam"]
     rule: "assign_labels"
     count_options: "--expr '[RT]=~\"^BEAD\"'" # for samtools view
-
-# Note that the cluster_dpm and cluster_bpm levels share the same output BAM file. There are many possible
-# implementations for distinguishing gDNA (DPM) reads from bead oligo (BPM) reads:
-# 1. Here, we check whether the read type (RT) tag value starts with "DPM" or "BEAD".
-# 2. Alternatively, any mapped read should be a DPM read, while any unmapped read should be a bead oligo (BPM) read.
-# 3. Alternatively, check for the existence of an RG tag (indicating DPM) vs. a YG tag (indicating BPM).
-# 4. Alternatively, check for the existence of an RX tag (indicating BPM).

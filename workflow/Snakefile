@@ -38,15 +38,29 @@ run_date = v.strftime("%Y.%m.%d")
 configfile: "config/config.yaml"
 
 ##############################################################################
-# Load required settings
+# Load mode configuration
 ##############################################################################
 
-barcode_config = config.get("barcode_config")
-if barcode_config not in (None, ""):
-    print("Using barcode config:", barcode_config, file=sys.stderr)
+# Sequencing mode: single-end vs paired-end
+# Handle both boolean and string values (command-line config passes strings)
+_paired_end_raw = config.get("paired_end", False)
+if isinstance(_paired_end_raw, bool):
+    paired_end = _paired_end_raw
+elif isinstance(_paired_end_raw, str):
+    paired_end = _paired_end_raw.lower() in ("true", "yes", "1")
 else:
-    print("Missing barcode config (barcode_config) in config.yaml", file=sys.stderr)
-    sys.exit()
+    paired_end = bool(_paired_end_raw)
+print(f"Pipeline mode: {'Paired-end' if paired_end else 'Single-end'}", file=sys.stderr)
+
+# Barcode identification tool
+barcode_tool = config.get("barcode_tool", "barcodeidentification").lower()
+assert barcode_tool in ("barcodeidentification", "splitcode"), \
+    f"barcode_tool must be 'barcodeidentification' or 'splitcode', got '{barcode_tool}'"
+print(f"Barcode tool: {barcode_tool}", file=sys.stderr)
+
+##############################################################################
+# Load required settings
+##############################################################################
 
 samples = config.get("samples")
 if samples not in (None, ""):
@@ -60,7 +74,90 @@ if DIR_SCRIPTS is None:
     print("Scripts directory (scripts_dir) not specificed in config.yaml", file=sys.stderr)
     sys.exit()
 
-def get_num_tags(path_config):
+bowtie2_index = config.get("bowtie2_index")
+if bowtie2_index is None:
+    print("Bowtie 2 index not specified in config.yaml", file=sys.stderr)
+    sys.exit()
+
+# Paired-end specific: max insert size for bowtie2
+bowtie2_max_insert_size = config.get("bowtie2_max_insert_size", 2500)
+
+##############################################################################
+# Load barcode tool-specific settings
+##############################################################################
+
+# BarcodeIdentification.jar settings
+barcode_config = None
+barcode_format = None
+adapters = None
+oligos = None
+bead_umi_length = None
+
+# splitcode settings
+splitcode_configs = None
+num_tags_oligo = None
+num_tags_chromatin = None
+
+if barcode_tool == "barcodeidentification":
+    # Load BarcodeIdentification.jar settings
+    barcode_config = config.get("barcode_config")
+    if barcode_config not in (None, ""):
+        print("Using barcode config:", barcode_config, file=sys.stderr)
+    else:
+        print("Missing barcode config (barcode_config) in config.yaml (required for barcodeidentification tool)", file=sys.stderr)
+        sys.exit()
+
+    barcode_format = config.get("barcode_format")
+    if barcode_format not in (None, ""):
+        print("Using barcode format file:", barcode_format, file=sys.stderr)
+    else:
+        print(
+            "(WARNING) Barcode format file not specified. The pipeline will NOT ensure barcodes are valid.",
+            file=sys.stderr
+        )
+
+    if config.get("cutadapt_dpm") in (None, "") or not exists(config["cutadapt_dpm"]):
+        print("DPM adaptor sequences not correctly specified in config.yaml", file=sys.stderr)
+        sys.exit()
+    else:
+        adapters = "-g file:" + config["cutadapt_dpm"]
+        print("Using cutadapt sequence file", adapters, file=sys.stderr)
+
+    if config.get("cutadapt_oligos") in (None, "") or not exists(config["cutadapt_oligos"]):
+        print("Bead oligo sequences not correctly specified in config.yaml", file=sys.stderr)
+        sys.exit()
+    else:
+        oligos = "-g file:" + config["cutadapt_oligos"]
+        print("Using cutadapt oligo sequence file", oligos, file=sys.stderr)
+
+    bead_umi_length = config.get("bead_umi_length")
+    if bead_umi_length is not None:
+        bead_umi_length = int(bead_umi_length)
+        print("Using bead UMI length:", bead_umi_length, file=sys.stderr)
+    else:
+        print("Bead oligo UMI length not specified in config.yaml", file=sys.stderr)
+        sys.exit()
+
+else:  # splitcode
+    # Load splitcode settings
+    splitcode_configs = config.get("splitcode-configs", {})
+    required_configs = ["split-bpm-dpm", "oligo", "chromatin"]
+    missing = [k for k in required_configs if k not in splitcode_configs]
+    if missing:
+        print(f"Missing splitcode config files: {missing} (required for splitcode tool)", file=sys.stderr)
+        sys.exit()
+    print("Using splitcode configs:", splitcode_configs, file=sys.stderr)
+
+    num_tags_oligo = config.get("num_tags_oligo", [3, 7, 3])
+    num_tags_chromatin = config.get("num_tags_chromatin", [1, 7, 1])
+    print(f"num_tags_oligo: {num_tags_oligo}", file=sys.stderr)
+    print(f"num_tags_chromatin: {num_tags_chromatin}", file=sys.stderr)
+
+##############################################################################
+# Helper functions for tag counting and target extraction
+##############################################################################
+
+def get_num_tags_bID(path_config):
     """Parse a BarcodeID config file and return the number of tags (DPM, ODD, EVEN, Y) as an integer."""
     num_tags = 0
     with open(path_config) as f:
@@ -76,39 +173,63 @@ def get_num_tags(path_config):
             n_lines_processed += 1
     return num_tags
 
-try:
-    num_tags = get_num_tags(barcode_config)
-    print("Using", num_tags, "tags", file=sys.stderr)
-except:
-    print("Could not determine number of tags from BarcodeID config file.", file=sys.stderr)
-    sys.exit()
+def get_num_tags_splitcode(num_tags_list):
+    """Return total number of tags from splitcode num_tags list."""
+    # For splitcode, we use the sum of the third element (both orientations) plus additional complexity
+    # The third element represents tags that can appear in both orientations
+    return sum(num_tags_list)
 
-if config.get("cutadapt_dpm") in (None, "") or not exists(config["cutadapt_dpm"]):
-    print("DPM adaptor sequences not correctly specified in config.yaml", file=sys.stderr)
-    sys.exit()
+def get_targets_bID(barcode_config_file):
+    """Extract target names from a BarcodeID config file."""
+    df = pd.read_csv(
+        barcode_config_file,
+        sep="\t",
+        names=["Tag", "Name", "Sequence", "Number"],
+        comment="#",
+        skip_blank_lines=True,
+        on_bad_lines="error",
+    ).dropna()
+    targets = [x.replace("BEAD_", "") for x in df["Name"] if "BEAD_" in x]
+    return list(set(targets))
+
+def get_targets_splitcode(barcode_config_file):
+    """Extract target names from a splitcode config file."""
+    pos = 0
+    with open(barcode_config_file, 'rt') as f:
+        line = f.readline()
+        while line:
+            if line.startswith(('#', '@')) or line.strip() == '':
+                pos = f.tell()
+            else:
+                break
+            line = f.readline()
+        if line == '':
+            print(f"Error: No valid lines found in barcode config file {barcode_config_file}", file=sys.stderr)
+            sys.exit()
+        f.seek(pos)
+        df = pd.read_csv(
+            f,
+            sep="\t",
+            header=0,
+            comment="#",
+            skip_blank_lines=True,
+            on_bad_lines="error",
+        ).rename(columns={'tag': 'tags', 'id': 'ids', 'group': 'groups', 'distance': 'distances', 'location': 'locations', 'sub': 'subs'})
+    targets = [x.replace("BEAD_", "") for x in df["ids"] if "BEAD_" in x]
+    return list(set(targets))
+
+# Get number of tags based on barcode tool
+if barcode_tool == "barcodeidentification":
+    try:
+        num_tags = get_num_tags_bID(barcode_config)
+        print("Using", num_tags, "tags", file=sys.stderr)
+    except:
+        print("Could not determine number of tags from BarcodeID config file.", file=sys.stderr)
+        sys.exit()
 else:
-    adapters = "-g file:" + config["cutadapt_dpm"]
-    print("Using cutadapt sequence file", adapters, file=sys.stderr)
-
-if config.get("cutadapt_oligos") in (None, "") or not exists(config["cutadapt_oligos"]):
-    print("Bead oligo sequences not correctly specified in config.yaml", file=sys.stderr)
-    sys.exit()
-else:
-    oligos = "-g file:" + config["cutadapt_oligos"]
-    print("Using cutadapt sequence file", adapters, file=sys.stderr)
-
-bead_umi_length = config.get("bead_umi_length")
-if bead_umi_length is not None:
-    bead_umi_length = int(bead_umi_length)
-    print("Using bead UMI length:", bead_umi_length, file=sys.stderr)
-else:
-    print("Bead oligo UMI length not specified in config.yaml", file=sys.stderr)
-    sys.exit()
-
-bowtie2_index = config.get("bowtie2_index")
-if bowtie2_index is None:
-    print("Bowtie 2 index not specified in config.yaml", file=sys.stderr)
-    sys.exit()
+    # For splitcode, use chromatin tags as the reference
+    num_tags = get_num_tags_splitcode(num_tags_chromatin)
+    print("Using", num_tags, "tags (splitcode)", file=sys.stderr)
 
 ##############################################################################
 # Load optional settings
@@ -119,15 +240,6 @@ if email not in (None, ""):
     print("If any errors are encountered during the pipeline, an email will be sent to:", email, file=sys.stderr)
 else:
     print("Email (email) not specified in config.yaml. Will not send email on error.", file=sys.stderr)
-
-barcode_format = config.get("barcode_format")
-if barcode_format not in (None, ""):
-    print("Using barcode format file:", barcode_format, file=sys.stderr)
-else:
-    print(
-        "(WARNING) Barcode format file not specified. The pipeline will NOT ensure barcodes are valid.",
-        file=sys.stderr
-    )
 
 DIR_OUT = config.get("output_dir", "results")
 print("Using output directory:", DIR_OUT, file=sys.stderr)
@@ -225,7 +337,15 @@ if binsize and bigwig_normalization == "RPGC":
         )
 
 # Path to pipeline DAG configuration file - used to generate pipeline_counts.txt output
-path_pipeline_structure = workflow.source_path("pipeline.yaml")
+# Select pipeline structure based on both paired_end and barcode_tool
+if paired_end and barcode_tool == "splitcode":
+    path_pipeline_structure = workflow.source_path("pipeline_pe_sc.yaml")
+elif paired_end and barcode_tool == "barcodeidentification":
+    path_pipeline_structure = workflow.source_path("pipeline_pe_bid.yaml")
+elif not paired_end and barcode_tool == "splitcode":
+    path_pipeline_structure = workflow.source_path("pipeline_se_sc.yaml")
+else:  # not paired_end and barcode_tool == "barcodeidentification"
+    path_pipeline_structure = workflow.source_path("pipeline_se_bid.yaml")
 
 ##############################################################################
 # Location of scripts
@@ -234,7 +354,7 @@ path_pipeline_structure = workflow.source_path("pipeline.yaml")
 split_fastq = os.path.join(DIR_SCRIPTS, "bash", "split_fastq.sh")
 barcode_id_jar = os.path.join(DIR_SCRIPTS, "java", "BarcodeIdentification_v1.2.0.jar")
 barcode_identification_efficiency = os.path.join(DIR_SCRIPTS, "python", "barcode_identification_efficiency.py")
-split_bpm_dpm = os.path.join(DIR_SCRIPTS, "python", "split_bpm_dpm.py")
+split_bpm_dpm_script = os.path.join(DIR_SCRIPTS, "python", "split_bpm_dpm.py")
 validate = os.path.join(DIR_SCRIPTS, "python", "validate.py")
 rename_and_filter_chr = os.path.join(DIR_SCRIPTS, "python", "rename_and_filter_chr.py")
 extract_barcode_to_tags = os.path.join(DIR_SCRIPTS, "python", "extract_barcode_to_tags.py")
@@ -245,6 +365,10 @@ plot_cluster_read_counts = os.path.join(DIR_SCRIPTS, "python", "plot_cluster_rea
 plot_cluster_bpm_max_rep = os.path.join(DIR_SCRIPTS, "python", "plot_cluster_bpm_max_rep.py")
 count_unmasked_bases = os.path.join(DIR_SCRIPTS, "python", "count_unmasked_bases.py")
 pipeline_counts = os.path.join(DIR_SCRIPTS, "python", "pipeline_counts.py")
+
+# PE-specific scripts
+remove_unpaired = os.path.join(DIR_SCRIPTS, "python", "remove_unpaired.py")
+collapse_sam_pairs = os.path.join(DIR_SCRIPTS, "python", "collapse_sam_pairs.py")
 
 ##############################################################################
 # Make output directories
@@ -260,20 +384,21 @@ with open(samples) as f:
     FILES = json.load(f)
 ALL_SAMPLES = sorted(FILES.keys())
 
+# Validate that samples.json has R2 entries for paired-end mode
+if paired_end:
+    for sample, files in FILES.items():
+        if "R2" not in files or not files["R2"]:
+            print(f"Error: Sample '{sample}' is missing R2 files but paired_end=true", file=sys.stderr)
+            sys.exit()
+    print("All samples have R2 files for paired-end mode", file=sys.stderr)
+
 NUM_CHUNKS = [f"{i:02}" for i in range(num_chunks)]
 
-def get_targets(barcode_config_file):
-    df = pd.read_csv(
-        barcode_config,
-        sep="\t",
-        names=["Tag", "Name", "Sequence", "Number"],
-        comment="#",
-        skip_blank_lines=True,
-        on_bad_lines="error",
-    ).dropna()
-    targets = [x.replace("BEAD_", "") for x in df["Name"] if "BEAD_" in x]
-    return list(set(targets))
-TARGETS = get_targets(barcode_config)
+# Get targets based on barcode tool
+if barcode_tool == "barcodeidentification":
+    TARGETS = get_targets_bID(barcode_config)
+else:
+    TARGETS = get_targets_splitcode(splitcode_configs["oligo"])
 
 print("Detected the following targets in the barcode config file:", TARGETS, file=sys.stderr)
 if generate_splitbams:
@@ -484,7 +609,10 @@ BIGWIGS_MERGED = expand(
     target=TARGETS
 )
 
-FINAL = CLUSTERS_LABELED + CONFIG + BID_EFFICIENCY_ALL + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS
+# BID_EFFICIENCY_ALL only applies when using BarcodeIdentification.jar
+FINAL = CLUSTERS_LABELED + CONFIG + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS
+if barcode_tool == "barcodeidentification":
+    FINAL.extend(BID_EFFICIENCY_ALL)
 
 if merge_samples:
     FINAL.extend(CLUSTERS_LABELED_ALL)
@@ -511,6 +639,9 @@ if path_pipeline_structure:
 #     SPLITBAMS + SPLITBAM_COUNTS + SPLITBAMS_MERGED + SPLITBAMS_MEGED_INDEXED + \
 #     BIGWIGS + BIGWIGS_MERGED + \
 #     CONFIG + BID_EFFICIENCY_ALL + PIPELINE_COUNTS
+
+# Define DIR_TEMP for pipeline_counts.smk (uses temp_dir from config)
+DIR_TEMP = temp_dir
 
 include: "pipeline_counts.smk"
 
@@ -631,174 +762,436 @@ rule compress_fastq:
         pigz -p {threads} "{input}"
         '''
 
-# Trim adaptors
-rule adaptor_trimming:
-    input:
-        [os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
-         os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")]
-    output:
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.fastq.gz_trimming_report.txt"),
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz"),
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}.fastq.gz_trimming_report.txt")
-    log:
-        os.path.join(DIR_LOGS, "adaptor_trimming.{sample}.{splitid}.log")
-    params:
-        dir = os.path.join(DIR_OUT, "trimmed")
-    conda:
-        conda_env
-    threads:
-        10
-    shell:
-        '''
-        if [[ {threads} -gt 8 ]]; then
-            cores=2
-        else
-            cores=1
-        fi
+# Trim adaptors (only used with BarcodeIdentification.jar)
+# Trim Galore is required before running BarcodeIdentification.jar
+if barcode_tool == "barcodeidentification":
+    if paired_end:
+        # Paired-end mode: process both R1 and R2
+        rule adaptor_trimming:
+            input:
+                r1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
+                r2 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")
+            output:
+                r1_trimmed = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
+                r1_report = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.fastq.gz_trimming_report.txt"),
+                r2_trimmed = os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz"),
+                r2_report = os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}.fastq.gz_trimming_report.txt")
+            log:
+                os.path.join(DIR_LOGS, "adaptor_trimming.{sample}.{splitid}.log")
+            params:
+                dir = os.path.join(DIR_OUT, "trimmed")
+            conda:
+                conda_env
+            threads:
+                10
+            shell:
+                '''
+                if [[ {threads} -gt 8 ]]; then
+                    cores=2
+                else
+                    cores=1
+                fi
 
-        trim_galore \\
-          --paired \\
-          --gzip \\
-          --cores $cores \\
-          --quality 20 \\
-          --fastqc \\
-          -o "{params.dir}" \\
-          {input:q} &> "{log}"
-        '''
+                trim_galore \\
+                  --paired \\
+                  --gzip \\
+                  --cores $cores \\
+                  --quality 20 \\
+                  --fastqc \\
+                  -o "{params.dir}" \\
+                  "{input.r1}" "{input.r2}" &> "{log}"
+                '''
 
-# Identify barcodes using BarcodeIdentification_v1.2.0.jar
-rule barcode_id:
-    input:
-        r1 = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-        r2 = os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")
-    output:
-        r1_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz"),
-        r2_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R2.part_{splitid}.barcoded.fastq.gz")
-    log:
-        os.path.join(DIR_LOGS, "barcode_id.{sample}.{splitid}.log")
-    conda:
-        conda_env
-    shell:
-        '''
-        java -jar "{barcode_id_jar}" \\
-          --input1 "{input.r1}" --input2 "{input.r2}" \\
-          --output1 "{output.r1_barcoded}" --output2 "{output.r2_barcoded}" \\
-          --config "{barcode_config}" &> "{log}"
-        '''
+        # Identify barcodes using BarcodeIdentification_v1.2.0.jar (paired-end)
+        rule barcode_id:
+            input:
+                r1 = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
+                r2 = os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")
+            output:
+                r1_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz"),
+                r2_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R2.part_{splitid}.barcoded.fastq.gz")
+            log:
+                os.path.join(DIR_LOGS, "barcode_id.{sample}.{splitid}.log")
+            conda:
+                conda_env
+            shell:
+                '''
+                java -jar "{barcode_id_jar}" \\
+                  --input1 "{input.r1}" --input2 "{input.r2}" \\
+                  --output1 "{output.r1_barcoded}" --output2 "{output.r2_barcoded}" \\
+                  --config "{barcode_config}" &> "{log}"
+                '''
+    else:
+        # Single-end mode: process only R1
+        rule adaptor_trimming:
+            input:
+                r1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz")
+            output:
+                r1_trimmed = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_trimmed.fq.gz"),
+                r1_report = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.fastq.gz_trimming_report.txt")
+            log:
+                os.path.join(DIR_LOGS, "adaptor_trimming.{sample}.{splitid}.log")
+            params:
+                dir = os.path.join(DIR_OUT, "trimmed")
+            conda:
+                conda_env
+            threads:
+                10
+            shell:
+                '''
+                if [[ {threads} -gt 8 ]]; then
+                    cores=2
+                else
+                    cores=1
+                fi
 
-# Calculate barcode identification efficiency
-rule barcode_identification_efficiency:
-    input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
-    output:
-        temp(os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"))
-    log:
-        os.path.join(DIR_LOGS, "barcode_identification_efficiency.{sample}.{splitid}.log")
-    conda:
-        conda_env
-    shell:
-        '''
-        python "{barcode_identification_efficiency}" "{input}" "{barcode_config}" > "{output}" 2> "{log}"
-        '''
+                trim_galore \\
+                  --gzip \\
+                  --cores $cores \\
+                  --quality 20 \\
+                  --fastqc \\
+                  -o "{params.dir}" \\
+                  "{input.r1}" &> "{log}"
+                '''
 
-rule cat_barcode_identification_efficiency:
-    input:
-        expand(
-            os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"),
-            sample=ALL_SAMPLES,
-            splitid=NUM_CHUNKS)
-    output:
-        BID_EFFICIENCY_ALL
-    shell:
-        '''
-        tail -n +1 {input:q} > "{output}"
-        '''
+        # Identify barcodes using BarcodeIdentification_v1.2.0.jar (single-end)
+        rule barcode_id:
+            input:
+                r1 = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_trimmed.fq.gz")
+            output:
+                r1_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
+            log:
+                os.path.join(DIR_LOGS, "barcode_id.{sample}.{splitid}.log")
+            conda:
+                conda_env
+            shell:
+                '''
+                java -jar "{barcode_id_jar}" \\
+                  --input1 "{input.r1}" \\
+                  --output1 "{output.r1_barcoded}" \\
+                  --config "{barcode_config}" &> "{log}"
+                '''
 
-# Split barcoded reads into BPM and DPM, remove incomplete barcodes
-rule split_bpm_dpm:
-    input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
-    output:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz"),
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_other.fastq.gz"),
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_short.fastq.gz")
-    log:
-        os.path.join(DIR_LOGS, "split_bpm_dpm.{sample}.{splitid}.log")
-    params:
-        format = f"--format '{barcode_format}'" if barcode_format not in (None, "") else ""
-    conda:
-        conda_env
-    shell:
-        '''
-        python "{split_bpm_dpm}" --r1 "{input}" {params.format} &> "{log}"
-        '''
+else:
+    # splitcode path: barcode identification and BPM/DPM splitting handled by splitcode
+    if paired_end:
+        # Paired-end splitcode: split BPM/DPM reads
+        rule split_bpm_dpm_splitcode:
+            input:
+                R1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq"),
+                R2 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq")
+            output:
+                bpm_R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.bpm_R1.fastq.gz"),
+                bpm_R2 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.bpm_R2.fastq.gz"),
+                dpm_R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.dpm_R1.fastq.gz"),
+                dpm_R2 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.dpm_R2.fastq.gz"),
+                other_R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.other_R1.fastq.gz"),
+                other_R2 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.other_R2.fastq.gz"),
+                summary = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.summary.txt")
+            log:
+                os.path.join(DIR_LOGS, "split_bpm_dpm.{sample}.{splitid}.log")
+            params:
+                config = splitcode_configs['split-bpm-dpm'],
+                bpm_prefix = lambda wc, output: output.bpm_R1.replace("_R1.fastq.gz", ""),
+                dpm_prefix = lambda wc, output: output.dpm_R1.replace("_R1.fastq.gz", "")
+            conda:
+                conda_env
+            shell:
+                '''
+                splitcode -c "{params.config}" --nFastqs=2 --gzip --no-output --no-outb \\
+                    --keep=<(echo -e "oligo\\t{params.bpm_prefix}\\nDPM\\t{params.dpm_prefix}\\n") \\
+                    --keep-r1-r2 \\
+                    --unassigned="{output.other_R1}","{output.other_R2}" \\
+                    --summary="{output.summary}" \\
+                    "{input.R1}" "{input.R2}" &> "{log}"
+                '''
+
+        # Process DPM reads with splitcode (PE)
+        rule process_dpm_splitcode:
+            input:
+                R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.dpm_R1.fastq.gz"),
+                R2 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.dpm_R2.fastq.gz")
+            output:
+                R1 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.dpm_R1.fastq.gz"),
+                R2 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.dpm_R2.fastq.gz"),
+                summary = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.dpm.summary.txt")
+            log:
+                os.path.join(DIR_LOGS, "process_dpm.{sample}.{splitid}.log")
+            params:
+                config = splitcode_configs['chromatin']
+            conda:
+                conda_env
+            shell:
+                '''
+                splitcode -c "{params.config}" --nFastqs=2 --assign --mod-names \\
+                    --mapping=/dev/null --summary="{output.summary}" --no-outb \\
+                    --output="{output.R1}","{output.R2}" \\
+                    "{input.R1}" "{input.R2}" &> "{log}"
+                '''
+
+        # Process BPM reads with splitcode (PE)
+        rule process_bpm_splitcode:
+            input:
+                R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.bpm_R1.fastq.gz"),
+                R2 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.bpm_R2.fastq.gz")
+            output:
+                R1 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.bpm_R1.fastq.gz"),
+                R2 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.bpm_R2.fastq.gz"),
+                summary = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.bpm.summary.txt")
+            log:
+                os.path.join(DIR_LOGS, "process_bpm.{sample}.{splitid}.log")
+            params:
+                config = splitcode_configs['oligo']
+            conda:
+                conda_env
+            shell:
+                '''
+                splitcode -c "{params.config}" --nFastqs=2 --assign --mod-names \\
+                    --mapping=/dev/null --summary="{output.summary}" --no-outb \\
+                    --output="{output.R1}","{output.R2}" \\
+                    "{input.R1}" "{input.R2}" &> "{log}"
+                '''
+    else:
+        # Single-end splitcode: split BPM/DPM reads
+        rule split_bpm_dpm_splitcode:
+            input:
+                R1 = os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq")
+            output:
+                bpm_R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.bpm_R1.fastq.gz"),
+                dpm_R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.dpm_R1.fastq.gz"),
+                other_R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.other_R1.fastq.gz"),
+                summary = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.summary.txt")
+            log:
+                os.path.join(DIR_LOGS, "split_bpm_dpm.{sample}.{splitid}.log")
+            params:
+                config = splitcode_configs['split-bpm-dpm'],
+                bpm_prefix = lambda wc, output: output.bpm_R1.replace("_R1.fastq.gz", ""),
+                dpm_prefix = lambda wc, output: output.dpm_R1.replace("_R1.fastq.gz", "")
+            conda:
+                conda_env
+            shell:
+                '''
+                splitcode -c "{params.config}" --nFastqs=1 --gzip --no-output --no-outb \\
+                    --keep=<(echo -e "oligo\\t{params.bpm_prefix}\\nDPM\\t{params.dpm_prefix}\\n") \\
+                    --unassigned="{output.other_R1}" \\
+                    --summary="{output.summary}" \\
+                    "{input.R1}" &> "{log}"
+                '''
+
+        # Process DPM reads with splitcode (SE)
+        rule process_dpm_splitcode:
+            input:
+                R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.dpm_R1.fastq.gz")
+            output:
+                R1 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.dpm_R1.fastq.gz"),
+                summary = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.dpm.summary.txt")
+            log:
+                os.path.join(DIR_LOGS, "process_dpm.{sample}.{splitid}.log")
+            params:
+                config = splitcode_configs['chromatin']
+            conda:
+                conda_env
+            shell:
+                '''
+                splitcode -c "{params.config}" --nFastqs=1 --assign --mod-names \\
+                    --mapping=/dev/null --summary="{output.summary}" --no-outb \\
+                    --output="{output.R1}" \\
+                    "{input.R1}" &> "{log}"
+                '''
+
+        # Process BPM reads with splitcode (SE)
+        rule process_bpm_splitcode:
+            input:
+                R1 = os.path.join(DIR_OUT, "fastqs", "{sample}.part_{splitid}.bpm_R1.fastq.gz")
+            output:
+                R1 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.bpm_R1.fastq.gz"),
+                summary = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.bpm.summary.txt")
+            log:
+                os.path.join(DIR_LOGS, "process_bpm.{sample}.{splitid}.log")
+            params:
+                config = splitcode_configs['oligo']
+            conda:
+                conda_env
+            shell:
+                '''
+                splitcode -c "{params.config}" --nFastqs=1 --assign --mod-names \\
+                    --mapping=/dev/null --summary="{output.summary}" --no-outb \\
+                    --output="{output.R1}" \\
+                    "{input.R1}" &> "{log}"
+                '''
+
+# Rules specific to BarcodeIdentification.jar path
+if barcode_tool == "barcodeidentification":
+    # Calculate barcode identification efficiency (only for BarcodeID)
+    rule barcode_identification_efficiency:
+        input:
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
+        output:
+            temp(os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"))
+        log:
+            os.path.join(DIR_LOGS, "barcode_identification_efficiency.{sample}.{splitid}.log")
+        conda:
+            conda_env
+        shell:
+            '''
+            python "{barcode_identification_efficiency}" "{input}" "{barcode_config}" > "{output}" 2> "{log}"
+            '''
+
+    rule cat_barcode_identification_efficiency:
+        input:
+            expand(
+                os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"),
+                sample=ALL_SAMPLES,
+                splitid=NUM_CHUNKS)
+        output:
+            BID_EFFICIENCY_ALL
+        shell:
+            '''
+            tail -n +1 {input:q} > "{output}"
+            '''
+
+    # Split barcoded reads into BPM and DPM, remove incomplete barcodes (only for BarcodeID)
+    rule split_bpm_dpm:
+        input:
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
+        output:
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz"),
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_other.fastq.gz"),
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_short.fastq.gz")
+        log:
+            os.path.join(DIR_LOGS, "split_bpm_dpm.{sample}.{splitid}.log")
+        params:
+            format = f"--format '{barcode_format}'" if barcode_format not in (None, "") else ""
+        conda:
+            conda_env
+        shell:
+            '''
+            python "{split_bpm_dpm_script}" --r1 "{input}" {params.format} &> "{log}"
+            '''
 
 ##############################################################################
 # Genomic DNA read processing
 ##############################################################################
 
-# Trim DPM from read1 of DPM reads, remove DPM dimer reads
-rule cutadapt_dpm:
-    input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
-    output:
-        fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
-        qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt")
-    log:
-        os.path.join(DIR_LOGS, "cutadapt_dpm.{sample}.{splitid}.log")
-    params:
-        adapters_r1 = "-a GATCGGAAGAG -a ATCAGCACTTA " + adapters,
-        others = "--minimum-length 20"
-    conda:
-        conda_env
-    threads:
-        10
-    shell:
-        '''
-        {{
-            cutadapt \\
-                {params.adapters_r1} \\
-                {params.others} \\
-                -o "{output.fastq}" \\
-                -j {threads} \\
-                "{input}" > "{output.qc}"
+# Helper functions to get correct input paths based on barcode_tool and paired_end
+def get_dpm_r1_for_alignment(wildcards):
+    """Get the R1 DPM FASTQ path for alignment based on barcode_tool."""
+    if barcode_tool == "barcodeidentification":
+        return os.path.join(DIR_OUT, "trimmed", f"{wildcards.sample}_R1.part_{wildcards.splitid}.barcoded_dpm.RDtrim.fastq.gz")
+    else:
+        return os.path.join(DIR_OUT, "trimmed", f"{wildcards.sample}.part_{wildcards.splitid}.dpm_R1.fastq.gz")
 
-            fastqc "{output.fastq}"
-        }} &> "{log}"
-        '''
+def get_dpm_r2_for_alignment(wildcards):
+    """Get the R2 DPM FASTQ path for alignment (PE mode only with splitcode)."""
+    if barcode_tool == "splitcode" and paired_end:
+        return os.path.join(DIR_OUT, "trimmed", f"{wildcards.sample}.part_{wildcards.splitid}.dpm_R2.fastq.gz")
+    return []
 
-# Align DPM reads
-rule bowtie2_align:
-    '''
-    MapQ filter 20, -F 4 only mapped reads, -F 256 remove not primary alignment reads
-    '''
-    input:
-        os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz")
-    output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
-    log:
-        os.path.join(DIR_LOGS, "bowtie2_align.{sample}.{splitid}.log")
-    conda:
-        conda_env
-    threads:
-        10
-    resources:
-        tmpdir=temp_dir
-    shell:
+# Trim DPM from read1 of DPM reads, remove DPM dimer reads (only for BarcodeID path)
+if barcode_tool == "barcodeidentification":
+    rule cutadapt_dpm:
+        input:
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
+        output:
+            fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
+            qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt")
+        log:
+            os.path.join(DIR_LOGS, "cutadapt_dpm.{sample}.{splitid}.log")
+        params:
+            adapters_r1 = "-a GATCGGAAGAG -a ATCAGCACTTA " + adapters,
+            others = "--minimum-length 20"
+        conda:
+            conda_env
+        threads:
+            10
+        shell:
+            '''
+            {{
+                cutadapt \\
+                    {params.adapters_r1} \\
+                    {params.others} \\
+                    -o "{output.fastq}" \\
+                    -j {threads} \\
+                    "{input}" > "{output.qc}"
+
+                fastqc "{output.fastq}"
+            }} &> "{log}"
+            '''
+
+# Align DPM reads - different rules for SE vs PE
+if paired_end:
+    # Paired-end alignment
+    rule bowtie2_align:
         '''
-        {{
-            bowtie2 \\
-                -p {threads} \\
-                -t \\
-                --phred33 \\
-                -x "{bowtie2_index}" \\
-                -U "{input}" |
-            samtools view -b -u -q 20 -F 4 -F 256 - |
-            samtools sort -@ {threads} -T "$TMPDIR" -o "{output}"
-        }} &> "{log}"
+        PE mode: MapQ filter 20, proper pairs only, filter unmapped/secondary
         '''
+        input:
+            r1 = get_dpm_r1_for_alignment,
+            r2 = get_dpm_r2_for_alignment
+        output:
+            bam = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
+            frag_dist = os.path.join(DIR_OUT, "qc", "{sample}.part_{splitid}.fragment_length.txt"),
+            frag_plot = os.path.join(DIR_OUT, "qc", "{sample}.part_{splitid}.fragment_length.pdf")
+        log:
+            os.path.join(DIR_LOGS, "bowtie2_align.{sample}.{splitid}.log")
+        conda:
+            conda_env
+        threads:
+            10
+        resources:
+            tmpdir=temp_dir
+        shell:
+            '''
+            {{
+                bowtie2 \\
+                    -p {threads} \\
+                    -t \\
+                    --phred33 \\
+                    -x "{bowtie2_index}" \\
+                    --maxins {bowtie2_max_insert_size} \\
+                    -1 "{input.r1}" \\
+                    -2 "{input.r2}" |
+                samtools view -u -q 20 -f 3 -F 2828 |
+                samtools collate -f -u -T "$TMPDIR" -O - |
+                python "{remove_unpaired}" \\
+                    --length-dist "{output.frag_dist}" \\
+                    --length-dist-plot "{output.frag_plot}" \\
+                    --threads {threads} \\
+                    --output "{output.bam}"
+            }} &> "{log}"
+            '''
+else:
+    # Single-end alignment
+    rule bowtie2_align:
+        '''
+        SE mode: MapQ filter 20, -F 4 only mapped reads, -F 256 remove not primary alignment reads
+        '''
+        input:
+            get_dpm_r1_for_alignment
+        output:
+            os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
+        log:
+            os.path.join(DIR_LOGS, "bowtie2_align.{sample}.{splitid}.log")
+        conda:
+            conda_env
+        threads:
+            10
+        resources:
+            tmpdir=temp_dir
+        shell:
+            '''
+            {{
+                bowtie2 \\
+                    -p {threads} \\
+                    -t \\
+                    --phred33 \\
+                    -x "{bowtie2_index}" \\
+                    -U "{input}" |
+                samtools view -b -u -q 20 -F 4 -F 256 - |
+                samtools sort -@ {threads} -T "$TMPDIR" -o "{output}"
+            }} &> "{log}"
+            '''
 
 # Rename chromosome names and filter for chromosomes of interest
 rule rename_and_filter_chr:
@@ -877,44 +1270,87 @@ rule merge_mask:
         '''
 
 # Repeat mask aligned DNA reads
-rule repeat_mask:
-    input:
-        bam = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
-        mask = os.path.join(DIR_OUT, "mask_merge.bed"),
-        genome = os.path.join(DIR_OUT, "mask_merge.genome")
-    output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
-    log:
-        os.path.join(DIR_LOGS, "repeat_mask.{sample}.{splitid}.log")
-    conda:
-        conda_env
-    shell:
-        '''
-        {{
-            if [ -n "{mask}" ]; then
-                # -v: only report entries in A that have no overlap in B
-                bedtools intersect \\
-                    -v \\
-                    -a "{input.bam}" \\
-                    -b "{input.mask}" \\
-                    -sorted \\
-                    -g "{input.genome}" > "{output}"
-            else
-                echo "No mask file specified, skipping masking."
+# For paired-end mode, reads are collapsed to a BED-like format before filtering to ensure both
+# reads of a pair are kept or removed together, then decollapsed back to BAM.
+if paired_end:
+    rule repeat_mask:
+        input:
+            bam = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
+            mask = os.path.join(DIR_OUT, "mask_merge.bed"),
+            genome = os.path.join(DIR_OUT, "mask_merge.genome")
+        output:
+            os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
+        log:
+            os.path.join(DIR_LOGS, "repeat_mask.{sample}.{splitid}.log")
+        conda:
+            conda_env
+        threads:
+            4
+        shell:
+            '''
+            {{
+                if [ -n "{mask}" ]; then
+                    # For PE: collapse pairs to BED-like format, filter, then decollapse back to BAM
+                    # Collapse: converts name-collated BAM to a BED-like format where each line = 1 pair
+                    # This ensures both reads of a pair are filtered together
+                    samtools view -h "{input.bam}" |
+                    python "{collapse_sam_pairs}" --chrom_map "{path_chrom_map}" |
+                    bedtools intersect \\
+                        -v \\
+                        -a stdin \\
+                        -b "{input.mask}" \\
+                        -sorted \\
+                        -g "{input.genome}" |
+                    python "{collapse_sam_pairs}" --decollapse --template_bam "{input.bam}" --threads {threads} -o "{output}"
+                else
+                    echo "No mask file specified, skipping masking."
+                    case "{input.bam}" in
+                        /*) path_input="{input.bam}";;
+                        *) path_input="$(pwd -P)"/"{input.bam}";;
+                    esac
+                    ln -s "$path_input" "{output}"
+                fi
+            }} &> "{log}"
+            '''
+else:
+    rule repeat_mask:
+        input:
+            bam = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
+            mask = os.path.join(DIR_OUT, "mask_merge.bed"),
+            genome = os.path.join(DIR_OUT, "mask_merge.genome")
+        output:
+            os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
+        log:
+            os.path.join(DIR_LOGS, "repeat_mask.{sample}.{splitid}.log")
+        conda:
+            conda_env
+        shell:
+            '''
+            {{
+                if [ -n "{mask}" ]; then
+                    # -v: only report entries in A that have no overlap in B
+                    bedtools intersect \\
+                        -v \\
+                        -a "{input.bam}" \\
+                        -b "{input.mask}" \\
+                        -sorted \\
+                        -g "{input.genome}" > "{output}"
+                else
+                    echo "No mask file specified, skipping masking."
 
-                # Create a symbolic link between the output path and the input path,
-                # effectively skipping the masking step.
-                # - The input path needs to be provided either as a relative path
-                #   relative to the output path, or as an absolute path.
-                # - Here, we use an absolute path to the input file.
-                case "{input.bam}" in
-                    /*) path_input="{input.bam}";;
-                    *) path_input="$(pwd -P)"/"{input.bam}";;
-                esac
-                ln -s "$path_input" "{output}"
-            fi
-        }} &> "{log}"
-        '''
+                    # Create a symbolic link between the output path and the input path,
+                    # effectively skipping the masking step.
+                    # - The input path needs to be provided either as a relative path
+                    #   relative to the output path, or as an absolute path.
+                    # - Here, we use an absolute path to the input file.
+                    case "{input.bam}" in
+                        /*) path_input="{input.bam}";;
+                        *) path_input="$(pwd -P)"/"{input.bam}";;
+                    esac
+                    ln -s "$path_input" "{output}"
+                fi
+            }} &> "{log}"
+            '''
 
 # Move barcode from read name to SAM/BAM tags, and sort by barcode.
 rule extract_barcode_to_tags:
@@ -976,57 +1412,86 @@ rule merge_dpm:
 # Bead oligo read processing
 ##############################################################################
 
-# Trim 9mer oligo sequence from read1 of BPM reads
-rule cutadapt_oligo:
-    input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz")
-    output:
-        fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
-        qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.qc.txt")
-    log:
-        os.path.join(DIR_LOGS, "cutadapt_oligo.{sample}.{splitid}.log")
-    params:
-        adapters_r1 = oligos
-    conda:
-        conda_env
-    threads:
-        10
-    shell:
-        '''
-        cutadapt \\
-            {params.adapters_r1} \\
-            -o "{output.fastq}" \\
-            -j {threads} \\
-            "{input}" > "{output.qc}" 2> "{log}"
-        '''
+# BarcodeID mode: Trim 9mer oligo sequence from read1 of BPM reads, then convert to BAM
+if barcode_tool == "barcodeidentification":
+    # Trim 9mer oligo sequence from read1 of BPM reads
+    rule cutadapt_oligo:
+        input:
+            os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz")
+        output:
+            fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
+            qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.qc.txt")
+        log:
+            os.path.join(DIR_LOGS, "cutadapt_oligo.{sample}.{splitid}.log")
+        params:
+            adapters_r1 = oligos
+        conda:
+            conda_env
+        threads:
+            10
+        shell:
+            '''
+            cutadapt \\
+                {params.adapters_r1} \\
+                -o "{output.fastq}" \\
+                -j {threads} \\
+                "{input}" > "{output.qc}" 2> "{log}"
+            '''
 
-# Convert the BPM FASTQ reads into a BAM file, with the barcode and UMI in the tags.
-rule bpm_fastq_to_bam:
-    input:
-        os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")
-    output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
-    log:
-        os.path.join(DIR_LOGS, "bpm_fastq_to_bam.{sample}.{splitid}.log")
-    conda:
-        conda_env
-    threads:
-        4
-    resources:
-        tmpdir=temp_dir
-    shell:
-        '''
-        {{
-            python "{bpm_fastq_to_bam}" "{input}" \\
-                --UMI_len "{bead_umi_length}" \\
-                --num_tags {num_tags} \\
-                --remove_barcode_from_names \\
-                --remove_UMI_from_seq \\
-                --add_sample_to_barcode "{wildcards.sample}" \\
-                -u |
-            samtools sort -@ {threads} -T "$TMPDIR" -t CB -o "{output}"
-        }} &> "{log}"
-        '''
+    # Convert the BPM FASTQ reads into a BAM file, with the barcode and UMI in the tags.
+    rule bpm_fastq_to_bam:
+        input:
+            os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")
+        output:
+            os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
+        log:
+            os.path.join(DIR_LOGS, "bpm_fastq_to_bam.{sample}.{splitid}.log")
+        conda:
+            conda_env
+        threads:
+            4
+        resources:
+            tmpdir=temp_dir
+        shell:
+            '''
+            {{
+                python "{bpm_fastq_to_bam}" "{input}" \\
+                    --UMI_len "{bead_umi_length}" \\
+                    --num_tags {num_tags} \\
+                    --remove_barcode_from_names \\
+                    --remove_UMI_from_seq \\
+                    --add_sample_to_barcode "{wildcards.sample}" \\
+                    -u |
+                samtools sort -@ {threads} -T "$TMPDIR" -t CB -o "{output}"
+            }} &> "{log}"
+            '''
+else:
+    # splitcode mode: Convert the processed BPM FASTQs into a BAM file
+    rule bpm_fastq_to_bam:
+        input:
+            R1 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.bpm_R1.fastq.gz"),
+            R2 = os.path.join(DIR_OUT, "trimmed", "{sample}.part_{splitid}.bpm_R2.fastq.gz") if paired_end else []
+        output:
+            os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
+        log:
+            os.path.join(DIR_LOGS, "bpm_fastq_to_bam.{sample}.{splitid}.log")
+        conda:
+            conda_env
+        threads:
+            4
+        resources:
+            tmpdir=temp_dir
+        shell:
+            '''
+            {{
+                python "{bpm_fastq_to_bam}" "{input.R1}" \\
+                    --num_tags {num_tags} \\
+                    --remove_barcode_from_names \\
+                    --add_sample_to_barcode "{wildcards.sample}" \\
+                    -u |
+                samtools sort -@ {threads} -T "$TMPDIR" -t CB -o "{output}"
+            }} &> "{log}"
+            '''
 
 # Merge and deduplicate oligo reads
 rule merge_bpm:
@@ -1073,6 +1538,9 @@ rule assign_label:
         bpm_max_rep = os.path.join(DIR_OUT, "clusters", "{sample}.stats_bpm_max_rep.tsv.gz"),
     log:
         os.path.join(DIR_LOGS, "assign_label.{sample}.log")
+    params:
+        # Use appropriate config file and type based on barcode_tool
+        barcode_config_arg = f'"{barcode_config}" --config_type bID' if barcode_tool == "barcodeidentification" else f'"{splitcode_configs["oligo"]}" --config_type splitcode'
     conda:
         conda_env
     threads:
@@ -1082,7 +1550,7 @@ rule assign_label:
         {{
             samtools merge -@ {threads} -t CB -u -o - {input.dpm} {input.bpm} |
             python "{assign_label}" \\
-                "{barcode_config}" --config_type bID \\
+                {params.barcode_config_arg} \\
                 -o "{output.bam}" \\
                 --output_reads_per_cluster "{output.reads_per_cluster}" \\
                 --output_bpm_max_rep "{output.bpm_max_rep}" \\
@@ -1174,6 +1642,9 @@ rule plot_cluster_read_counts:
         bpm_cluster = os.path.join(DIR_OUT, "clusters", "BPM_cluster_distribution.pdf")
     log:
         os.path.join(DIR_LOGS, "plot_cluster_read_counts.log")
+    params:
+        # For PE mode, scale DPM counts by 0.5 to count read pairs instead of reads
+        scale_dpm_counts = "--scale_dpm_counts 0.5" if paired_end else ""
     conda:
         conda_env
     shell:
@@ -1182,7 +1653,8 @@ rule plot_cluster_read_counts:
             --dpm_read "{output.dpm_read}" \\
             --dpm_cluster "{output.dpm_cluster}" \\
             --bpm_read "{output.bpm_read}" \\
-            --bpm_cluster "{output.bpm_cluster}" &> "{log}"
+            --bpm_cluster "{output.bpm_cluster}" \\
+            {params.scale_dpm_counts} &> "{log}"
         '''
 
 ##############################################################################
@@ -1372,6 +1844,9 @@ rule generate_bigwigs:
         os.path.join(DIR_OUT, "bigwigs", "{file}.bw")
     log:
         os.path.join(DIR_LOGS, "generate_bigwigs.{file}.log")
+    params:
+        # For PE mode, each fragment is counted twice (once per read), so scale by 0.5
+        scale_factor = "--scaleFactor 0.5" if paired_end else ""
     conda:
         conda_env
     threads:
@@ -1409,6 +1884,7 @@ rule generate_bigwigs:
                     --binSize "{binsize}" \\
                     --normalizeUsing "{bigwig_normalization}" \\
                     $effective_genome_size \\
+                    {params.scale_factor} \\
                     -p {threads} \\
                     --bam "{input.bam}" \\
                     --outFileName "{output}"

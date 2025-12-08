@@ -4,16 +4,63 @@
 # 2. the directory specified by the `workdir:` directive in the Snakefile
 # 3. the directory in which Snakemake is invoked
 
-# Email to which errors will be sent; set to null or "" to skip emails
-email: ""
+# ==============================================================================
+# MODE CONFIGURATION
+# ==============================================================================
 
-# (Required) Path to barcode config file
+# Sequencing mode: single-end vs paired-end
+# - false: Single-end sequencing (only R1 files used)
+# - true: Paired-end sequencing (R1 and R2 files required in samples JSON)
+paired_end: false
+
+# Barcode identification tool
+# - "barcodeidentification": Use BarcodeIdentification.jar (requires Trim Galore preprocessing)
+# - "splitcode": Use splitcode (handles trimming internally)
+barcode_tool: "barcodeidentification"
+
+# ==============================================================================
+# BARCODE CONFIGURATION - BarcodeIdentification.jar
+# (Required when barcode_tool: "barcodeidentification")
+# ==============================================================================
+
+# Path to barcode config file (bID format)
 barcode_config: "config/example_config.txt"
 
 # Path to barcode format file; set to null or "" to skip barcode validation
 barcode_format: "config/example_format.txt"
 
+# Files for cutadapt (used with BarcodeIdentification.jar)
+cutadapt_dpm: "resources/dpm96.fasta"
+cutadapt_oligos: "resources/bpm.fasta"
+
+# Bead oligo UMI length (used with BarcodeIdentification.jar)
+bead_umi_length: 8
+
+# ==============================================================================
+# BARCODE CONFIGURATION - splitcode
+# (Required when barcode_tool: "splitcode")
+# ==============================================================================
+
+# Path to splitcode config files (TSV format)
+splitcode-configs:
+    split-bpm-dpm: "config/splitcode-config_split-bpm-dpm.tsv"
+    oligo: "config/splitcode-config_oligo.tsv"
+    chromatin: "config/splitcode-config_chromatin.tsv"
+
+# Number of tags expected: [R1 tags, R2 tags, both orientations]
+num_tags_oligo: [3, 7, 3]
+num_tags_chromatin: [1, 7, 1]
+
+# ==============================================================================
+# SAMPLES AND PATHS
+# ==============================================================================
+
+# Email to which errors will be sent; set to null or "" to skip emails
+email: ""
+
 # (Required) Path to samples JSON file, e.g., as produced with the fastq2json.py script
+# Format for single-end:  {"sample1": {"R1": ["path/to/r1.fastq.gz"]}}
+# Format for paired-end:  {"sample1": {"R1": ["path/to/r1.fastq.gz"], "R2": ["path/to/r2.fastq.gz"]}}
 samples: "config/example_samples.json"
 
 # (Required) Scripts directory
@@ -31,6 +78,10 @@ temp_dir: "/tmp"
 # - Alternatively, an absolute path can be used.
 conda_env: "envs/chipdip.yaml"
 
+# ==============================================================================
+# ALIGNMENT AND FILTERING
+# ==============================================================================
+
 # Path to chromosome name map file; set to null or "" to skip chromosome renaming and filtering
 path_chrom_map: "config/chrom_map.txt"
 
@@ -44,13 +95,6 @@ deduplication_method: "RT&start&end"
 # Number of chunks to split FASTQ reads into for parallel processing
 num_chunks: 2
 
-# (Required) Files for cutadapt
-cutadapt_dpm: "resources/dpm96.fasta"
-cutadapt_oligos: "resources/bpm.fasta"
-
-# (Required) Bead oligo UMI length
-bead_umi_length: 8
-
 # Mask used for filtering DNA reads
 # e.g., "resources/blacklist_mm10.bed" or "resources/blacklist_hg38.bed"
 # Set to null or "" to skip filtering
@@ -59,6 +103,14 @@ mask: "resources/blacklist_mm10.bed"
 # (Required) Bowtie2 indexes for aligning DNA reads
 # e.g., "resources/index_hg38/GRCh38_noalt_as" or "resources/index_mm10/mm10"
 bowtie2_index: "resources/index_mm10/mm10"
+
+# Maximum insert size for paired-end alignment (bowtie2 --maxins parameter)
+# Only used when paired_end: true
+bowtie2_max_insert_size: 2500
+
+# ==============================================================================
+# OUTPUT OPTIONS
+# ==============================================================================
 
 # Merge cluster files for all samples
 # Merge BAM files and bigWigs for individual targets across samples
