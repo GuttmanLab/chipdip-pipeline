@@ -1,7 +1,9 @@
 # paths specific to this repository
 .snakemake/
+data/*/
+resources/*/
 workup/
-assets/*/
+results/
 
 ### IDE files ###
 *.code-workspace

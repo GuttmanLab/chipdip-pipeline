@@ -1,4 +1,5 @@
-# last updated: 2025-10-30
+# last updated: 2026-01-06
+# Versions of packages newer than upper limits specified may still be compatibile, but they have not been tested
 name: chipdip
 channels:
   - conda-forge
@@ -6,25 +7,24 @@ channels:
 dependencies:
   - bedtools=2.31
   - bowtie2>=2.5.1, <=2.5.4
-  - coreutils>=8.31, <=8.32      # cat, csplit, cut, dirname, echo, ln, mkdir, realpath, sort, split, tail, touch, wc
+  - coreutils>=8.31, <=9.8       # cat, csplit, cut, dirname, echo, ln, mkdir, realpath, sort, split, tail, touch, wc
   - cutadapt>=4.4, <5.0
   - deeptools=3.5.6
   - diffutils=3.10               # diff
   - fastqc=0.12.1
   - gawk=5.1.0                   # awk
-  - grep>=3.6, <=3.11            # grep
-  - matplotlib>=3.8.4, <=3.10.3
-  - multiqc=1.14
-  - numpy>=2.0.2, <=2.3.0
+  - grep>=3.6, <=3.12            # grep
+  - matplotlib>=3.8.4, <3.11
+  - numpy>=2.0.2, <2.5
   - openjdk=8.0.412
-  - pandas>=2.0.3, <=2.3.0
+  - pandas>=2.0.3, <2.4
   - pigz=2.8
   - pysam=0.23.3
-  - python>=3.10, <3.14
+  - python>=3.10, <3.15
   - pyyaml=6.0.2
   - samtools=1.22
   - seaborn=0.13.2
   - sed>=4.7, <=4.8
-  - tqdm=4.65
+  - tqdm>=4.65, <5.0
   - trim-galore=0.6.10
   - util-linux>=2.37.4, <=2.41   # column
