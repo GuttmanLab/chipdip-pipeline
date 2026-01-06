@@ -421,10 +421,7 @@ CLUSTERS_LABELED = expand(
     sample=ALL_SAMPLES
 )
 
-CLUSTERS_LABELED_ALL = expand(
-    os.path.join(DIR_OUT, "clusters", "all.bam"),
-    sample=ALL_SAMPLES
-)
+CLUSTERS_LABELED_ALL = os.path.join(DIR_OUT, "clusters", "all.bam")
 
 CLUSTERS_READS_PER_CLUSTER = expand(
     os.path.join(DIR_OUT, "clusters", "{sample}.stats_reads_per_cluster.tsv.gz"),
@@ -487,7 +484,7 @@ BIGWIGS_MERGED = expand(
 FINAL = CLUSTERS_LABELED + CONFIG + BID_EFFICIENCY_ALL + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS
 
 if merge_samples:
-    FINAL.extend(CLUSTERS_LABELED_ALL)
+    FINAL.append(CLUSTERS_LABELED_ALL)
 if generate_splitbams:
     FINAL.extend(SPLITBAMS + SPLITBAM_COUNTS)
     if merge_samples:
@@ -506,7 +503,7 @@ if path_pipeline_structure:
 #     SPLIT_FASTQ + TRIM + BARCODEID + SPLIT_BPM_DPM + TRIM_RD + \
 #     DPM_TRIMMED + DPM_ALIGNED + DPM_RENAMED + DPM_MASKED + DPM_TAGGED + DPM_MERGED + \
 #     BPM_TRIMMED + BPM_BAMS + BPM_MERGED + BEADS_LABELED_ALL + \
-#     CLUSTERS_LABELED + CLUSTERS_LABELED_ALL + CLUSTERS_READS_PER_CLUSTER + \
+#     CLUSTERS_LABELED + [CLUSTERS_LABELED_ALL] + CLUSTERS_READS_PER_CLUSTER + \
 #     CLUSTERS_BPM_MAX_REP + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS + \
 #     SPLITBAMS + SPLITBAM_COUNTS + SPLITBAMS_MERGED + SPLITBAMS_MEGED_INDEXED + \
 #     BIGWIGS + BIGWIGS_MERGED + \
@@ -903,15 +900,10 @@ rule repeat_mask:
                 echo "No mask file specified, skipping masking."
 
                 # Create a symbolic link between the output path and the input path,
-                # effectively skipping the masking step.
-                # - The input path needs to be provided either as a relative path
-                #   relative to the output path, or as an absolute path.
-                # - Here, we use an absolute path to the input file.
-                case "{input.bam}" in
-                    /*) path_input="{input.bam}";;
-                    *) path_input="$(pwd -P)"/"{input.bam}";;
-                esac
-                ln -s "$path_input" "{output}"
+                # effectively skipping the masking step. Provide the input path to
+                # `ln` as a relative path to the output path.
+                relative_path_input="$(realpath --relative-to="$(dirname "{output}")" "{input.bam}")"
+                ln -s "$relative_path_input" "{output}"
             fi
         }} &> "{log}"
         '''
@@ -1110,7 +1102,8 @@ rule cluster_all:
 
             if [ $n_files -eq 1 ]; then
                 # if there is only one input file, then just link it to the output
-                ln -s "${{all_paths[0]}}" "{output}"
+                relative_path_input="$(realpath --relative-to="$(dirname "{output}")" "${{all_paths[0]}}")"
+                ln -s "$relative_path_input" "{output}"
             else
                 # validate that the headers are compatible. iteratively compare the first file against all other files
                 for ((i=2; i<$n_files; i++)); do
