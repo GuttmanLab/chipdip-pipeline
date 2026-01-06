@@ -6,7 +6,7 @@ channels:
 dependencies:
   - bedtools=2.31
   - bowtie2>=2.5.1, <=2.5.4
-  - coreutils>=8.31, <=8.32      # cat, csplit, cut, echo, ln, mkdir, sort, split, tail, touch, wc
+  - coreutils>=8.31, <=8.32      # cat, csplit, cut, dirname, echo, ln, mkdir, realpath, sort, split, tail, touch, wc
   - cutadapt>=4.4, <5.0
   - deeptools=3.5.6
   - diffutils=3.10               # diff
