@@ -5,11 +5,14 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib
-from matplotlib import pyplot as plt
+import matplotlib.figure
 from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 
-matplotlib.use("Agg")
+# matplotlib note: here we bypass pyplot entirely to avoid having to choose a backend depending on whether this module
+# is run interactively or not. See the following:
+# - https://github.com/matplotlib/matplotlib/issues/26362
+# - https://matplotlib.org/devdocs/gallery/user_interfaces/web_application_server_sgskip.html
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -102,10 +105,11 @@ def cluster_distribution_ecdf(
     Returns: figure object
     """
     if zoom:
-        fig, axs = plt.subplots(1, 2, figsize=(10, 3.5), gridspec_kw=dict(wspace=0.1), constrained_layout=True)
+        fig = matplotlib.figure.Figure(figsize=(10, 3.5), constrained_layout=True)
+        axs = fig.subplots(1, 2, gridspec_kw=dict(wspace=0.1))
     else:
-        fig, ax = plt.subplots(figsize=(5, 3.5), constrained_layout=True)
-        axs = [ax]
+        fig = matplotlib.figure.Figure(figsize=(5, 3.5), constrained_layout=True)
+        axs = [fig.subplots()]
     sns.ecdfplot(
         data=df,
         x="reads per cluster",
@@ -140,13 +144,13 @@ def cluster_distribution_stacked_bar(
     df: pd.DataFrame,
     read_type: str,
     variable: str,
-    palette: collections.abc.Sequence[str] = matplotlib.color_sequences['petroff10'],
+    palette: collections.abc.Sequence[str | tuple] = matplotlib.color_sequences['petroff10'],
 ) -> matplotlib.figure.Figure:
     """
     Plot the distribution of clusters or reads by number of reads per cluster.
 
     Args
-    - df: DataFrame with columns "sample", "reads per cluster", and "number of clusters" or "number of reads".
+    - df: DataFrame with columns "sample", "reads per cluster, binned", and "number of clusters" or "number of reads".
         Should already be subsetted for the read type to plot.
     - read_type: The read type to plot (e.g., DPM, BPM).
     - variable: One of "clusters" or "reads" - whether to plot a distribution of clusters or reads.
@@ -170,7 +174,8 @@ def cluster_distribution_stacked_bar(
         .pivot(index="sample", columns="reads per cluster, binned", values="proportion")
     )
     n_samples = len(df_wide)
-    fig, ax = plt.subplots(figsize=(n_samples + 2, 4), constrained_layout=True)
+    fig = matplotlib.figure.Figure(figsize=(n_samples + 2, 4), constrained_layout=True)
+    ax = fig.subplots()
     x = np.arange(n_samples)
     bottoms = np.zeros(n_samples)
     for i, bin in enumerate(df_wide.columns):

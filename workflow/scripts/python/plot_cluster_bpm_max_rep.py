@@ -2,12 +2,15 @@ import argparse
 import os
 
 import pandas as pd
-import matplotlib
+import matplotlib.figure
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 
-matplotlib.use("Agg")
+# matplotlib note: here we bypass pyplot entirely to avoid having to choose a backend depending on whether this module
+# is run interactively or not. See the following:
+# - https://github.com/matplotlib/matplotlib/issues/26362
+# - https://matplotlib.org/devdocs/gallery/user_interfaces/web_application_server_sgskip.html
 
 """
 Generate maximum representation ecdfs for bead type representation within clusters.
@@ -75,7 +78,8 @@ def plot_ecdfs_proportions(df: pd.DataFrame, palette) -> matplotlib.figure.Figur
     Returns
     - fig: Left axes = eCDF over all clusters. Right axes = filtered for clusters with > 0 BPMs.
     """
-    fig, axs = plt.subplots(1, 2, figsize=(10, 4), gridspec_kw=dict(wspace=0.1), constrained_layout=True)
+    fig = matplotlib.figure.Figure(figsize=(10, 4), constrained_layout=True)
+    axs = fig.subplots(1, 2, gridspec_kw=dict(wspace=0.1))
     sns.ecdfplot(
         data=df,
         x="value",
@@ -115,7 +119,8 @@ def plot_ecdfs_counts(df: pd.DataFrame, palette) -> tuple[matplotlib.figure.Figu
     - fig1: eCDFs including clusters with 0 BPMs. Left axes = all clusters. Right axes = zoomed in.
     - fig2: eCDFs excluding clusters with 0 BPMs. Left axes = all clusters. Right axes = zoomed in.
     """
-    fig1, axs = plt.subplots(1, 2, figsize=(10, 4), gridspec_kw=dict(wspace=0.1), constrained_layout=True)
+    fig1 = matplotlib.figure.Figure(figsize=(10, 4), constrained_layout=True)
+    axs = fig1.subplots(1, 2, gridspec_kw=dict(wspace=0.1))
     sns.ecdfplot(
         data=df,
         x="value",
@@ -142,7 +147,8 @@ def plot_ecdfs_counts(df: pd.DataFrame, palette) -> tuple[matplotlib.figure.Figu
     axs[1].set_ylabel("Proportion of clusters", fontsize=9)
     fig1.suptitle("All clusters")
 
-    fig2, axs = plt.subplots(1, 2, figsize=(10, 4), gridspec_kw=dict(wspace=0.1), constrained_layout=True)
+    fig2 = matplotlib.figure.Figure(figsize=(10, 4), constrained_layout=True)
+    axs = fig2.subplots(1, 2, gridspec_kw=dict(wspace=0.1))
     sns.ecdfplot(
         data=df.loc[df['value'] > 0],
         x="value",
