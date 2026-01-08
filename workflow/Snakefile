@@ -141,9 +141,6 @@ else:
     else:
         temp_dir = "/tmp"
     print("Defaulting to temporary directory:", temp_dir, file=sys.stderr)
-    if not os.path.exists(temp_dir):
-        print(f"Creating temporary directory {temp_dir}.", file=sys.stderr)
-        os.makedirs(temp_dir, exist_ok=True)
 
 deduplication_method = config.get("deduplication_method", "RT&start&end")
 
@@ -244,6 +241,7 @@ assign_label = os.path.join(DIR_SCRIPTS, "python", "assign_label.py")
 plot_cluster_read_counts = os.path.join(DIR_SCRIPTS, "python", "plot_cluster_read_counts.py")
 plot_cluster_bpm_max_rep = os.path.join(DIR_SCRIPTS, "python", "plot_cluster_bpm_max_rep.py")
 count_unmasked_bases = os.path.join(DIR_SCRIPTS, "python", "count_unmasked_bases.py")
+create_empty_bigwig = os.path.join(DIR_SCRIPTS, "python", "create_empty_bigwig.py")
 pipeline_counts = os.path.join(DIR_SCRIPTS, "python", "pipeline_counts.py")
 
 ##############################################################################
@@ -328,13 +326,15 @@ TRIM_LOG = expand(
     os.path.join(DIR_OUT, "trimmed", "{sample}_{read}.part_{splitid}.fastq.gz_trimming_report.txt"),
     sample=ALL_SAMPLES,
     read=["R1", "R2"],
-    splitid=NUM_CHUNKS)
+    splitid=NUM_CHUNKS
+)
 
 TRIM_RD = expand(
     [os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
      os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")],
     sample=ALL_SAMPLES,
-    splitid=NUM_CHUNKS)
+    splitid=NUM_CHUNKS
+)
 
 ##############################################################################
 # Barcoding
@@ -512,23 +512,40 @@ if path_pipeline_structure:
 include: "pipeline_counts.smk"
 
 ##############################################################################
+# Handlers
+##############################################################################
+
+# Note that dry-runs do not trigger any of the handlers.
+
+# Create temporary directory if it does not exist
+onstart:
+    if not os.path.exists(temp_dir):
+        print(f"Creating temporary directory {temp_dir}.", file=sys.stderr)
+        os.makedirs(temp_dir, exist_ok=True)
+
+# Send an email if an error occurs during execution
+onerror:
+    if email not in (None, ""):
+        shell('mail -s "an error occurred" ' + email + ' < {log}')
+
+# Send an email upon successful completion of the pipeline
+onsuccess:
+    if email not in (None, ""):
+        shell('mail -s "pipeline completed successfully" ' + email + ' < {log}')
+
+##############################################################################
 ##############################################################################
 # RULE ALL
 ##############################################################################
 ##############################################################################
 
-rule all:
-    input:
-        FINAL
-
-# Send and email if an error occurs during execution
-onerror:
-    if email not in (None, ""):
-        shell('mail -s "an error occurred" ' + email + ' < {log}')
-
 wildcard_constraints:
     sample = r"[^\.]+",
     target = "|".join([re.escape(x) for x in TARGETS])
+
+rule all:
+    input:
+        FINAL
 
 # remove all output, leaving just the following in the output folder:
 # - bigwigs/
@@ -1202,6 +1219,9 @@ rule splitbams:
     log:
         os.path.join(DIR_LOGS, "splitbams.{sample}.log")
     params:
+        # samtools split format string expansions:
+        # %! = @RG ID or TAG value, here the target
+        # %. = output format filename extension
         format = os.path.join(DIR_OUT, "splitbams", "{sample}.%!.unsorted.%."),
     conda:
         conda_env
@@ -1248,23 +1268,7 @@ rule splitbams_merged:
         4
     shell:
         '''
-        {{
-            # check which input BAM files are non-empty
-            all_paths=({input:q})
-            non_empty_paths=()
-            for path in "${{all_paths[@]}}"; do
-                if [ -s "$path" ]; then
-                    non_empty_paths+=("$path")
-                fi
-            done
-
-            if [ ${{#non_empty_paths[@]}} -eq 0 ]; then
-                echo "All BAM files for the target are empty. Creating empty merged BAM file."
-                touch "{output}"
-            else
-                samtools merge -f -@ {threads} "{output}" "${{non_empty_paths[@]}}"
-            fi
-        }} &> "{log}"
+        samtools merge -f -@ {threads} "{output}" {input:q} &> "{log}"
         '''
 
 rule index_splitbams:
@@ -1280,15 +1284,7 @@ rule index_splitbams:
         4
     shell:
         '''
-        {{
-            if [ -s "{input}" ]; then
-                # file is non-empty; assume to be valid SAM/BAM file
-                samtools index -@ {threads} "{input}"
-            else
-                # BAM file is empty
-                touch "{output}"
-            fi
-        }} &> "{log}"
+        samtools index -@ {threads} "{input}" &> "{log}"
         '''
 
 # Count the number of reads in each target BAM file
@@ -1308,13 +1304,7 @@ rule splitbam_counts:
         {{
             paths=({input:q})
             for path in "${{paths[@]}}"; do
-                if [ -s "$path" ]; then
-                    # file is non-empty; assume to be valid SAM/BAM file
-                    count=$(samtools view -@ {threads} -c "$path")
-                else
-                    # file is empty
-                    count=0
-                fi
+                count=$(samtools view -@ {threads} -c "$path")
                 echo -e "${{path}}\\t${{count}}" >> "{output}"
             done
         }} &> "{log}"
@@ -1372,40 +1362,34 @@ rule generate_bigwigs:
     shell:
         '''
         {{
-            if [ ! -s "{input.bam}" ]; then
-                # empty BAM file; create empty bigWig file
-                echo "BAM file is 0 bytes. Creating empty bigWig file."
-                touch "{output}"
+            # deepTools bamCoverage currently does not support generating empty bigWig
+            # files from BAM files with no aligned reads. See
+            # https://github.com/deeptools/deepTools/issues/598
+            #
+            # This situation can occur when there are clusters with only oligo (BPM) reads
+            # and no chromatin (DPM) reads.
+            #
+            # In such cases, manually create an empty bigWig file.
+            n_reads=$(samtools view -c "{input.bam}")
+            if [ $n_reads -eq 0 ]; then
+                echo "- No reads in BAM file for target. Creating empty bigWig file."
+                python "{create_empty_bigwig}" --bam "{input.bam}" "{output}"
             else
-                # deepTools bamCoverage currently does not support generating empty bigWig
-                # files from BAM files with no aligned reads. See
-                # https://github.com/deeptools/deepTools/issues/598
-                #
-                # This situation can occur when there are clusters with only oligo (BPM) reads
-                # and no chromatin (DPM) reads.
-                #
-                # In such cases, create an empty bigWig file.
-                n_reads=$(samtools view -c "{input.bam}")
-                if [ $n_reads -eq 0 ]; then
-                    echo "- No reads in BAM file for target. Creating empty bigWig file."
-                    touch "{output}"
+
+                if [[ "{bigwig_normalization}" = "RPGC" ]]; then
+                    value="$(cat "{input.effective_genome_size}")"
+                    effective_genome_size="--effectiveGenomeSize $value"
                 else
+                    effective_genome_size=""
+                fi
 
-                    if [[ "{bigwig_normalization}" = "RPGC" ]]; then
-                        value="$(cat "{input.effective_genome_size}")"
-                        effective_genome_size="--effectiveGenomeSize $value"
-                    else
-                        effective_genome_size=""
-                    fi
-
-                    bamCoverage \\
+                bamCoverage \\
                     --binSize "{binsize}" \\
                     --normalizeUsing "{bigwig_normalization}" \\
                     $effective_genome_size \\
                     -p {threads} \\
                     --bam "{input.bam}" \\
                     --outFileName "{output}"
-                fi
             fi
         }} &> "{log}"
         '''
