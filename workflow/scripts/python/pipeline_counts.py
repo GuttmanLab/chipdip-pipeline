@@ -461,8 +461,10 @@ def collect_pipeline_counts(
                     n_reads_detailed=counts
                 )
         else:
-            fields = sorted(field for _, field, _, _ in formatter.parse(os.path.join(*node_info['path']))
-                            if field is not None)
+            fields = sorted(set(
+                field for _, field, _, _ in formatter.parse(os.path.join(*node_info['path']))
+                if field is not None
+            ))
             fields_excluding_sample = [field for field in fields if field != "sample"]
             assert all(field in wildcards.keys() for field in fields_excluding_sample), \
                 f"Not all fields {fields} for output level {level} are in wildcards (keys: {wildcards.keys()})."

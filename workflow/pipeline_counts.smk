@@ -6,9 +6,13 @@
 #    - is a text file containing a single integer value indicating the read count
 #    - is named {level}[.{wildcard1}.{wildcard2}...].{ext}.count, where
 #      - the wildcards are sorted
+#      - the wildcards are unique - i.e., even if the same wilcard appears multiple times in the output filename
+#        (e.g., {target}/{sample}.{target}.bam), it only appears once in the count filename (e.g.,
+#        {level}.{sample}.{target}.bam.count)
 #      - {ext} is one of:
 #        - fastq-gz: corresponding to a gzip-compressed FASTQ file
 #        - bam: corresponding to a BAM file
+#    - only for the "data" level, the count file is named data.{sample}.{file_number}.fastq-gz.count
 # 2. The level hierarchy (a directed acyclic graph) is defined in a YAML file
 # 3. The Snakefile contains 2 types of rules:
 #    i.  rules to count reads from individual files (count_fastq_gz and count_bam)
@@ -62,8 +66,8 @@ def generate_count_files_all(
         "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
         for that output.
     - wildcards: mapping of placeholder names to lists of values
-    - data_files: mapping from sample names to a list of their source data files. If None, defaults to the global FILES.
     - DIR_COUNTS: directory to store count files
+    - data_files: mapping from sample names to a list of their source data files. If None, defaults to the global FILES.
     - generate_splitbams: whether split BAM files are generated in the pipeline
 
     Returns
@@ -89,7 +93,7 @@ def generate_count_files_all(
         for field, values in wildcards.items():
             exclude = set(info.get("exclude", dict()).get(field, []))
             wildcards_filtered[field] = [v for v in values if v not in exclude]
-        fields = sorted(field for _, field, _, _ in formatter.parse(os.path.join(*info['path'])) if field is not None)
+        fields = sorted(set(field for _, field, _, _ in formatter.parse(os.path.join(*info['path'])) if field is not None))
         assert all(field in wildcards_filtered.keys() for field in fields), \
             f"Not all fields {fields} for output level {level} are in wildcards (keys: {wildcards_filtered.keys()})."
         path_count_template = os.path.join(
@@ -116,12 +120,13 @@ def count_filename_to_source(
     Given a target count file, determine the reads files from which to generate the count file.
 
     Args
-    - filename: count file filename, excluding the .count extension. Must be of the form '{name}[.{wildcard1}.{wildcard2}...]'
+    - filename: count file filename, excluding the {ext}.count extension. Must be of the form
+        '{level}[.{wildcard1}.{wildcard2}...]'
     - pipeline: mapping from level to a structured information (a dictionary) describing that output. Except for the
         "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
         for that output.
-    - data_files: mapping from sample names to a list of their source data files. If None, defaults to the global FILES.
     - source_prefix: prefix to add to the source path (e.g., output directory)
+    - data_files: mapping from sample names to a list of their source data files. If None, defaults to the global FILES.
 
     Returns
     - path_source: paths to the source reads files
@@ -138,9 +143,9 @@ def count_filename_to_source(
     if level == "data":
         sample, file_number = field_values
         return data_files[sample]["R1"][int(file_number)]
-            
+
     formatter = string.Formatter()
-    fields = sorted(field for _, field, _, _ in formatter.parse(os.path.join(*info['path'])) if field is not None)
+    fields = sorted(set(field for _, field, _, _ in formatter.parse(os.path.join(*info['path'])) if field is not None))
     assert len(fields) == len(field_values), f"Filename {filename} does not match expected fields for output level {level}."
     path_source = os.path.join(source_prefix, os.path.join(*info['path']).format(**dict(zip(fields, field_values))))
     return path_source
