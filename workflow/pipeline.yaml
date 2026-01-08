@@ -112,27 +112,27 @@ merge_bpm:
 splitbams_none:
     parent: "cluster_dpm"
     base: "dpm"
-    path: ["splitbams", "{sample}.none.bam"]
+    path: ["splitbams", "none", "{sample}.none.bam"]
     rule: "sort_splitbams"
 splitbams_uncertain:
     parent: "cluster_dpm"
     base: "dpm"
-    path: ["splitbams", "{sample}.uncertain.bam"]
+    path: ["splitbams", "uncertain", "{sample}.uncertain.bam"]
     rule: "sort_splitbams"
 splitbams_ambiguous:
     parent: "cluster_dpm"
     base: "dpm"
-    path: ["splitbams", "{sample}.ambiguous.bam"]
+    path: ["splitbams", "ambiguous", "{sample}.ambiguous.bam"]
     rule: "sort_splitbams"
 splitbams_filtered:
     parent: "cluster_dpm"
     base: "dpm"
-    path: ["splitbams", "{sample}.filtered.bam"]
+    path: ["splitbams", "filtered", "{sample}.filtered.bam"]
     rule: "sort_splitbams"
 splitbams_assigned:
     parent: "cluster_dpm"
     base: "dpm"
-    path: ["splitbams", "{sample}.{target}.bam"]
+    path: ["splitbams", "{target}", "{sample}.{target}.bam"]
     rule: "sort_splitbams"
     exclude:
         target: ["none", "uncertain", "ambiguous", "filtered"]

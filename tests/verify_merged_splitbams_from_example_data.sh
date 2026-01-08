@@ -58,10 +58,10 @@ export LC_ALL=C
 # generate BED files from pipeline merged splitbam output
 tmpbed1=$(mktemp $DIR_TEMP/bed1.XXXXX)
 tmpbed2=$(mktemp $DIR_TEMP/bed2.XXXXX)
-bedtools bamtobed -i "$DIR_OUTPUT"/splitbams/AB1-A1.bam |
+bedtools bamtobed -i "$DIR_OUTPUT"/splitbams/AB1-A1/AB1-A1.bam |
     cut -f 1,2,3 |
     sort -k1,1V -k2,2n -k3,3n > "$tmpbed1"
-bedtools bamtobed -i "$DIR_OUTPUT"/splitbams/AB2-A2.bam |
+bedtools bamtobed -i "$DIR_OUTPUT"/splitbams/AB2-A2/AB2-A2.bam |
     cut -f 1,2,3 |
     sort -k1,1V -k2,2n -k3,3n > "$tmpbed2"
 
