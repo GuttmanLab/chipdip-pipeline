@@ -1346,6 +1346,11 @@ rule effective_genome_size:
         }} &> "{log}"
         '''
 
+# deepTools bamCoverage currently does not support generating empty bigWig files from BAM files with no aligned reads.
+# See https://github.com/deeptools/deepTools/issues/598.
+#
+# This situation can occur when there are clusters with only oligo (BPM) reads and no chromatin (DPM) reads.
+# In such cases, manually create an "empty" bigWig file with all-zero values.
 rule generate_bigwigs:
     input:
         bam = os.path.join(DIR_OUT, "splitbams", "{file}.bam"),
@@ -1362,18 +1367,10 @@ rule generate_bigwigs:
     shell:
         '''
         {{
-            # deepTools bamCoverage currently does not support generating empty bigWig
-            # files from BAM files with no aligned reads. See
-            # https://github.com/deeptools/deepTools/issues/598
-            #
-            # This situation can occur when there are clusters with only oligo (BPM) reads
-            # and no chromatin (DPM) reads.
-            #
-            # In such cases, manually create an empty bigWig file.
             n_reads=$(samtools view -c "{input.bam}")
             if [ $n_reads -eq 0 ]; then
                 echo "- No reads in BAM file for target. Creating empty bigWig file."
-                python "{create_empty_bigwig}" --bam "{input.bam}" "{output}"
+                python "{create_empty_bigwig}" --zeros --bam "{input.bam}" "{output}"
             else
 
                 if [[ "{bigwig_normalization}" = "RPGC" ]]; then

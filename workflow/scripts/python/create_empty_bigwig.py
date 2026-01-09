@@ -13,6 +13,11 @@ def parse_arguments() -> argparse.Namespace:
     group.add_argument('--bam', help="Path to SAM/BAM file to extract chromosome sizes")
     group.add_argument('--chroms', help="Path to chromosome sizes file (tab-separated: chrom, size)")
 
+    parser.add_argument(
+        '--zeros',
+        action='store_true',
+        help="Fill bigWig with zeros (one big zero interval per chromosome) instead of being empty"
+    )
     return parser.parse_args()
 
 
@@ -36,10 +41,24 @@ def parse_chrom_sizes(path) -> dict[str, int]:
     return chrom_sizes
 
 
-def write_empty_bigwig(path, chrom_sizes: dict[str, int]) -> None:
+def write_empty_bigwig(path, chrom_sizes: dict[str, int], zeros: bool = False) -> None:
+    """
+    Write an empty bigWig file with given chromosome sizes. If zeros is True, fill the bigWig with zeros.
+    """
     with pyBigWig.open(path, "w") as bw:
         bw.addHeader(list(chrom_sizes.items()))
-
+        if zeros:
+            # for each chromsome, add an entry with value 0.0 for the entire length
+            chroms = list(chrom_sizes.keys())
+            starts = [0] * len(chrom_sizes)
+            ends = list(chrom_sizes.values())
+            values = [0.0] * len(chrom_sizes)
+            bw.addEntries(
+                chroms,
+                starts,
+                ends=ends,
+                values=values
+            )
 
 def main():
     args = parse_arguments()
@@ -49,7 +68,7 @@ def main():
     else:
         chrom_sizes = parse_chrom_sizes(args.chroms)
 
-    write_empty_bigwig(args.output, chrom_sizes)
+    write_empty_bigwig(args.output, chrom_sizes, zeros=args.zeros)
 
 
 if __name__ == "__main__":
