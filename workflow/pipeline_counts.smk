@@ -12,7 +12,7 @@
 #      - {ext} is one of:
 #        - fastq-gz: corresponding to a gzip-compressed FASTQ file
 #        - bam: corresponding to a BAM file
-#    - only for the "data" level, the count file is named data.{sample}.{file_number}.fastq-gz.count
+#    - only for the "data" level, the count file is named data.{library}.{file_number}.fastq-gz.count
 # 2. The level hierarchy (a directed acyclic graph) is defined in a YAML file
 # 3. The Snakefile contains 2 types of rules:
 #    i.  rules to count reads from individual files (count_fastq_gz and count_bam)
@@ -25,11 +25,11 @@
 # been defined:
 # - DIR_OUT: path to output directory
 # - pipeline_structure: dict describing the pipeline outputs
-# - ALL_SAMPLES: list of sample names
+# - ALL_LIBARIES: list of library names
 # - TARGETS: list of target names
 # - NUM_CHUNKS: list of split IDs
-# - FILES: content of samples.json
-# - samples: path to samples.json
+# - FILES: content of libraries.json
+# - libraries: path to libraries.json
 # - generate_splitbams: boolean indicating whether split BAMs are generated
 
 import itertools
@@ -65,9 +65,9 @@ def generate_count_files_all(
     - pipeline: mapping from level to a structured information (a dictionary) describing that output. Except for the
         "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
         for that output.
-    - wildcards: mapping of placeholder names to lists of values
+    - wildcards: mapping of placeholder names to lists of values; must contain a key named 'library'
     - DIR_COUNTS: directory to store count files
-    - data_files: mapping from sample names to a list of their source data files. If None, defaults to the global FILES.
+    - data_files: mapping from library names to a list of their source data files. If None, defaults to the global FILES.
     - generate_splitbams: whether split BAM files are generated in the pipeline
 
     Returns
@@ -76,15 +76,15 @@ def generate_count_files_all(
     if data_files is None:
         data_files = FILES
     formatter = string.Formatter()
-    assert sorted(wildcards['sample']) == sorted(data_files.keys())
+    assert sorted(wildcards['library']) == sorted(data_files.keys())
     path_counts_all = dict()
     for level, info in pipeline.items():
         path_counts = []
         if level == "data":
-            for sample, d in data_files.items():
+            for library, d in data_files.items():
                 files_R1 = d["R1"]
                 for file_number in range(len(files_R1)):
-                    path_counts.append(os.path.join(DIR_COUNTS, f'data.{sample}.{file_number}.fastq-gz.count'))
+                    path_counts.append(os.path.join(DIR_COUNTS, f'data.{library}.{file_number}.fastq-gz.count'))
             path_counts_all[level] = path_counts
             continue
         if level.startswith("splitbams") and not generate_splitbams:
@@ -126,7 +126,7 @@ def count_filename_to_source(
         "data" level, the info dict must contain the key "path" mapping to a list of strings that form the path pattern
         for that output.
     - source_prefix: prefix to add to the source path (e.g., output directory)
-    - data_files: mapping from sample names to a list of their source data files. If None, defaults to the global FILES.
+    - data_files: mapping from library names to a list of their source data files. If None, defaults to the global FILES.
 
     Returns
     - path_source: paths to the source reads files
@@ -141,8 +141,8 @@ def count_filename_to_source(
 
     # special case
     if level == "data":
-        sample, file_number = field_values
-        return data_files[sample]["R1"][int(file_number)]
+        library, file_number = field_values
+        return data_files[library]["R1"][int(file_number)]
 
     formatter = string.Formatter()
     fields = sorted(set(field for _, field, _, _ in formatter.parse(os.path.join(*info['path'])) if field is not None))
@@ -153,7 +153,7 @@ def count_filename_to_source(
 
 COUNT_FILES_ALL = sorted(set(itertools.chain.from_iterable(generate_count_files_all(
     pipeline_structure,
-    wildcards=dict(sample=ALL_SAMPLES, target=TARGETS, splitid=NUM_CHUNKS),
+    wildcards=dict(library=ALL_LIBRARIES, target=TARGETS, splitid=NUM_CHUNKS),
     data_files=FILES,
     DIR_COUNTS=os.path.join(DIR_OUT, "pipeline_counts"),
     generate_splitbams=generate_splitbams
@@ -208,7 +208,7 @@ rule pipeline_counts:
     conda:
         conda_env
     params:
-        samples = samples,
+        libraries = libraries,
         splitids = NUM_CHUNKS,
         targets = TARGETS,
         dir_counts = DIR_COUNTS,
@@ -217,8 +217,8 @@ rule pipeline_counts:
         '''
         {{
             python {pipeline_counts} \\
-                --path_samples {params.samples:q} \\
-                --sample_wildcard_name sample \\
+                --path_samples {params.libraries:q} \\
+                --sample_wildcard_name library \\
                 --wildcards {params.splitids:q} \\
                 --wildcards {params.targets:q} \\
                 --wildcard_names splitid target \\

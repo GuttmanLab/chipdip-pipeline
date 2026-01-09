@@ -13,8 +13,8 @@ barcode_config: "config/example_config.txt"
 # Path to barcode format file; set to null or "" to skip barcode validation
 barcode_format: "config/example_format.txt"
 
-# (Required) Path to samples JSON file, e.g., as produced with the fastq2json.py script
-samples: "config/example_samples.json"
+# (Required) Path to libraries JSON file, e.g., as produced with the fastq2json.py script
+libraries: "config/example_libraries.json"
 
 # (Required) Scripts directory
 scripts_dir: "workflow/scripts/"
@@ -60,9 +60,13 @@ mask: "resources/blacklist_mm10.bed"
 # e.g., "resources/index_hg38/GRCh38_noalt_as" or "resources/index_mm10/mm10"
 bowtie2_index: "resources/index_mm10/mm10"
 
-# Merge cluster files for all samples
-# Merge BAM files and bigWigs for individual targets across samples
-merge_samples: true
+# Name for merging cluster files, target BAM files, and target bigWig files across libraries
+# - merged cluster file path: clusters/{merged_library_name}.bam
+# - merged BAM file path: splitbams/{target}/{merged_library_name}.bam
+# - merged bigWig file path: bigwigs/{target}/{merged_library_name}.bam
+# - Set to null to skip merging across libraries
+# - This name must not conflict with any library names used in the libraries JSON file
+merged_library_name: "merged"
 
 # Generate BAM files for individual targets
 generate_splitbams: true

@@ -48,11 +48,11 @@ else:
     print("Missing barcode config (barcode_config) in config.yaml", file=sys.stderr)
     sys.exit()
 
-samples = config.get("samples")
-if samples not in (None, ""):
-    print("Using samples file:", samples, file=sys.stderr)
+libraries = config.get("libraries")
+if libraries not in (None, ""):
+    print("Using libraries file:", libraries, file=sys.stderr)
 else:
-    print("Missing samples file (samples) in config.yaml", file=sys.stderr)
+    print("Missing libraries file (libraries) in config.yaml", file=sys.stderr)
     sys.exit()
 
 DIR_SCRIPTS = config.get("scripts_dir")
@@ -176,7 +176,7 @@ if path_chrom_map in (None, ""):
     print("Chromosome names not specified, will use all chromosomes in the Bowtie 2 index.",
           file=sys.stderr)
 
-merge_samples = config.get("merge_samples", False)
+merged_library_name = config.get("merged_library_name")
 
 generate_splitbams = config.get("generate_splitbams", False)
 if generate_splitbams:
@@ -207,7 +207,7 @@ if binsize:
         file=sys.stderr
     )
 
-effective_genome_size = config.get("effective_genome_size", None)
+effective_genome_size = config.get("effective_genome_size")
 compute_effective_genome_size = False
 if binsize and bigwig_normalization == "RPGC":
     assert type(effective_genome_size) in (int, type(None)), \
@@ -251,12 +251,21 @@ pipeline_counts = os.path.join(DIR_SCRIPTS, "python", "pipeline_counts.py")
 DIR_LOGS = os.path.join(DIR_OUT, "logs")
 
 ##############################################################################
-# Get sample files and targets
+# Get library files and targets
 ##############################################################################
 
-with open(samples) as f:
+with open(libraries) as f:
     FILES = json.load(f)
-ALL_SAMPLES = sorted(FILES.keys())
+ALL_LIBRARIES = sorted(FILES.keys())
+assert all('.' not in library for library in ALL_LIBRARIES), \
+    'Library names must not contain periods (".")'
+
+# check that the proposed merged_library_name is valid and does not conflict with any individual library names
+if merged_library_name:
+    assert merged_library_name not in ALL_LIBRARIES, \
+        "merged_library_name must not be the same as any individual library name."
+    assert merged_library_name not in [f'{library}.labeled' for library in ALL_LIBRARIES], \
+        "merged_library_name cannot be the same as any individual library name with a '.labeled' suffix."
 
 NUM_CHUNKS = [f"{i:02}" for i in range(num_chunks)]
 
@@ -283,14 +292,14 @@ assert all(re.match(r'[a-zA-Z0-9_-]+', target) is not None for target in TARGETS
     'Target names must only contain alphanumeric characters, underscores, and hyphens.'
 
 # check that longest file name generated will not exceed 255 characters
-# - longest file name template is {sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz
-# - longest sample + target name template is {sample}.DNA.merged.labeled_{target}.bam.bai
-longest_sample_name = max(map(len, ALL_SAMPLES))
-assert longest_sample_name <= 214, 'Sample names must be <= 214 characters'
+# - longest file name template is {library}_{read}.part_{splitid}.fastq.gz_trimming_report.txt
+# - longest library + target name template is generate_bigwigs.{target}.{library}.log
+longest_library_name = max(map(len, ALL_LIBRARIES))
+assert longest_library_name <= 215, 'Library names must be <= 215 characters'
 if generate_splitbams:
     longest_target_name = max(map(len, TARGETS))
-    assert longest_sample_name + longest_target_name <= 227, \
-        'Sample name + target name combined must be <= 227 characters'
+    assert longest_library_name + longest_target_name <= 233, \
+        'Library name + target name combined must be <= 233 characters'
 
 ##############################################################################
 # Logging and QC
@@ -309,30 +318,30 @@ PIPELINE_COUNTS = [os.path.join(DIR_OUT, "pipeline_counts.txt")]
 ##############################################################################
 
 SPLIT_FASTQ = expand(
-    os.path.join(DIR_OUT, "split_fastq", "{sample}_{read}.part_{splitid}.fastq.gz"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "split_fastq", "{library}_{read}.part_{splitid}.fastq.gz"),
+    library=ALL_LIBRARIES,
     read=["R1", "R2"],
     splitid=NUM_CHUNKS
 )
 
 TRIM = expand(
-    [os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-     os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")],
-    sample=ALL_SAMPLES,
+    [os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}_val_1.fq.gz"),
+     os.path.join(DIR_OUT, "trimmed", "{library}_R2.part_{splitid}_val_2.fq.gz")],
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 
 TRIM_LOG = expand(
-    os.path.join(DIR_OUT, "trimmed", "{sample}_{read}.part_{splitid}.fastq.gz_trimming_report.txt"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "trimmed", "{library}_{read}.part_{splitid}.fastq.gz_trimming_report.txt"),
+    library=ALL_LIBRARIES,
     read=["R1", "R2"],
     splitid=NUM_CHUNKS
 )
 
 TRIM_RD = expand(
-    [os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
-     os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")],
-    sample=ALL_SAMPLES,
+    [os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
+     os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")],
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 
@@ -341,17 +350,17 @@ TRIM_RD = expand(
 ##############################################################################
 
 BARCODEID = expand(
-    os.path.join(DIR_OUT, "fastqs", "{sample}_{read}.part_{splitid}.barcoded.fastq.gz"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "fastqs", "{library}_{read}.part_{splitid}.barcoded.fastq.gz"),
+    library=ALL_LIBRARIES,
     read=["R1", "R2"],
     splitid=NUM_CHUNKS)
 
 SPLIT_BPM_DPM = expand(
     [
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
     ],
-    sample=ALL_SAMPLES,
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 
@@ -360,33 +369,35 @@ SPLIT_BPM_DPM = expand(
 ##############################################################################
 
 DPM_TRIMMED = expand(
-    os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 DPM_ALIGNED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.bowtie2.mapq20.bam"),
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 DPM_RENAMED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.bam"),
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 DPM_MASKED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.masked.bam"),
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 DPM_TAGGED = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.tagged.bam"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.masked.tagged.bam"),
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
+
+# merged over all parts
 DPM_MERGED = expand(
-    os.path.join(DIR_OUT, "alignments", "{sample}.merged.DNA.bam"),
-    sample=ALL_SAMPLES
+    os.path.join(DIR_OUT, "alignments", "{library}.merged.DNA.bam"),
+    library=ALL_LIBRARIES
 )
 
 ##############################################################################
@@ -394,22 +405,25 @@ DPM_MERGED = expand(
 ##############################################################################
 
 BPM_TRIMMED = expand(
-    os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
 BPM_BAMS = expand(
-    os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.BPM.bam"),
+    library=ALL_LIBRARIES,
     splitid=NUM_CHUNKS
 )
+
+# merged over all parts
 BPM_MERGED = expand(
-    os.path.join(DIR_OUT, "alignments", "{sample}.merged.BPM.bam"),
-    sample=ALL_SAMPLES
+    os.path.join(DIR_OUT, "alignments", "{library}.merged.BPM.bam"),
+    library=ALL_LIBRARIES
 )
+
 BEADS_LABELED_ALL = expand(
-    os.path.join(DIR_OUT, "alignments", "{sample}.merged_labeled.BPM.bam"),
-    sample=ALL_SAMPLES
+    os.path.join(DIR_OUT, "alignments", "{library}.merged_labeled.BPM.bam"),
+    library=ALL_LIBRARIES
 )
 
 ##############################################################################
@@ -417,20 +431,21 @@ BEADS_LABELED_ALL = expand(
 ##############################################################################
 
 CLUSTERS_LABELED = expand(
-    os.path.join(DIR_OUT, "clusters", "{sample}.labeled.bam"),
-    sample=ALL_SAMPLES
+    os.path.join(DIR_OUT, "clusters", "{library}.labeled.bam"),
+    library=ALL_LIBRARIES
 )
 
-CLUSTERS_LABELED_ALL = os.path.join(DIR_OUT, "clusters", "all.bam")
+# merge across all libraries
+CLUSTERS_LABELED_ALL = os.path.join(DIR_OUT, "clusters", f"{merged_library_name}.bam")
 
 CLUSTERS_READS_PER_CLUSTER = expand(
-    os.path.join(DIR_OUT, "clusters", "{sample}.stats_reads_per_cluster.tsv.gz"),
-    sample=ALL_SAMPLES
+    os.path.join(DIR_OUT, "clusters", "{library}.stats_reads_per_cluster.tsv.gz"),
+    library=ALL_LIBRARIES
 )
 
 CLUSTERS_BPM_MAX_REP = expand(
-    os.path.join(DIR_OUT, "clusters", "{sample}.stats_bpm_max_rep.tsv.gz"),
-    sample=ALL_SAMPLES
+    os.path.join(DIR_OUT, "clusters", "{library}.stats_bpm_max_rep.tsv.gz"),
+    library=ALL_LIBRARIES
 )
 
 CLUSTER_SIZES_PLOTS = expand(
@@ -449,20 +464,20 @@ CLUSTER_BPM_ECDF_PLOTS = [
 ##############################################################################
 
 SPLITBAMS = expand(
-    os.path.join(DIR_OUT, "splitbams", "{target}", "{sample}.{target}.bam"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "splitbams", "{target}", "{library}.bam"),
+    library=ALL_LIBRARIES,
     target=TARGETS
 )
 
 SPLITBAM_COUNTS = [os.path.join(DIR_OUT, "splitbams", "splitbam_counts.txt")]
 
 SPLITBAMS_MERGED = expand(
-    os.path.join(DIR_OUT, "splitbams", "{target}", "{target}.bam"),
+    os.path.join(DIR_OUT, "splitbams", "{target}", f"{merged_library_name}.bam"),
     target=TARGETS
 )
 
 SPLITBAMS_MERGED_INDEXED = expand(
-    os.path.join(DIR_OUT, "splitbams", "{target}", "{target}.bam.bai"),
+    os.path.join(DIR_OUT, "splitbams", "{target}", f"{merged_library_name}.bam.bai"),
     target=TARGETS
 )
 
@@ -471,27 +486,27 @@ SPLITBAMS_MERGED_INDEXED = expand(
 ##############################################################################
 
 BIGWIGS = expand(
-    os.path.join(DIR_OUT, "bigwigs", "{target}", "{sample}.{target}.bw"),
-    sample=ALL_SAMPLES,
+    os.path.join(DIR_OUT, "bigwigs", "{target}", "{library}.bw"),
+    library=ALL_LIBRARIES,
     target=TARGETS
 )
 
 BIGWIGS_MERGED = expand(
-    os.path.join(DIR_OUT, "bigwigs", "{target}", "{target}.bw"),
+    os.path.join(DIR_OUT, "bigwigs", "{target}", f"{merged_library_name}.bw"),
     target=TARGETS
 )
 
 FINAL = CLUSTERS_LABELED + CONFIG + BID_EFFICIENCY_ALL + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS
 
-if merge_samples:
+if merged_library_name:
     FINAL.append(CLUSTERS_LABELED_ALL)
 if generate_splitbams:
     FINAL.extend(SPLITBAMS + SPLITBAM_COUNTS)
-    if merge_samples:
+    if merged_library_name:
         FINAL.extend(SPLITBAMS_MERGED_INDEXED)
     if binsize:
         FINAL.extend(BIGWIGS)
-        if merge_samples:
+        if merged_library_name:
             FINAL.extend(BIGWIGS_MERGED)
 
 if path_pipeline_structure:
@@ -540,8 +555,8 @@ onsuccess:
 ##############################################################################
 
 wildcard_constraints:
-    sample = r"[^\.]+",
-    target = "|".join([re.escape(x) for x in TARGETS])
+    library = "|".join(re.escape(x) for x in ALL_LIBRARIES),
+    target = "|".join(re.escape(x) for x in TARGETS),
 
 rule all:
     input:
@@ -661,15 +676,15 @@ rule split_fastq:
     wildcard_constraints:
         read="R1|R2"
     input:
-        lambda wildcards: FILES[wildcards.sample][wildcards.read],
+        lambda wildcards: FILES[wildcards.library][wildcards.read],
     output:
-        temp(expand(os.path.join(DIR_OUT, "split_fastq", "{{sample}}_{{read}}.part_{splitid}.fastq"),
+        temp(expand(os.path.join(DIR_OUT, "split_fastq", "{{library}}_{{read}}.part_{splitid}.fastq"),
              splitid=NUM_CHUNKS))
     log:
-        os.path.join(DIR_LOGS, "split_fastq.{sample}.{read}.log")
+        os.path.join(DIR_LOGS, "split_fastq.{library}.{read}.log")
     params:
         dir = os.path.join(DIR_OUT, "split_fastq"),
-        prefix = "{sample}_{read}.part_"
+        prefix = "{library}_{read}.part_"
     conda:
         conda_env
     threads:
@@ -682,9 +697,9 @@ rule split_fastq:
 # Compress the split fastq files
 rule compress_fastq:
     input:
-        os.path.join(DIR_OUT, "split_fastq", "{sample_read}.part_{splitid}.fastq"),
+        os.path.join(DIR_OUT, "split_fastq", "{library_read}.part_{splitid}.fastq"),
     output:
-        os.path.join(DIR_OUT, "split_fastq", "{sample_read}.part_{splitid}.fastq.gz"),
+        os.path.join(DIR_OUT, "split_fastq", "{library_read}.part_{splitid}.fastq.gz"),
     conda:
         conda_env
     threads:
@@ -697,15 +712,15 @@ rule compress_fastq:
 # Trim adaptors
 rule adaptor_trimming:
     input:
-        [os.path.join(DIR_OUT, "split_fastq", "{sample}_R1.part_{splitid}.fastq.gz"),
-         os.path.join(DIR_OUT, "split_fastq", "{sample}_R2.part_{splitid}.fastq.gz")]
+        [os.path.join(DIR_OUT, "split_fastq", "{library}_R1.part_{splitid}.fastq.gz"),
+         os.path.join(DIR_OUT, "split_fastq", "{library}_R2.part_{splitid}.fastq.gz")]
     output:
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.fastq.gz_trimming_report.txt"),
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz"),
-         os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}.fastq.gz_trimming_report.txt")
+         os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}_val_1.fq.gz"),
+         os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.fastq.gz_trimming_report.txt"),
+         os.path.join(DIR_OUT, "trimmed", "{library}_R2.part_{splitid}_val_2.fq.gz"),
+         os.path.join(DIR_OUT, "trimmed", "{library}_R2.part_{splitid}.fastq.gz_trimming_report.txt")
     log:
-        os.path.join(DIR_LOGS, "adaptor_trimming.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "adaptor_trimming.{library}.{splitid}.log")
     params:
         dir = os.path.join(DIR_OUT, "trimmed")
     conda:
@@ -733,13 +748,13 @@ rule adaptor_trimming:
 # Identify barcodes using BarcodeIdentification_v1.2.0.jar
 rule barcode_id:
     input:
-        r1 = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}_val_1.fq.gz"),
-        r2 = os.path.join(DIR_OUT, "trimmed", "{sample}_R2.part_{splitid}_val_2.fq.gz")
+        r1 = os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}_val_1.fq.gz"),
+        r2 = os.path.join(DIR_OUT, "trimmed", "{library}_R2.part_{splitid}_val_2.fq.gz")
     output:
-        r1_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz"),
-        r2_barcoded = os.path.join(DIR_OUT, "fastqs", "{sample}_R2.part_{splitid}.barcoded.fastq.gz")
+        r1_barcoded = os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded.fastq.gz"),
+        r2_barcoded = os.path.join(DIR_OUT, "fastqs", "{library}_R2.part_{splitid}.barcoded.fastq.gz")
     log:
-        os.path.join(DIR_LOGS, "barcode_id.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "barcode_id.{library}.{splitid}.log")
     conda:
         conda_env
     shell:
@@ -753,11 +768,11 @@ rule barcode_id:
 # Calculate barcode identification efficiency
 rule barcode_identification_efficiency:
     input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded.fastq.gz")
     output:
-        temp(os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"))
+        temp(os.path.join(DIR_OUT, "{library}.part_{splitid}.bid_efficiency.txt"))
     log:
-        os.path.join(DIR_LOGS, "barcode_identification_efficiency.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "barcode_identification_efficiency.{library}.{splitid}.log")
     conda:
         conda_env
     shell:
@@ -768,9 +783,10 @@ rule barcode_identification_efficiency:
 rule cat_barcode_identification_efficiency:
     input:
         expand(
-            os.path.join(DIR_OUT, "{sample}.part_{splitid}.bid_efficiency.txt"),
-            sample=ALL_SAMPLES,
-            splitid=NUM_CHUNKS)
+            os.path.join(DIR_OUT, "{library}.part_{splitid}.bid_efficiency.txt"),
+            library=ALL_LIBRARIES,
+            splitid=NUM_CHUNKS
+        )
     output:
         BID_EFFICIENCY_ALL
     shell:
@@ -781,14 +797,14 @@ rule cat_barcode_identification_efficiency:
 # Split barcoded reads into BPM and DPM, remove incomplete barcodes
 rule split_bpm_dpm:
     input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded.fastq.gz")
     output:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz"),
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_other.fastq.gz"),
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_short.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_dpm.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_bpm.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_other.fastq.gz"),
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_short.fastq.gz")
     log:
-        os.path.join(DIR_LOGS, "split_bpm_dpm.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "split_bpm_dpm.{library}.{splitid}.log")
     params:
         format = f"--format '{barcode_format}'" if barcode_format not in (None, "") else ""
     conda:
@@ -805,12 +821,12 @@ rule split_bpm_dpm:
 # Trim DPM from read1 of DPM reads, remove DPM dimer reads
 rule cutadapt_dpm:
     input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_dpm.fastq.gz")
     output:
-        fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
-        qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt")
+        fastq = os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz"),
+        qc = os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_dpm.RDtrim.qc.txt")
     log:
-        os.path.join(DIR_LOGS, "cutadapt_dpm.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "cutadapt_dpm.{library}.{splitid}.log")
     params:
         adapters_r1 = "-a GATCGGAAGAG -a ATCAGCACTTA " + adapters,
         others = "--minimum-length 20"
@@ -838,11 +854,11 @@ rule bowtie2_align:
     MapQ filter 20, -F 4 only mapped reads, -F 256 remove not primary alignment reads
     '''
     input:
-        os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz")
+        os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_dpm.RDtrim.fastq.gz")
     output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     log:
-        os.path.join(DIR_LOGS, "bowtie2_align.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "bowtie2_align.{library}.{splitid}.log")
     conda:
         conda_env
     threads:
@@ -866,11 +882,11 @@ rule bowtie2_align:
 # Rename chromosome names and filter for chromosomes of interest
 rule rename_and_filter_chr:
     input:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.bowtie2.mapq20.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.bowtie2.mapq20.bam")
     output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.bam")
     log:
-        os.path.join(DIR_LOGS, "rename_and_filter_chr.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "rename_and_filter_chr.{library}.{splitid}.log")
     params:
         chrom_map = f"--chrom_map '{path_chrom_map}'" if path_chrom_map != "" else ""
     conda:
@@ -927,13 +943,13 @@ rule merge_mask:
 # Repeat mask aligned DNA reads
 rule repeat_mask:
     input:
-        bam = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
+        bam = os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.bam"),
         mask = os.path.join(DIR_OUT, "merge_mask", "alignment_filter.bed"),
         genome = os.path.join(DIR_OUT, "chrom.genome"),
     output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.masked.bam")
     log:
-        os.path.join(DIR_LOGS, "repeat_mask.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "repeat_mask.{library}.{splitid}.log")
     conda:
         conda_env
     shell:
@@ -962,11 +978,11 @@ rule repeat_mask:
 # Move barcode from read name to SAM/BAM tags, and sort by barcode.
 rule extract_barcode_to_tags:
     input:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.masked.bam")
     output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.tagged.bam")
+        os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.DNA.chr.masked.tagged.bam")
     log:
-        os.path.join(DIR_LOGS, "extract_barcode_to_tags.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "extract_barcode_to_tags.{library}.{splitid}.log")
     conda:
         conda_env
     threads:
@@ -979,7 +995,7 @@ rule extract_barcode_to_tags:
             python "{extract_barcode_to_tags}" \\
                 -i "{input}" \\
                 --num_tags {num_tags} \\
-                --add_sample_to_barcode "{wildcards.sample}" \\
+                --add_sample_to_barcode "{wildcards.library}" \\
                 --remove_barcode_from_names \\
                 -u |
             samtools sort -@ {threads} -T "$TMPDIR" -t CB -o "{output}"
@@ -990,13 +1006,13 @@ rule extract_barcode_to_tags:
 rule merge_dpm:
     input:
         expand(
-            os.path.join(DIR_OUT, "alignments_parts", "{{sample}}.part_{splitid}.DNA.chr.masked.tagged.bam"),
+            os.path.join(DIR_OUT, "alignments_parts", "{{library}}.part_{splitid}.DNA.chr.masked.tagged.bam"),
             splitid=NUM_CHUNKS
         )
     output:
-        os.path.join(DIR_OUT, "alignments", "{sample}.merged.DPM.bam")
+        os.path.join(DIR_OUT, "alignments", "{library}.merged.DPM.bam")
     log:
-        os.path.join(DIR_LOGS, "merge_dpm.{sample}.log")
+        os.path.join(DIR_LOGS, "merge_dpm.{library}.log")
     params:
         deduplication_method = deduplication_method
     conda:
@@ -1022,12 +1038,12 @@ rule merge_dpm:
 # Trim 9mer oligo sequence from read1 of BPM reads
 rule cutadapt_oligo:
     input:
-        os.path.join(DIR_OUT, "fastqs", "{sample}_R1.part_{splitid}.barcoded_bpm.fastq.gz")
+        os.path.join(DIR_OUT, "fastqs", "{library}_R1.part_{splitid}.barcoded_bpm.fastq.gz")
     output:
-        fastq = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
-        qc = os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.qc.txt")
+        fastq = os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz"),
+        qc = os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_bpm.RDtrim.qc.txt")
     log:
-        os.path.join(DIR_LOGS, "cutadapt_oligo.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "cutadapt_oligo.{library}.{splitid}.log")
     params:
         adapters_r1 = oligos
     conda:
@@ -1046,11 +1062,11 @@ rule cutadapt_oligo:
 # Convert the BPM FASTQ reads into a BAM file, with the barcode and UMI in the tags.
 rule bpm_fastq_to_bam:
     input:
-        os.path.join(DIR_OUT, "trimmed", "{sample}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")
+        os.path.join(DIR_OUT, "trimmed", "{library}_R1.part_{splitid}.barcoded_bpm.RDtrim.fastq.gz")
     output:
-        os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.BPM.bam"),
+        os.path.join(DIR_OUT, "alignments_parts", "{library}.part_{splitid}.BPM.bam"),
     log:
-        os.path.join(DIR_LOGS, "bpm_fastq_to_bam.{sample}.{splitid}.log")
+        os.path.join(DIR_LOGS, "bpm_fastq_to_bam.{library}.{splitid}.log")
     conda:
         conda_env
     threads:
@@ -1065,7 +1081,7 @@ rule bpm_fastq_to_bam:
                 --num_tags {num_tags} \\
                 --remove_barcode_from_names \\
                 --remove_UMI_from_seq \\
-                --add_sample_to_barcode "{wildcards.sample}" \\
+                --add_sample_to_barcode "{wildcards.library}" \\
                 -u |
             samtools sort -@ {threads} -T "$TMPDIR" -t CB -o "{output}"
         }} &> "{log}"
@@ -1075,13 +1091,13 @@ rule bpm_fastq_to_bam:
 rule merge_bpm:
     input:
         expand(
-            os.path.join(DIR_OUT, "alignments_parts", "{{sample}}.part_{splitid}.BPM.bam"),
+            os.path.join(DIR_OUT, "alignments_parts", "{{library}}.part_{splitid}.BPM.bam"),
             splitid=NUM_CHUNKS
         )
     output:
-        os.path.join(DIR_OUT, "alignments", "{sample}.merged.BPM.bam")
+        os.path.join(DIR_OUT, "alignments", "{library}.merged.BPM.bam")
     log:
-        os.path.join(DIR_LOGS, "merge_bpm.{sample}.log")
+        os.path.join(DIR_LOGS, "merge_bpm.{library}.log")
     conda:
         conda_env
     threads:
@@ -1104,18 +1120,18 @@ rule merge_bpm:
 ##############################################################################
 
 # Combine all mapped DNA reads and oligo reads into a single BAM file per
-# sample, sorted by the cluster barcode tag, then assign to targets by adding
+# library, sorted by the cluster barcode tag, then assign to targets by adding
 # read group tags.
 rule assign_label:
     input:
-        dpm = os.path.join(DIR_OUT, "alignments", "{sample}.merged.DPM.bam"),
-        bpm = os.path.join(DIR_OUT, "alignments", "{sample}.merged.BPM.bam")
+        dpm = os.path.join(DIR_OUT, "alignments", "{library}.merged.DPM.bam"),
+        bpm = os.path.join(DIR_OUT, "alignments", "{library}.merged.BPM.bam")
     output:
-        bam = os.path.join(DIR_OUT, "clusters", "{sample}.labeled.bam"),
-        reads_per_cluster = os.path.join(DIR_OUT, "clusters", "{sample}.stats_reads_per_cluster.tsv.gz"),
-        bpm_max_rep = os.path.join(DIR_OUT, "clusters", "{sample}.stats_bpm_max_rep.tsv.gz"),
+        bam = os.path.join(DIR_OUT, "clusters", "{library}.labeled.bam"),
+        reads_per_cluster = os.path.join(DIR_OUT, "clusters", "{library}.stats_reads_per_cluster.tsv.gz"),
+        bpm_max_rep = os.path.join(DIR_OUT, "clusters", "{library}.stats_bpm_max_rep.tsv.gz"),
     log:
-        os.path.join(DIR_LOGS, "assign_label.{sample}.log")
+        os.path.join(DIR_LOGS, "assign_label.{library}.log")
     conda:
         conda_env
     threads:
@@ -1187,8 +1203,8 @@ rule cluster_all:
 rule plot_cluster_bpm_max_rep:
     input:
         expand(
-            os.path.join(DIR_OUT, "clusters", "{sample}.stats_bpm_max_rep.tsv.gz"),
-            sample=ALL_SAMPLES
+            os.path.join(DIR_OUT, "clusters", "{library}.stats_bpm_max_rep.tsv.gz"),
+            library=ALL_LIBRARIES
         )
     output:
         proportions = os.path.join(DIR_OUT, "clusters", "BPM_max_representation_proportions.pdf"),
@@ -1208,8 +1224,8 @@ rule plot_cluster_bpm_max_rep:
 rule plot_cluster_read_counts:
     input:
         expand(
-            os.path.join(DIR_OUT, "clusters", "{sample}.stats_reads_per_cluster.tsv.gz"),
-            sample=ALL_SAMPLES
+            os.path.join(DIR_OUT, "clusters", "{library}.stats_reads_per_cluster.tsv.gz"),
+            library=ALL_LIBRARIES
         )
     output:
         dpm_read = os.path.join(DIR_OUT, "clusters", "DPM_read_distribution.pdf"),
@@ -1240,23 +1256,23 @@ rule plot_cluster_read_counts:
 #   assigned any reads.
 rule splitbams:
     input:
-        os.path.join(DIR_OUT, "clusters", "{sample}.labeled.bam")
+        os.path.join(DIR_OUT, "clusters", "{library}.labeled.bam")
     output:
-        # since neither sample names nor target names are allowed to contain periods, the output filename
-        # {sample}.{target}.bam is uniquely defined for each sample and target and will not collide with the
+        # since neither library names nor target names are allowed to contain periods, the output filename
+        # {library}.{target}.bam is uniquely defined for each library and target and will not collide with the
         # merged {target}.bam file generated by the rule splitbams_merged.
         splitbams = temp(expand(
-            os.path.join(DIR_OUT, "splitbams", "{target}", "{{sample}}.{target}.unsorted.bam"),
+            os.path.join(DIR_OUT, "splitbams", "{target}", "{{library}}.unsorted.bam"),
             target=TARGETS
         )),
-        bpm = os.path.join(DIR_OUT, "alignments", "{sample}.merged_labeled.BPM.bam"),
+        bpm = os.path.join(DIR_OUT, "alignments", "{library}.merged_labeled.BPM.bam"),
     log:
-        os.path.join(DIR_LOGS, "splitbams.{sample}.log")
+        os.path.join(DIR_LOGS, "splitbams.{library}.log")
     params:
         # samtools split format string expansions:
         # %! = @RG ID or TAG value, here the target
         # %. = output format filename extension
-        format = os.path.join(DIR_OUT, "splitbams", "%!", "{sample}.%!.unsorted.%."),
+        format = os.path.join(DIR_OUT, "splitbams", "%!", "{library}.unsorted.%."),
     conda:
         conda_env
     threads:
@@ -1269,11 +1285,11 @@ rule splitbams:
 # Coordinate sort each split BAM file
 rule sort_splitbams:
     input:
-        os.path.join(DIR_OUT, "splitbams", "{target}", "{sample}.{target}.unsorted.bam")
+        os.path.join(DIR_OUT, "splitbams", "{target}", "{library}.unsorted.bam")
     output:
-        os.path.join(DIR_OUT, "splitbams", "{target}", "{sample}.{target}.bam")
+        os.path.join(DIR_OUT, "splitbams", "{target}", "{library}.bam")
     log:
-        os.path.join(DIR_LOGS, "sort_splitbams.{sample}.{target}.log")
+        os.path.join(DIR_LOGS, "sort_splitbams.{target}.{library}.log")
     conda:
         conda_env
     threads:
@@ -1285,15 +1301,15 @@ rule sort_splitbams:
         samtools sort -@ {threads} -T "$TMPDIR" -o "{output}" "{input}" &> "{log}"
         '''
 
-# for each target, merge splitbams across samples
+# for each target, merge splitbams across libraries
 rule splitbams_merged:
     input:
         expand(
-            os.path.join(DIR_OUT, "splitbams", "{{target}}", "{sample}.{{target}}.bam"),
-            sample=ALL_SAMPLES
+            os.path.join(DIR_OUT, "splitbams", "{{target}}", "{library}.bam"),
+            library=ALL_LIBRARIES
         )
     output:
-        real = os.path.join(DIR_OUT, "splitbams", "{target}", "{target}.bam"),
+        real = os.path.join(DIR_OUT, "splitbams", "{target}", f"{merged_library_name}.bam"),
         link = os.path.join(DIR_OUT, "splitbams", "{target}.bam"),
     log:
         os.path.join(DIR_LOGS, "splitbams_merged.{target}.log")
@@ -1329,7 +1345,7 @@ rule index_splitbams:
 # Count the number of reads in each target BAM file
 rule splitbam_counts:
     input:
-        SPLITBAMS + (SPLITBAMS_MERGED if merge_samples else [])
+        SPLITBAMS + (SPLITBAMS_MERGED if merged_library_name else [])
     output:
         SPLITBAM_COUNTS
     log:
