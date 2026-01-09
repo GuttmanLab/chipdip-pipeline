@@ -497,7 +497,9 @@ SPLITBAMS_MERGED_INDEXED = expand(
 )
 
 SPLITBAMS_DEMULTIPLEXED = expand(
-    os.path.join(DIR_OUT, "splitbams", "{{target}}", "{{library}}.{sample}.bam"),
+    os.path.join(DIR_OUT, "splitbams", "{target}", "{library}.{sample}.bam"),
+    target=TARGETS,
+    library=ALL_LIBRARIES,
     sample=SAMPLES
 )
 
@@ -1411,7 +1413,7 @@ rule splitbam_demultiplex_sample:
         4
     shell:
         '''
-        python "{demultiplex_sample}" -c "{params.config}" --allow_multiple --threads {threads} \\
+        python "{demultiplex_sample}" demux -c "{params.config}" --allow_multiple --threads {threads} \\
             -i "{input}" --output_pattern "{params.output_pattern}" &> "{log}"
         '''
 
