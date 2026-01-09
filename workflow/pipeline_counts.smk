@@ -218,6 +218,7 @@ rule pipeline_counts:
         {{
             python {pipeline_counts} \\
                 --path_samples {params.samples:q} \\
+                --sample_wildcard_name sample \\
                 --wildcards {params.splitids:q} \\
                 --wildcards {params.targets:q} \\
                 --wildcard_names splitid target \\

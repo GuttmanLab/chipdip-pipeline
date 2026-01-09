@@ -34,6 +34,11 @@ def parse_args():
         help="path to samples.json file mapping sample name to mapping from read orientation to list of .fastq.gz files"
     )
     parser.add_argument(
+        "--sample_wildcard_name",
+        default="sample",
+        help="name of the wildcard corresponding to sample names in the pipeline paths"
+    )
+    parser.add_argument(
         "--wildcards",
         action='append',
         nargs="+",
@@ -407,6 +412,7 @@ def collect_pipeline_counts(
     samples: dict[str, dict[str, list[str]]],
     wildcards: dict[str, list[str]],
     DIR_COUNTS: str,
+    sample_wildcard_name: str = "sample",
     count_per_template: bool = False,
     verbose: bool = True,
 ) -> tuple[Graph, dict[tuple[str, str], int]]:
@@ -420,6 +426,7 @@ def collect_pipeline_counts(
     - samples: mapping of sample names to mapping from read orientation to list of .fastq.gz files
     - wildcards: mapping of placeholder names to lists of values
     - DIR_COUNTS: directory containing count files
+    - sample_wildcard_name: name of the wildcard corresponding to sample names in the pipeline paths
     - count_per_template: report counts per template rather than per read (e.g., for paired-end data, count each pair
         as one template). Specifically, use the count_per_template value from the pipeline description file to divide
         read counts. Levels without this field are assumed to have count_per_template = 1
@@ -465,7 +472,7 @@ def collect_pipeline_counts(
                 field for _, field, _, _ in formatter.parse(os.path.join(*node_info['path']))
                 if field is not None
             ))
-            fields_excluding_sample = [field for field in fields if field != "sample"]
+            fields_excluding_sample = [field for field in fields if field != sample_wildcard_name]
             assert all(field in wildcards.keys() for field in fields_excluding_sample), \
                 f"Not all fields {fields} for output level {level} are in wildcards (keys: {wildcards.keys()})."
             path_count_template = os.path.join(
@@ -483,7 +490,10 @@ def collect_pipeline_counts(
             for sample in samples.keys():
                 counts = dict()
                 for field_combination in itertools.product(*[wildcards_filtered[field] for field in fields_excluding_sample]):
-                    path_count = path_count_template.format(**dict(zip(fields_excluding_sample, field_combination), sample=sample))
+                    path_count = path_count_template.format(
+                        **dict(zip(fields_excluding_sample, field_combination)),
+                        **{sample_wildcard_name: sample}
+                    )
                     if not os.path.exists(path_count):
                         counts[field_combination] = np.nan
                         print(f"Warning: count file {path_count} does not exist", file=sys.stderr)
@@ -528,6 +538,7 @@ def main():
         samples,
         wildcards,
         args.dir_counts,
+        sample_wildcard_name=args.sample_wildcard_name,
         count_per_template=args.counts_per_template,
         verbose=args.verbose
     )
