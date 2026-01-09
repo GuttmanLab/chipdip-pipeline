@@ -190,6 +190,12 @@ if generate_splitbams:
 else:
     print("Will not generate BAM files for individual targets.", file=sys.stderr)
 
+demultiplex_config = config.get("demultiplex_config")
+if demultiplex_config not in (None, ""):
+    print("Using sample demultiplexing config file:", demultiplex_config, file=sys.stderr)
+else:
+    print("Will not demultiplex samples within libraries.", file=sys.stderr)
+
 binsize = config.get("binsize", False)
 if binsize and not generate_splitbams:
     print("Will not generate bigWigs, because split BAMs are not being generated", file=sys.stderr)
@@ -243,6 +249,7 @@ plot_cluster_bpm_max_rep = os.path.join(DIR_SCRIPTS, "python", "plot_cluster_bpm
 count_unmasked_bases = os.path.join(DIR_SCRIPTS, "python", "count_unmasked_bases.py")
 create_empty_bigwig = os.path.join(DIR_SCRIPTS, "python", "create_empty_bigwig.py")
 pipeline_counts = os.path.join(DIR_SCRIPTS, "python", "pipeline_counts.py")
+demultiplex_sample = os.path.join(DIR_SCRIPTS, "python", "demultiplex_sample.py")
 
 ##############################################################################
 # Make output directories
@@ -300,6 +307,13 @@ if generate_splitbams:
     longest_target_name = max(map(len, TARGETS))
     assert longest_library_name + longest_target_name <= 233, \
         'Library name + target name combined must be <= 233 characters'
+
+if demultiplex_config:
+    with open(demultiplex_config) as f:
+        # list of samples in the order that they were defined in the demultiplexing config file
+        SAMPLES = list(dict.fromkeys(line.split('\t')[2] for line in f if line.strip().startswith('@keep')))
+else:
+    SAMPLES = []
 
 ##############################################################################
 # Logging and QC
@@ -471,6 +485,7 @@ SPLITBAMS = expand(
 
 SPLITBAM_COUNTS = [os.path.join(DIR_OUT, "splitbams", "splitbam_counts.txt")]
 
+# merge across all libraries
 SPLITBAMS_MERGED = expand(
     os.path.join(DIR_OUT, "splitbams", "{target}", f"{merged_library_name}.bam"),
     target=TARGETS
@@ -479,6 +494,11 @@ SPLITBAMS_MERGED = expand(
 SPLITBAMS_MERGED_INDEXED = expand(
     os.path.join(DIR_OUT, "splitbams", "{target}", f"{merged_library_name}.bam.bai"),
     target=TARGETS
+)
+
+SPLITBAMS_DEMULTIPLEXED = expand(
+    os.path.join(DIR_OUT, "splitbams", "{{target}}", "{{library}}.{sample}.bam"),
+    sample=SAMPLES
 )
 
 ##############################################################################
@@ -491,6 +511,7 @@ BIGWIGS = expand(
     target=TARGETS
 )
 
+# merge across all libraries
 BIGWIGS_MERGED = expand(
     os.path.join(DIR_OUT, "bigwigs", "{target}", f"{merged_library_name}.bw"),
     target=TARGETS
@@ -504,6 +525,8 @@ if generate_splitbams:
     FINAL.extend(SPLITBAMS + SPLITBAM_COUNTS)
     if merged_library_name:
         FINAL.extend(SPLITBAMS_MERGED_INDEXED)
+    if demultiplex_config:
+        FINAL.extend(SPLITBAMS_DEMULTIPLEXED)
     if binsize:
         FINAL.extend(BIGWIGS)
         if merged_library_name:
@@ -521,6 +544,7 @@ if path_pipeline_structure:
 #     CLUSTERS_LABELED + [CLUSTERS_LABELED_ALL] + CLUSTERS_READS_PER_CLUSTER + \
 #     CLUSTERS_BPM_MAX_REP + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS + \
 #     SPLITBAMS + SPLITBAM_COUNTS + SPLITBAMS_MERGED + SPLITBAMS_MEGED_INDEXED + \
+#     SPLITBAMS_DEMULTIPLEXED + \
 #     BIGWIGS + BIGWIGS_MERGED + \
 #     CONFIG + BID_EFFICIENCY_ALL + PIPELINE_COUNTS
 
@@ -557,6 +581,7 @@ onsuccess:
 wildcard_constraints:
     library = "|".join(re.escape(x) for x in ALL_LIBRARIES),
     target = "|".join(re.escape(x) for x in TARGETS),
+    sample = "|".join(re.escape(x) for x in SAMPLES),
 
 rule all:
     input:
@@ -1363,6 +1388,31 @@ rule splitbam_counts:
                 echo -e "${{path}}\\t${{count}}" >> "{output}"
             done
         }} &> "{log}"
+        '''
+
+rule splitbam_demultiplex_sample:
+    input:
+        os.path.join(DIR_OUT, "splitbams", "{target}", "{library}.bam")
+    output:
+        # if SAMPLES is an empty list, then expand(..., sample=SAMPLES) returns an empty list
+        expand(
+            os.path.join(DIR_OUT, "splitbams", "{{target}}", "{{library}}.{sample}.bam"),
+            sample=SAMPLES
+        )
+    log:
+        os.path.join(DIR_LOGS, "splitbam_fragmentation.{target}.{library}.log")
+    params:
+        # have to use lambda function to disable wildcards expansion in params
+        output_pattern = lambda w: os.path.join(DIR_OUT, "splitbams", f"{w.target}", f"{w.library}.{{sample}}.bam"),
+        config = demultiplex_config,
+    conda:
+        conda_env
+    threads:
+        4
+    shell:
+        '''
+        python "{demultiplex_sample}" -c "{params.config}" --allow_multiple --threads {threads} \\
+            -i "{input}" --output_pattern "{params.output_pattern}" &> "{log}"
         '''
 
 ##############################################################################

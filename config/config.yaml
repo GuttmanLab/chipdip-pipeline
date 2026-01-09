@@ -87,3 +87,5 @@ max_size: 10000
 binsize: 1000
 bigwig_normalization: "None"
 effective_genome_size: null
+
+demultiplex_config: null # "config/example_demultiplex.txt"
