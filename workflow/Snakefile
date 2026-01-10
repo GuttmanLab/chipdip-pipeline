@@ -603,6 +603,55 @@ rule validate:
         }} &> "{log.log}"
         '''
 
+# 1. Save a sanitized and modified version of the chromosome name map: (tab-delimited) old_name, new_name, sort_order
+#    - remove empty, whitespace-only, and comment lines
+#    - add a third column of the line number (1-based) to be used as the sort order
+# 2. Generate tab-delimited chromosome sizes file (aka bedtools genome file) using new chromosome names: new_name, size
+#    - A bedtools genome file is a 2-column tab-delimited file with the first column containing the chromosome names and
+#      the second column containing the length of the chromosome. For the bedtools operations used in this pipeline
+#      (e.g., bedtools intersect -g <genome_file>), the value of the chromosome lengths are not used; bedtools intersect
+#      just requires that the formatting be correct, with a positive chromosome length.
+#      See https://github.com/arq5x/bedtools2/issues/1117.
+rule chrom_map_and_genome:
+    output:
+        chrom_map = os.path.join(DIR_OUT, "chrom_map.txt"),
+        genome = os.path.join(DIR_OUT, "chrom.genome"),
+    log:
+        os.path.join(DIR_LOGS, "chrom_map_and_genome.log")
+    conda:
+        conda_env
+    shell:
+        """
+        {{
+            # create sanitized and modified chromosome name map
+            if [ -n "{path_chrom_map}" ]; then
+                grep -E -v '^"|^\\s*$' "{path_chrom_map}" |
+                awk -F'\\t' -v OFS='\\t' '{{print $0, NR}}' > "{output.chrom_map}"
+            else
+                # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
+                bowtie2-inspect -n "{bowtie2_index}" |
+                sed -E 's/(\\S+).*/\\1\\t\\1/' |
+                awk -F'\\t' -v OFS='\\t' '{{print $0, NR}}' > "{output.chrom_map}"
+            fi
+
+            # create bedtools genome file, aka chromosome sizes file
+            # 1. make a chromosome sizes file from bowtie2 index: old_name, size
+            # 2. perform an inner join on old_name with the modified chrom_map, producing 4 columns:
+            #    old_name, size, new_name, sort_order
+            # 3. sort by sort_order
+            # 4. select new_name and size columns
+            bowtie2-inspect --summary "{bowtie2_index}" |
+            awk -F'\\t' -v OFS='\\t' '/^Sequence-[0-9]+/ {{split($2, a, /[[:space:]]+/); print a[1], $NF}}' |
+            sort -k1,1 |
+            join -t$'\\t' - <(sort -k1,1 "{output.chrom_map}") |
+            sort -k4,4n |
+            awk -F'\\t' -v OFS='\\t' '{{print $3, $2}}' > "{output.genome}"
+
+            # alternatively, create genome file with size = 1 for all chromosomes
+            # sed -E 's/^\\S+\\t(\\S+)\\t.*/\\1\\t1/' "{output.chrom_map}" > "{output.genome}"
+        }} &> "{log}"
+        """
+
 ##############################################################################
 # Trimming and barcode identification
 ##############################################################################
@@ -839,17 +888,18 @@ rule rename_and_filter_chr:
 # Merge mask
 # - Merging overlapping regions should increase the speed of running bedtools intersect in the repeat_mask rule.
 # - The merged mask is also used in the generate_bigwigs rule.
-# - The merged mask is sorted as follows:
-#   - If a chromosome name map is provided, then it is sorted by the new chromosome names (i.e., according to names in
-#     the second column of the chromosome name map file). Entries with chromosome names not in the chromosome name map
-#     are discarded.
-#   - If a chromosome name map is not provided, then it is sorted by the order of chromosomes in the Bowtie 2 index.
+# - However, this will drop any annotation information beyond the first 3 columns in the mask file.
+# - The input mask file is assumed to use the "new" chromosome names as specified in the chromosome name map file.
+# - The merged mask is sorted as by the chromosome name map file (see rule chrom_map_and_genome). Entries with
+#   chromosome names not in the chromosome name map are discarded.
 rule merge_mask:
+    input:
+        chrom_map = os.path.join(DIR_OUT, "chrom_map.txt"),
+        mask = lambda w: config.get("mask") if w.file == "alignment_filter" else [],
     output:
-        bed = temp(os.path.join(DIR_OUT, "mask_merge.bed")),
-        genome = temp(os.path.join(DIR_OUT, "mask_merge.genome"))
+        os.path.join(DIR_OUT, "merge_mask", "{file}.bed")
     log:
-        os.path.join(DIR_LOGS, "merge_mask.log")
+        os.path.join(DIR_LOGS, "merge_mask.{file}.log")
     conda:
         conda_env
     resources:
@@ -857,35 +907,19 @@ rule merge_mask:
     shell:
         '''
         {{
-            if [ -n "{mask}" ]; then
-                if [ -n "{path_chrom_map}" ]; then
-                    # chromosome name map is provided --> sort chromosomes by the new chromosome names
-                    sort -k1,1 -k2,2n -T "$TMPDIR" "{mask}" |
-                    bedtools merge |
-                    python "{rename_and_filter_chr}" --bed --chrom_map "{path_chrom_map}" - > "{output.bed}"
-
-                    # create genome file for bedtools intersect
-                    # - A bedtools genome file is supposed to be a 2-column tab-delimited file with the first column
-                    #   containing the chromosome names and the second column containing the length of the chromosome.
-                    #   However, bedtools intersect -g <genome_file> does not use the length of the chromosome, only
-                    #   requiring that the length is positive. (see https://github.com/arq5x/bedtools2/issues/1117)
-                    grep -E -e '^[^"]\\s*\\S+\\s*' "{path_chrom_map}" |
-                    sed -E 's/^\\S+\\t(\\S+)/\\1\\t1/' > "{output.genome}"
-                else
-                    # chromosome name map is not provided --> sort chromosomes by their order in the Bowtie 2 index
-                    sort -k1,1 -k2,2n -T "$TMPDIR" "{mask}" |
-                    bedtools merge |
-                    python "{rename_and_filter_chr}" \\
-                        --bed \\
-                        --chrom_map <(bowtie2-inspect -n "{bowtie2_index}" | sed -E 's/(\\S+).*/\\1\\t\\1/') \\
-                        - > "{output.bed}"
-
-                    # create genome file for bedtools intersect
-                    bowtie2-inspect -n "{bowtie2_index}" |
-                    sed -E 's/(\\S+).*/\\1\\t1/' > "{output.genome}"
-                fi
+            if [ -n "{input.mask}" ]; then
+                # join chrom_map and mask on chromosome names, producing 4 columns: chrom, sort_order, start, end
+                # sort by sort_order, start, end
+                # drop sort_order column
+                # bedtools merge
+                cut -f 2,3 "{input.chrom_map}" |
+                sort -k1,1 -T "$TMPDIR" |
+                join -t$'\\t' - <(unpigz -f -c "{input.mask}" | cut -f 1,2,3 | sort -k1,1 -T "$TMPDIR") |
+                sort -k2,2n -k3,3n -k4,4n |
+                cut -f 1,3,4 |
+                bedtools merge > "{output}"
             else
-                touch "{output.bed}" "{output.genome}"
+                touch "{output}"
             fi
         }} &> "{log}"
         '''
@@ -894,8 +928,8 @@ rule merge_mask:
 rule repeat_mask:
     input:
         bam = os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.bam"),
-        mask = os.path.join(DIR_OUT, "mask_merge.bed"),
-        genome = os.path.join(DIR_OUT, "mask_merge.genome")
+        mask = os.path.join(DIR_OUT, "merge_mask", "alignment_filter.bed"),
+        genome = os.path.join(DIR_OUT, "chrom.genome"),
     output:
         os.path.join(DIR_OUT, "alignments_parts", "{sample}.part_{splitid}.DNA.chr.masked.bam")
     log:
@@ -1318,7 +1352,7 @@ rule splitbam_counts:
 # See https://deeptools.readthedocs.io/en/develop/content/feature/effectiveGenomeSize.html
 rule effective_genome_size:
     input:
-        mask = os.path.join(DIR_OUT, "mask_merge.bed")
+        mask = os.path.join(DIR_OUT, "merge_mask", "alignment_filter.bed"),
     output:
         os.path.join(DIR_OUT, "effective_genome_size.txt")
     log:
