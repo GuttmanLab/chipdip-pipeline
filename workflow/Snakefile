@@ -519,6 +519,13 @@ BIGWIGS_MERGED = expand(
     target=TARGETS
 )
 
+BIGWIGS_DEMULTIPLEXED = expand(
+    os.path.join(DIR_OUT, "bigwigs", "{target}", "{library}.{sample}.bw"),
+    target=TARGETS,
+    library=ALL_LIBRARIES,
+    sample=SAMPLES
+)
+
 FINAL = CLUSTERS_LABELED + CONFIG + BID_EFFICIENCY_ALL + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS
 
 if merged_library_name:
@@ -533,6 +540,8 @@ if generate_splitbams:
         FINAL.extend(BIGWIGS)
         if merged_library_name:
             FINAL.extend(BIGWIGS_MERGED)
+        if demultiplex_config:
+            FINAL.extend(BIGWIGS_DEMULTIPLEXED)
 
 if path_pipeline_structure:
     with open(path_pipeline_structure) as f:
@@ -547,7 +556,7 @@ if path_pipeline_structure:
 #     CLUSTERS_BPM_MAX_REP + CLUSTER_SIZES_PLOTS + CLUSTER_BPM_ECDF_PLOTS + \
 #     SPLITBAMS + SPLITBAM_COUNTS + SPLITBAMS_MERGED + SPLITBAMS_MEGED_INDEXED + \
 #     SPLITBAMS_DEMULTIPLEXED + \
-#     BIGWIGS + BIGWIGS_MERGED + \
+#     BIGWIGS + BIGWIGS_MERGED + BIGWIGS_DEMULTIPLEXED + \
 #     CONFIG + BID_EFFICIENCY_ALL + PIPELINE_COUNTS
 
 include: "pipeline_counts.smk"
@@ -1372,7 +1381,9 @@ rule index_splitbams:
 # Count the number of reads in each target BAM file
 rule splitbam_counts:
     input:
-        SPLITBAMS + (SPLITBAMS_MERGED if merged_library_name else [])
+        SPLITBAMS + \
+        (SPLITBAMS_MERGED if merged_library_name else []) + \
+        (SPLITBAMS_DEMULTIPLEXED if demultiplex_config else [])
     output:
         SPLITBAM_COUNTS
     log:
