@@ -406,7 +406,7 @@ def deduplicate_bam(
                     n_written += cluster_written
         else:
             n_written, n_total, histogram = deduplicate_reads(
-                tqdm(read_iter(bam_in, paired=paired), disble=not progress),
+                tqdm(read_iter(bam_in, paired=paired), disable=not progress),
                 bam_out,
                 by,
                 keep_unmapped=keep_unmapped,
