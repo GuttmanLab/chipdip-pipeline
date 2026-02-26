@@ -457,6 +457,12 @@ These files are located under `<workflow_directory>/profiles/`.
             - `slurm_account: <string>`
       - `slurm-logdir`: directory to save SLURM log files; used by the [SLURM executor plugin](https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/slurm.html)
         - SLURM standard output and standard error log files are combined into a single log file output to `<slurm-logdir>/<rule>/<wildcards>/<jobid>.log` where `<wildcards>` is an underscore-delimited string of wildcards.
+        - To ensure that SLURM logs are output in the same output directory as the main pipeline output, either manually modify the workflow profile file argument `slurm-logdir: <output_dir>/logs/slurm` to match the `output_dir: <output_dir>` value set in the pipeline [`config.yaml`](#config-yaml), or set them to match through command-line arguments:
+
+          ```bash
+          ./run_pipeline.sh --workflow-profile workflow/profiles/slurm --config slurm-logdir=<output_dir>/logs/slurm output_dir=<output_dir>
+          ```
+
       - `slurm-delete-logfiles-older-than`: SLURM log files will be deleted after this many days; used by the [SLURM executor plugin](https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/slurm.html)
       - Other potentially useful Snakemake options that are not currently specified in the profile config:
         - `max-threads: <int>` - Define the maximum number of threads available to any individual rule.
