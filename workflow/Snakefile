@@ -222,7 +222,7 @@ if binsize and bigwig_normalization == "RPGC":
         )
 
 # Path to pipeline DAG configuration file - used to generate pipeline_counts.txt output
-path_pipeline_structure = workflow.source_path("pipeline.yaml")
+path_pipeline_structure = os.path.join(workflow.current_basedir.path, "pipeline.yaml")
 
 ##############################################################################
 # Location of scripts
