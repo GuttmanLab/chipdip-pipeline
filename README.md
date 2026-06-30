@@ -1,10 +1,9 @@
-[![DOI](https://zenodo.org/badge/614701579.svg)](https://doi.org/10.5281/zenodo.13952457)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17497727.svg)](https://doi.org/10.5281/zenodo.13952457)
 
 Contents
 - [Overview](#overview)
   - [Quick Start](#quick-start)
   - [System Requirements](#system-requirements)
-    - [Benchmarks](#benchmarks)
   - [Pipeline](#pipeline)
 - [Directory Structures](#directory-structures)
 - [Input Files](#input-files)
@@ -74,11 +73,17 @@ AB2-A2 matches reference.
 Hardware: This pipeline was developed to be run on a [high performance computing (HPC)](https://en.wikipedia.org/wiki/High-performance_computing) cluster, but it can also be run locally on a personal computer.
 - See benchmarks below for a sense of how hardware requirements scale with dataset size.
 - Note: the `chipdip` conda environment itself takes ~2.1 GB disk space, and the unzipped mm10 and hg38 Bowtie 2 indices occupy 3.6 GB and 3.9 GB, respectively. The disk space numbers in the benchmark table below do not account for the size of the conda environment, Bowtie 2 indices, or temporary disk usage during the pipeline run.
-- Recommended hardware: 4+ CPU cores, 24+ GB memory, 60 GB free disk space
+- Recommended hardware: 4+ CPU cores, 24+ GB memory, 60+ GB free disk space
 
 Operating system: Linux, macOS
 - Lack of Windows support is due to our use of the [Bioconda](https://bioconda.github.io/) channel for creating the conda environments described in `workflow/envs/`. [Bioconda currently does not support Windows](https://bioconda.github.io/faqs.html#what-versions-are-supported). However, we have successfully run this pipeline on Windows Subsystem for Linux (WSL).
 - As of January 2026, all packages described in the conda environment files under `workflows/envs/` appear to be available through the [conda-forge](https://conda-forge.org/) and Bioconda channels for conda platform `osx-arm64`, the native platform for ARM-based Macs (i.e., with M-series Apple Silicon processors). Therefore, our [previous recommendation](https://github.com/GuttmanLab/chipdip-pipeline/tree/a5b0ddd7b7f2c2accc3980aa5481457fb75485db?tab=readme-ov-file#system-requirements) to instruct conda to target the `osx-64` platform on ARM-based Macs is no longer relevant.
+- The pipeline has one optional dependency that is not included in any conda environment: `mail`. This is used by [`onsuccess` and `onerror` handlers](https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#onstart-onsuccess-and-onerror-handlers) to notify users of pipeline completion or error.
+  - Sending email notifications may require server-specific configuration. On Caltech's HPC, running `mail -s "subject" <recipient_emaiL_address> < <path_to_email_body>` does the following:
+    1. `mail` (symlinked to `s-nail`) formats the input (here, the pipeline log file) into an email and passes it to `sendmail`.
+    2. `sendmail` writes the email file into a mail spool queue (at `/var/spool/postfix/maildrop`).
+    3. Postfix (the mail transfer agent) picks up the file from the spool queue and passes it to the institutional relay host (smtp.caltech.edu) using the SMTP protocol.
+    4. The relay host forwards the email to the final recipient email server (e.g., Gmail) also using the SMTP protocol.
 
 Code interpreters and runtimes: The pipeline relies on scripts written in Java, Bash, Python and has been validated using the following versions:
 - Java: 8.0.322 through 11.0.22 (the `workflow/envs/chipdip.yaml` conda environment file currently uses version 8.0.412)
