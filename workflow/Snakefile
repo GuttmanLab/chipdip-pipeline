@@ -228,7 +228,7 @@ if binsize and bigwig_normalization == "RPGC":
         )
 
 # Path to pipeline DAG configuration file - used to generate pipeline_counts.txt output
-path_pipeline_structure = workflow.source_path("pipeline.yaml")
+path_pipeline_structure = os.path.join(workflow.current_basedir.path, "pipeline.yaml")
 
 ##############################################################################
 # Location of scripts
@@ -277,6 +277,7 @@ if merged_library_name:
 NUM_CHUNKS = [f"{i:02}" for i in range(num_chunks)]
 
 def get_targets(barcode_config_file):
+    # Return list of unique targets in the order that they appear in the barcode config file
     df = pd.read_csv(
         barcode_config,
         sep="\t",
@@ -286,7 +287,8 @@ def get_targets(barcode_config_file):
         on_bad_lines="error",
     ).dropna()
     targets = [x.replace("BEAD_", "") for x in df["Name"] if "BEAD_" in x]
-    return list(set(targets))
+    targets_unique = list(dict.fromkeys(targets).keys())
+    return targets_unique
 TARGETS = get_targets(barcode_config)
 
 print("Detected the following targets in the barcode config file:", TARGETS, file=sys.stderr)
